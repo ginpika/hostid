@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  nickname  String?
+  phone     String?
+  birthday  String?
+  avatar    String?
+  language  String   @default("zh-CN")
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  emails    Email[]
+  ssoApps   SSOApp[]
+}
+
+model SSOApp {
+  id          String   @id @default(cuid())
+  name        String
+  domain      String   @unique
+  description String?
+  secret      String
+  isActive    Boolean  @default(true)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Email {
+  id          String            @id @default(cuid())
+  from        String
+  fromName    String?
+  to          String
+  toList      String            @default("[]")
+  ccList      String?           @default("[]")
+  bccList     String?           @default("[]")
+  subject     String
+  body        String
+  summary     String?
+  folder      String            @default("INBOX")
+  isRead      Boolean           @default(false)
+  isStarred   Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  attachments EmailAttachment[]
+}
+
+model Attachment {
+  id           String            @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  path         String
+  createdAt    DateTime          @default(now())
+  emails       EmailAttachment[]
+}
+
+model EmailAttachment {
+  id           String     @id @default(cuid())
+  emailId      String
+  attachmentId String
+  email        Email      @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  attachment   Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+
+  @@unique([emailId, attachmentId])
+}

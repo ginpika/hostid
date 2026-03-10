@@ -1,0 +1,242 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-primary: #f9fafb;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #f3f4f6;
+  --color-bg-hover: #f3f4f6;
+  --color-text-primary: #111827;
+  --color-text-secondary: #374151;
+  --color-text-tertiary: #6b7280;
+  --color-text-quaternary: #9ca3af;
+  --color-text-muted: #9ca3af;
+  --color-border-primary: #e5e7eb;
+  --color-border-secondary: #d1d5db;
+  --color-accent-primary: #0ea5e9;
+  --color-accent-secondary: #0284c7;
+  --color-accent-muted: rgba(14, 165, 233, 0.1);
+  --color-accent-text: #ffffff;
+  --color-code-bg: #f3f4f6;
+  --color-code-text: #1f2937;
+  --color-pre-bg: #1e293b;
+  --color-pre-text: #e2e8f0;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  @apply antialiased;
+}
+
+@layer components {
+  .btn-primary {
+    background-color: var(--color-accent-primary);
+    color: var(--color-accent-text);
+    @apply font-medium py-2.5 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--color-accent-secondary);
+  }
+  
+  .btn-secondary {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
+    @apply font-medium py-2.5 px-4 rounded-lg border transition-colors duration-200;
+    border-color: var(--color-border-secondary);
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--color-bg-tertiary);
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all duration-200;
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-secondary);
+    color: var(--color-text-primary);
+  }
+  
+  .input-field::placeholder {
+    color: var(--color-text-muted);
+  }
+  
+  .card {
+    @apply rounded-xl shadow-sm;
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-primary);
+  }
+}
+
+.email-body-html {
+  background-color: #ffffff;
+  color: #1f2937;
+  padding: 16px;
+  border-radius: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.email-body-html img {
+  max-width: 100%;
+  height: auto;
+}
+
+.email-body-html a {
+  color: #0ea5e9;
+}
+
+.email-body-html table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.email-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+  color: var(--color-text-primary);
+}
+
+.email-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.email-body a {
+  color: var(--color-accent-primary);
+}
+
+.email-body table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.email-body pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.email-body.prose h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  margin-top: 1.5rem;
+  color: var(--color-text-primary);
+}
+
+.email-body.prose h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  margin-top: 1.25rem;
+  color: var(--color-text-primary);
+}
+
+.email-body.prose h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+  color: var(--color-text-primary);
+}
+
+.email-body.prose p {
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.email-body.prose ul {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.email-body.prose ol {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.email-body.prose li {
+  margin-bottom: 0.25rem;
+  color: var(--color-text-primary);
+}
+
+.email-body.prose blockquote {
+  border-left-width: 4px;
+  padding-left: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  font-style: italic;
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-tertiary);
+}
+
+.email-body.prose code {
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  background-color: var(--color-code-bg);
+  color: var(--color-code-text);
+}
+
+.email-body.prose pre {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  background-color: var(--color-pre-bg);
+  color: var(--color-pre-text);
+  overflow-x: auto;
+}
+
+.email-body.prose pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.email-body.prose strong {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.email-body.prose em {
+  font-style: italic;
+}
+
+.email-body.prose hr {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-color: var(--color-border-primary);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@keyframes loading {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-loading {
+  animation: loading 1.5s ease-in-out forwards;
+}
