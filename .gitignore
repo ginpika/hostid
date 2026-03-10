@@ -1,0 +1,34 @@
+# dev
+node_modules/
+dist/
+.env
+*.log
+logs/
+uploads/
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+worker.js
+frpc.toml
+start-frp.sh
+
+# Docker
+.docker/
+
+# Rust/Cargo
+target/
+Cargo.lock
+*.pdb
+
+# Tauri
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+desktop/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# mac
+.DS_Store
