@@ -120,7 +120,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendResult[]
         html: options.html,
         text: options.text,
         headers: {
-          'X-Mailer': 'SelfHostMail',
+          'X-Mailer': 'HostID',
           'X-Priority': '3'
         }
       }

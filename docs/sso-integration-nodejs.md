@@ -1,6 +1,6 @@
-# SelfHostMail SSO 集成指南
+# HostID SSO 集成指南
 
-本文档指导如何将 SelfHostMail 作为 SSO 服务端，接入第三方客户端应用。
+本文档指导如何将 HostID 作为 SSO 服务端，接入第三方客户端应用。
 
 ## 架构概述
 

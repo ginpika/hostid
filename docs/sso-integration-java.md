@@ -1,6 +1,6 @@
-# SelfHostMail SSO 集成指南 (Java)
+# HostID SSO 集成指南 (Java)
 
-本文档指导如何将 SelfHostMail 作为 SSO 服务端，接入 Java 客户端应用。
+本文档指导如何将 HostID 作为 SSO 服务端，接入 Java 客户端应用。
 
 ## 架构概述
 
