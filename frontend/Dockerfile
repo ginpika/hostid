@@ -2,9 +2,6 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-ARG CF_TURNSTILE_SITE_KEY
-ENV CF_TURNSTILE_SITE_KEY=$CF_TURNSTILE_SITE_KEY
-
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
 
