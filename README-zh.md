@@ -212,7 +212,3 @@ default._domainkey.yourdomain.com.    IN    TXT    "v=DKIM1; k=rsa; p=your-publi
 # DMARC 记录
 _dmarc.yourdomain.com.    IN    TXT    "v=DMARC1; p=quarantine; rua=mailto:postmaster@yourdomain.com"
 ```
-
-## 许可证
-
-MIT License
