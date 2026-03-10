@@ -8,9 +8,7 @@ ENV CF_TURNSTILE_SITE_KEY=$CF_TURNSTILE_SITE_KEY
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
 
-RUN npm install --workspace=frontend
-
-RUN npm install @rollup/rollup-linux-arm64-musl --save-optional --workspace=frontend
+RUN npm install --workspace=frontend --include=optional
 
 COPY frontend ./frontend
 
