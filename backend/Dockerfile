@@ -30,6 +30,7 @@ RUN npx prisma generate
 
 COPY src ./src
 COPY docker-entrypoint.sh ./
+COPY reset-admin.cjs ./
 
 RUN chmod +x docker-entrypoint.sh
 RUN mkdir -p /app/data /app/uploads /app/logs
