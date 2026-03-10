@@ -20,7 +20,7 @@ export const translations = {
     // SSO
     ssoLogin: '统一登录',
     ssoLoginHint: '登录以访问',
-    ssoPoweredBy: '由 SelfHostMail SSO 提供支持',
+    ssoPoweredBy: '由 HostID SSO 提供支持',
     ssoInfo: 'SSO 信息',
     
     // Email actions
@@ -267,7 +267,7 @@ export const translations = {
     // SSO
     ssoLogin: 'SSO Login',
     ssoLoginHint: 'Sign in to access',
-    ssoPoweredBy: 'Powered by SelfHostMail SSO',
+    ssoPoweredBy: 'Powered by HostID SSO',
     ssoInfo: 'SSO Info',
     
     // Email actions

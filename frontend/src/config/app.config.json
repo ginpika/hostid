@@ -1,12 +1,12 @@
 {
-  "name": "@nihilx.com",
+  "name": "HostID",
   "displayName": {
-    "zh-CN": "@nihilx.com",
-    "en-US": "@nihilx.com"
+    "zh-CN": "HostID",
+    "en-US": "HostID"
   },
   "description": {
-    "zh-CN": "@nihilx.com SelfHostMail 邮件系统",
-    "en-US": "@nihilx.com SelfHostMail Email System"
+    "zh-CN": "HostID 邮件系统",
+    "en-US": "HostID Email System"
   },
   "version": "1.0.0",
   "identifier": "com.nihilx.mail",

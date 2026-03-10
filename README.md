@@ -1,383 +1,217 @@
-# SelfHostMail
+![HostID Logo](logo.png)
 
-[English](#english) | [中文](#中文)
+[English](./README.md) [中文](./README-zh.md)
 
-A modern self-hosted email solution for personal and small teams, featuring a beautiful web interface and optional desktop client.
+A lightweight, self-hosted mail server and SSO provider in one, designed as the minimalist identity foundation for someone who want a lite email with them own domain.
 
-一套现代化的自托管邮件解决方案，适用于个人和小型团队，提供精美的 Web 界面和可选的桌面客户端。
+## Tech Stack
 
----
+### Backend
+- **Runtime**: Node.js + TypeScript
+- **Framework**: Express.js
+- **Database**: SQLite (via Prisma ORM)
+- **Authentication**: JWT + bcryptjs
+- **Mail**: 
+  - SMTP Server (smtp-server)
+  - Mail Parser (mailparser)
+  - Mail Sender (nodemailer)
 
-<a name="english"></a>
+### Frontend
+- **Framework**: React 18 + TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **Rich Text Editor**: TipTap
+- **Routing**: React Router DOM
+- **Animation**: Framer Motion
 
-## English
+### Desktop App
+- **Framework**: Tauri (Rust)
 
-### Features
+### Deployment
+- **Containerization**: Docker + Docker Compose
+- **Web Server**: Nginx (for frontend)
 
-- 📧 **Full Email Functionality** - Send and receive emails within your domain
-- ✉️ **Rich Text Editor** - Compose emails with formatting, supports source code mode
-- 📎 **Attachments** - File attachments support with efficient storage
-- ⭐ **Email Management** - Star, archive, and organize emails with folders
-- 🗂️ **Folders** - Inbox, Sent, Archived, Trash with batch operations
-- � **Multiple Themes** - 7 beautiful themes including dark mode
-- �🌐 **Multi-language** - Chinese and English support
-- 👤 **User Profiles** - Customizable user information and preferences
-- 🔐 **Admin Panel** - User management and database administration
-- 🤖 **AI Summary** - Automatic email summarization (optional)
-- 💻 **Desktop Client** - Cross-platform desktop app with Tauri
+## Features
 
-### Tech Stack
+### Mail Server
+- **SMTP Server**: Built-in SMTP server for receiving emails on port 25
+- **Mail Sending**: Support direct delivery via MX records or relay through external SMTP
+- **Mailbox Management**: Inbox, Archive, Starred emails
+- **Rich Text Compose**: TipTap-based rich text editor with math support (KaTeX)
+- **Attachments**: Full attachment support for sending and receiving
+- **Email Summary**: AI-powered email summarization (optional)
 
-| Layer | Technologies |
-|-------|-------------|
-| **Frontend** | React 18, TypeScript, Tailwind CSS, Framer Motion, TipTap |
-| **Backend** | Node.js, Express, Prisma, SQLite |
-| **Email** | Nodemailer, SMTP Server |
-| **Desktop** | Tauri 2.0, Rust |
+### SSO Provider
+- **Single Sign-On**: Act as an identity provider for multiple applications
+- **Cross-domain Auth**: Share authentication across subdomains
+- **Session Management**: Secure session handling with configurable TTL
+- **Easy Integration**: Simple API for integrating with any web application
 
-### Project Structure
+### User Management
+- **User Registration**: With Cloudflare Turnstile bot protection
+- **User Profiles**: Nickname, phone, birthday, avatar, language preferences
+- **Role System**: Admin and regular user roles
+- **Admin Panel**: User management and SSO app configuration
 
-```
-selfhostmail/
-├── frontend/          # React web application
-│   ├── src/
-│   │   ├── components/   # Reusable UI components
-│   │   ├── pages/        # Page components
-│   │   ├── contexts/     # React contexts (Auth, Theme, i18n, etc.)
-│   │   ├── themes/       # Theme definitions
-│   │   └── i18n/         # Translations
-│   └── ...
-├── backend/           # Node.js API server
-│   ├── src/
-│   │   ├── routes/       # API endpoints
-│   │   ├── middleware/   # Auth, error handling
-│   │   ├── services/     # Mailer, AI services
-│   │   └── smtp/         # SMTP server
-│   └── prisma/           # Database schema
-├── desktop/           # Tauri desktop client
-│   └── src-tauri/        # Rust backend
-└── docker-compose.yaml   # Docker deployment
-```
+### UI/UX
+- **Multi-language**: Internationalization support (i18n)
+- **Theme Support**: Multiple theme options
+- **Responsive Design**: Works on desktop and mobile
+- **Desktop App**: Native desktop application via Tauri
 
-### Quick Start
+## Deployment
 
-#### Development
+### Prerequisites
+- Docker and Docker Compose installed
+- A domain name with DNS configured
+- (Optional) Cloudflare Turnstile keys for bot protection
+
+### Quick Start with Docker
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/hostid.git
+   cd hostid
+   ```
+
+2. **Create environment file**
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Edit `.env` with your configuration**
+   ```env
+   # Required
+   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+   MAIL_DOMAIN=yourdomain.com
+   
+   # Optional - SMTP Relay
+   SMTP_HOST=
+   SMTP_OUT_PORT=25
+   SMTP_USER=
+   SMTP_PASS=
+   
+   # Optional - Cloudflare Turnstile
+   CF_TURNSTILE_SECRET_KEY=
+   CF_TURNSTILE_SITE_KEY=
+   
+   # SSO Configuration
+   SSO_COOKIE_DOMAIN=.yourdomain.com
+   SSO_COOKIE_SECURE=true
+   ```
+
+4. **Start the services**
+   ```bash
+   docker-compose up -d
+   ```
+
+5. **Access the application**
+   - Web Interface: `http://yourdomain.com` (or `https://` if configured)
+   - SMTP Port: 25 (for receiving emails)
+
+### Manual Deployment
+
+#### Backend Setup
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/selfhostmail.git
-cd selfhostmail
+cd backend
 
 # Install dependencies
 npm install
-cd backend && npm install
-cd ../frontend && npm install
 
-# Configure environment
-cp ../.env.example ../.env
-# Edit .env with your settings
+# Generate Prisma client
+npm run db:generate
 
-# Initialize database
-cd backend && npx prisma migrate dev
+# Run database migrations
+npm run db:migrate
 
-# Start backend (terminal 1)
-cd backend && npm run dev
+# Start development server
+npm run dev
 
-# Start frontend (terminal 2)
-cd frontend && npm run dev
+# Or build and start production
+npm run build
+npm start
 ```
 
-#### Desktop Client
+#### Frontend Setup
 
 ```bash
-# Development
-cd desktop
+cd frontend
+
+# Install dependencies
 npm install
-npm run tauri dev
 
-# Build
-npm run tauri build
+# Start development server
+npm run dev
+
+# Or build for production
+npm run build
+npm run preview
 ```
 
-### Configuration
+### Environment Variables
 
-#### Environment Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | SQLite database path | `file:/app/data/prod.db` |
+| `JWT_SECRET` | Secret key for JWT tokens | *required* |
+| `MAIL_DOMAIN` | Your mail domain | *required* |
+| `PORT` | Web interface port | `80` |
+| `SMTP_PORT` | SMTP server port | `25` |
+| `SMTP_HOST` | External SMTP relay host | - |
+| `SMTP_OUT_PORT` | External SMTP port | `25` |
+| `SMTP_USER` | SMTP authentication user | - |
+| `SMTP_PASS` | SMTP authentication password | - |
+| `CF_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret | - |
+| `CF_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key | - |
+| `SSO_COOKIE_DOMAIN` | Cookie domain for SSO | - |
+| `SSO_COOKIE_SECURE` | Use secure cookies | `false` |
+| `SESSION_TTL` | Session lifetime in seconds | `604800` |
 
-```env
-# Database
-DATABASE_URL="file:./dev.db"
+## SSO Integration
 
-# Security
-JWT_SECRET="your-secret-key"
+HostID can serve as an SSO provider for your other applications. See the integration guides:
 
-# Server
-PORT=3001
-MAIL_DOMAIN="yourdomain.com"
+- [Node.js Integration](docs/sso-integration-nodejs.md)
+- [Go Integration](docs/sso-integration-go.md)
+- [Java Integration](docs/sso-integration-java.md)
+- [Rust Integration](docs/sso-integration-rust.md)
 
-# SMTP Server (receiving emails)
-SMTP_PORT=25
+### Quick SSO Integration
 
-# SMTP Relay (sending emails - optional)
-SMTP_HOST=smtp.example.com
-SMTP_OUT_PORT=587
-SMTP_USER=your@email.com
-SMTP_PASS=your-password
+1. **Check session** from your client app:
+   ```javascript
+   const res = await fetch('https://mail.yourdomain.com/api/sso/session', {
+     credentials: 'include'
+   })
+   const { authenticated, user } = await res.json()
+   ```
 
-# AI Summary (optional)
-AI_API_KEY="your-api-key"
-AI_API_URL="https://api.openai.com/v1"
-AI_MODEL="gpt-4o-mini"
-```
+2. **Redirect to login** if not authenticated:
+   ```javascript
+   window.location.href = `https://mail.yourdomain.com/sso/login?redirect=${encodeURIComponent(currentUrl)}`
+   ```
 
-#### Application Config
+## DNS Configuration
 
-Edit `frontend/src/config/app.config.json` to customize:
-
-```json
-{
-  "name": "SelfHostMail",
-  "displayName": {
-    "zh-CN": "SelfHostMail",
-    "en-US": "SelfHostMail"
-  },
-  "version": "1.0.0"
-}
-```
-
-### Docker Deployment
-
-```bash
-# Copy and edit environment
-cp .env.example .env
-
-# Build and start
-docker-compose up -d --build
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-**Ports:**
-- `80` - Web interface
-- `25` - SMTP server
-
-### Themes
-
-Available themes:
-- Light (default)
-- Dark - TRAE style with cyan accent
-- Ocean Blue
-- Rose Pink
-- Forest Green
-- Sunset Orange
-- Lavender
-
----
-
-<a name="中文"></a>
-
-## 中文
-
-### 功能特性
-
-- 📧 **完整邮件功能** - 域名内邮件收发
-- ✉️ **富文本编辑器** - 支持格式化编辑和源代码模式
-- 📎 **附件支持** - 文件附件，高效存储
-- ⭐ **邮件管理** - 星标、归档、文件夹管理
-- 🗂️ **文件夹** - 收件箱、已发送、已归档、垃圾箱，支持批量操作
-- 🎨 **多主题** - 7 种精美主题，包含深色模式
-- 🌐 **多语言** - 中英文界面支持
-- 👤 **用户资料** - 可自定义用户信息和偏好
-- 🔐 **管理面板** - 用户管理和数据库管理
-- 🤖 **AI 摘要** - 自动邮件摘要（可选）
-- 💻 **桌面客户端** - 基于 Tauri 的跨平台桌面应用
-
-### 技术栈
-
-| 层级 | 技术 |
-|------|------|
-| **前端** | React 18, TypeScript, Tailwind CSS, Framer Motion, TipTap |
-| **后端** | Node.js, Express, Prisma, SQLite |
-| **邮件** | Nodemailer, SMTP 服务器 |
-| **桌面** | Tauri 2.0, Rust |
-
-### 项目结构
+For your mail server to work properly, configure these DNS records:
 
 ```
-selfhostmail/
-├── frontend/          # React Web 应用
-│   ├── src/
-│   │   ├── components/   # 可复用 UI 组件
-│   │   ├── pages/        # 页面组件
-│   │   ├── contexts/     # React 上下文（认证、主题、国际化等）
-│   │   ├── themes/       # 主题定义
-│   │   └── i18n/         # 翻译文件
-│   └── ...
-├── backend/           # Node.js API 服务器
-│   ├── src/
-│   │   ├── routes/       # API 端点
-│   │   ├── middleware/   # 认证、错误处理
-│   │   ├── services/     # 邮件、AI 服务
-│   │   └── smtp/         # SMTP 服务器
-│   └── prisma/           # 数据库模型
-├── desktop/           # Tauri 桌面客户端
-│   └── src-tauri/        # Rust 后端
-└── docker-compose.yaml   # Docker 部署配置
+# MX Record
+yourdomain.com.    IN    MX    10    mail.yourdomain.com.
+
+# A Record (pointing to your server IP)
+mail.yourdomain.com.    IN    A    your.server.ip
+
+# SPF Record
+yourdomain.com.    IN    TXT    "v=spf1 mx -all"
+
+# DKIM Record (if configured)
+default._domainkey.yourdomain.com.    IN    TXT    "v=DKIM1; k=rsa; p=your-public-key"
+
+# DMARC Record
+_dmarc.yourdomain.com.    IN    TXT    "v=DMARC1; p=quarantine; rua=mailto:postmaster@yourdomain.com"
 ```
-
-### 快速开始
-
-#### 开发环境
-
-```bash
-# 克隆仓库
-git clone https://github.com/yourusername/selfhostmail.git
-cd selfhostmail
-
-# 安装依赖
-npm install
-cd backend && npm install
-cd ../frontend && npm install
-
-# 配置环境变量
-cp ../.env.example ../.env
-# 编辑 .env 填入你的配置
-
-# 初始化数据库
-cd backend && npx prisma migrate dev
-
-# 启动后端（终端 1）
-cd backend && npm run dev
-
-# 启动前端（终端 2）
-cd frontend && npm run dev
-```
-
-#### 桌面客户端
-
-```bash
-# 开发模式
-cd desktop
-npm install
-npm run tauri dev
-
-# 构建
-npm run tauri build
-```
-
-### 配置
-
-#### 环境变量
-
-```env
-# 数据库
-DATABASE_URL="file:./dev.db"
-
-# 安全
-JWT_SECRET="你的密钥"
-
-# 服务器
-PORT=3001
-MAIL_DOMAIN="yourdomain.com"
-
-# SMTP 服务器（接收邮件）
-SMTP_PORT=25
-
-# SMTP 中继（发送邮件 - 可选）
-SMTP_HOST=smtp.example.com
-SMTP_OUT_PORT=587
-SMTP_USER=your@email.com
-SMTP_PASS=your-password
-
-# AI 摘要（可选）
-AI_API_KEY="your-api-key"
-AI_API_URL="https://api.openai.com/v1"
-AI_MODEL="gpt-4o-mini"
-```
-
-#### 应用配置
-
-编辑 `frontend/src/config/app.config.json` 自定义：
-
-```json
-{
-  "name": "SelfHostMail",
-  "displayName": {
-    "zh-CN": "SelfHostMail",
-    "en-US": "SelfHostMail"
-  },
-  "version": "1.0.0"
-}
-```
-
-### Docker 部署
-
-```bash
-# 复制并编辑环境变量
-cp .env.example .env
-
-# 构建并启动
-docker-compose up -d --build
-
-# 查看日志
-docker-compose logs -f
-
-# 停止服务
-docker-compose down
-```
-
-**端口：**
-- `80` - Web 界面
-- `25` - SMTP 服务器
-
-### 主题
-
-可用主题：
-- 浅色（默认）
-- 深色 - TRAE 风格荧光青绿
-- 海洋蓝
-- 玫瑰粉
-- 森林绿
-- 日落橙
-- 薰衣草
-
----
-
-## SPF / DKIM / DMARC Configuration
-
-To ensure email delivery, configure these DNS records:
-
-### SPF Record
-
-| Type | Name | Content |
-|------|------|---------|
-| TXT | `@` | `v=spf1 ip4:YOUR_SERVER_IP ~all` |
-
-### DKIM Record
-
-Generate keys and add:
-
-| Type | Name | Content |
-|------|------|---------|
-| TXT | `mail._domainkey` | `v=DKIM1; k=rsa; p=YOUR_PUBLIC_KEY` |
-
-### DMARC Record
-
-| Type | Name | Content |
-|------|------|---------|
-| TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com` |
-
-### MX & A Records
-
-| Type | Name | Value |
-|------|------|-------|
-| MX | `@` | `mail.yourdomain.com` (priority: 10) |
-| A | `mail` | `YOUR_SERVER_IP` |
-
----
 
 ## License
 

@@ -1,6 +1,6 @@
-# SelfHostMail Desktop
+# HostID Desktop
 
-Tauri-based desktop client for SelfHostMail.
+Tauri-based desktop client for HostID.
 
 ## Development
 

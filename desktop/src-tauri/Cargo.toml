@@ -1,8 +1,8 @@
 [package]
-name = "selfhostmail-desktop"
+name = "hostid-desktop"
 version = "1.0.0"
-description = "SelfHostMail Desktop Client"
-authors = ["SelfHostMail"]
+description = "HostID Desktop Client"
+authors = ["HostID"]
 edition = "2021"
 
 [build-dependencies]

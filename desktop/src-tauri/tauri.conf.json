@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "@nihilx.com",
+  "productName": "HostID",
   "version": "1.0.0",
-  "identifier": "com.nihilx.mail",
+  "identifier": "com.hostid.mail",
   "build": {
     "beforeBuildCommand": "cd ../frontend && npm run build",
     "beforeDevCommand": "cd ../frontend && npm run dev:desktop",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "@nihilx.com",
+        "title": "HostID",
         "width": 1280,
         "height": 720,
         "minWidth": 800,
@@ -38,7 +38,7 @@
       "icons/icon.ico"
     ],
     "category": "Productivity",
-    "shortDescription": "SelfHostMail Desktop Client",
+    "shortDescription": "HostID Desktop Client",
     "longDescription": "A self-hosted email client that supports both local and remote backend modes",
     "windows": {
       "certificateThumbprint": null,
