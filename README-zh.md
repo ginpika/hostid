@@ -8,7 +8,7 @@
 
 演示服务器禁止了发信出口，仅支持内部用户之间的邮件发送，仅用于展示。
 
-**使用预编译的镜像部署**
+## 部署
 
 ```shell
 mkdir ./hostid
@@ -55,7 +55,7 @@ docker-compose up -d
 - **邮箱管理**: 收件箱、归档、星标邮件
 - **富文本撰写**: 基于 TipTap 的富文本编辑器，支持数学公式 (KaTeX)
 - **附件支持**: 完整的附件发送和接收支持
-- **邮件摘要**: AI 驱动的邮件摘要功能 (可选)
+- **邮件摘要**: AI 驱动的邮件摘要功能 (没做。)
 
 ### SSO 单点登录
 - **单点登录**: 作为多个应用的身份提供商
@@ -75,57 +75,13 @@ docker-compose up -d
 - **响应式设计**: 支持桌面端和移动端
 - **桌面应用**: 通过 Tauri 提供原生桌面应用
 
-## 部署
+## 开发
 
 ### 前置条件
+- Node.js 20+
 - 已安装 Docker 和 Docker Compose
 - 已配置 DNS 的域名
-- (可选) Cloudflare Turnstile 密钥用于机器人防护
-
-### Docker 快速部署
-
-1. **克隆仓库**
-   ```bash
-   git clone https://github.com/yourusername/hostid.git
-   cd hostid
-   ```
-
-2. **创建环境配置文件**
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **编辑 `.env` 配置**
-   ```env
-   # 必填项
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-   MAIL_DOMAIN=yourdomain.com
-   
-   # 可选 - SMTP 中继
-   SMTP_HOST=
-   SMTP_OUT_PORT=25
-   SMTP_USER=
-   SMTP_PASS=
-   
-   # 可选 - Cloudflare Turnstile
-   CF_TURNSTILE_SECRET_KEY=
-   CF_TURNSTILE_SITE_KEY=
-   
-   # SSO 配置
-   SSO_COOKIE_DOMAIN=.yourdomain.com
-   SSO_COOKIE_SECURE=true
-   ```
-
-4. **启动服务**
-   ```bash
-   docker-compose up -d
-   ```
-
-5. **访问应用**
-   - Web 界面: `http://yourdomain.com` (如配置 HTTPS 则为 `https://`)
-   - SMTP 端口: 25 (用于接收邮件)
-
-### 手动部署
+- 配置好 .env
 
 #### 后端设置
 
@@ -143,10 +99,6 @@ npm run db:migrate
 
 # 启动开发服务器
 npm run dev
-
-# 或者构建并启动生产环境
-npm run build
-npm start
 ```
 
 #### 前端设置
@@ -159,30 +111,7 @@ npm install
 
 # 启动开发服务器
 npm run dev
-
-# 或者构建生产版本
-npm run build
-npm run preview
 ```
-
-### 环境变量
-
-| 变量 | 描述 | 默认值 |
-|------|------|--------|
-| `DATABASE_URL` | SQLite 数据库路径 | `file:/app/data/prod.db` |
-| `JWT_SECRET` | JWT 令牌密钥 | *必填* |
-| `MAIL_DOMAIN` | 邮件域名 | *必填* |
-| `PORT` | Web 界面端口 | `80` |
-| `SMTP_PORT` | SMTP 服务器端口 | `25` |
-| `SMTP_HOST` | 外部 SMTP 中继主机 | - |
-| `SMTP_OUT_PORT` | 外部 SMTP 端口 | `25` |
-| `SMTP_USER` | SMTP 认证用户名 | - |
-| `SMTP_PASS` | SMTP 认证密码 | - |
-| `CF_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile 密钥 | - |
-| `CF_TURNSTILE_SITE_KEY` | Cloudflare Turnstile 站点密钥 | - |
-| `SSO_COOKIE_DOMAIN` | SSO Cookie 域名 | - |
-| `SSO_COOKIE_SECURE` | 使用安全 Cookie | `false` |
-| `SESSION_TTL` | 会话有效期（秒） | `604800` |
 
 ## SSO 集成
 
