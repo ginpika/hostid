@@ -20,7 +20,7 @@ wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/
 docker-compose up -d
 ```
 
-[Hostid](poster.png)
+![Hostid](poster.png)
 
 ## Tech Stack
 
