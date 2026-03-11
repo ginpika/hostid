@@ -2,7 +2,25 @@
 
 [English](./README.md) [中文](./README-zh.md)
 
-A lightweight, self-hosted mail server and SSO provider in one, designed as the minimalist identity foundation for someone who want a lite email with them own domain.
+A lightweight, self-hosted mail server and sso provider in one, designed as the minimalist identity foundation for someone who want a lite email with them own domain.
+
+Live Demo: https://mail.ginpika.cc (Username: `test`, Password: `VFObHC#e5nZ7Fxi&`)
+
+The demo server has outgoing mail disabled, only supports internal mail between users, for demonstration purposes only.
+
+**deployed with docker-compose**
+
+```shell
+mkdir ./hostid
+cd hostid
+wget -O https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.yaml
+touch frontend.env
+wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
+# please modify backend.env & frontend.env
+docker-compose up -d
+```
+
+[Hostid](poster.png)
 
 ## Tech Stack
 

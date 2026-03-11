@@ -4,6 +4,22 @@
 
 一个轻量级的自托管邮件服务器和 SSO 提供商，专为想要拥有自己域名邮箱的用户设计，提供极简的身份认证基础。
 
+在线演示：https://mail.ginpika.cc （账号：`test`，密码：`VFObHC#e5nZ7Fxi&`）
+
+演示服务器禁止了发信出口，仅支持内部用户之间的邮件发送，仅用于展示。
+
+**使用预编译的镜像部署**
+
+```shell
+mkdir ./hostid
+cd hostid
+wget -O https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.yaml
+touch frontend.env
+wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
+# 请在正确配置 backend.env & frontend.env 后执行
+docker-compose up -d
+```
+
 ## 技术栈
 
 ### 后端
