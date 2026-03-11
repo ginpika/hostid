@@ -5,7 +5,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
 
-# RUN npm install --workspace=frontend --include=optional
 RUN npm install --workspace=frontend
 RUN npm install @rollup/rollup-linux-arm64-musl --save-optional --workspace=frontend
 
@@ -19,7 +18,12 @@ FROM nginx:alpine AS runner
 
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/docker-entrypoint.sh /docker-entrypoint.sh
+
+RUN chmod +x /docker-entrypoint.sh
+
+ENV CF_TURNSTILE_SITE_KEY=""
 
 EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

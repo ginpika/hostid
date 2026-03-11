@@ -11,6 +11,9 @@ worker.js
 frpc.toml
 start-frp.sh
 
+# tmp
+deployed.md
+
 # Docker
 .docker/
 
