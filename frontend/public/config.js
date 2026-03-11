@@ -1,0 +1,3 @@
+window.__ENV__ = {
+  CF_TURNSTILE_SITE_KEY: "${CF_TURNSTILE_SITE_KEY}"
+};
