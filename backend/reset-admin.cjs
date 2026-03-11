@@ -32,8 +32,7 @@ async function main() {
   console.log('Resetting admin passwords...\n');
   
   const users = [
-    { username: 'root', role: 'root' },
-    { username: 'admin', role: 'admin' }
+    { username: 'root', role: 'admin' }
   ];
   
   for (const user of users) {

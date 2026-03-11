@@ -35,7 +35,7 @@ export default function Layout({ children, folder }: LayoutProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'root'
+  const isAdmin = user?.role === 'admin'
 
   const navGroups: {
     label: string

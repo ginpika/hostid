@@ -1,7 +1,11 @@
 import { PrismaClient } from '@prisma/client'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 import bcrypt from 'bcryptjs'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const prisma = new PrismaClient()
 
@@ -30,8 +34,7 @@ const logAdminCredentials = (username: string, password: string): void => {
 
 export const initAdminUsers = async (): Promise<void> => {
   const adminUsers = [
-    { username: 'root', role: 'root' },
-    { username: 'admin', role: 'admin' }
+    { username: 'root', role: 'admin' }
   ]
 
   const mailDomain = process.env.MAIL_DOMAIN || 'localhost'
@@ -56,7 +59,7 @@ export const initAdminUsers = async (): Promise<void> => {
       })
       
       logAdminCredentials(adminUser.username, password)
-      console.log(`[Init] Created ${adminUser.role} user: ${adminUser.username}`)
+      console.log(`[Init] Created ${adminUser.role} user: ${adminUser.username} password: ${password}`)
     }
   }
 }
