@@ -1,7 +1,7 @@
 services:
   frontend:
-    image: ghcr.io/ginpika/host-id-frontend:latest
-    container_name: host-id-frontend
+    image: ghcr.io/ginpika/hostid-frontend:latest
+    container_name: hostid-frontend
     ports:
       - "${PORT:-3000}:3000"
     env_file:
@@ -11,8 +11,8 @@ services:
     restart: unless-stopped
 
   backend:
-    image: ghcr.io/ginpika/host-id-backend:latest
-    container_name: host-id-backend
+    image: ghcr.io/ginpika/hostid-backend:latest
+    container_name: hostid-backend
     ports:
       - "${SMTP_PORT:-25}:25"
       - "${PORT:-3001}:3001"
