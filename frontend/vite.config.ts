@@ -4,6 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  envPrefix: ['VITE_', 'CF_'],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -18,6 +19,6 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    allowedHosts: ['localhost', 'mail.nihilx.com'],
+    allowedHosts: ['localhost'],
   },
 })
