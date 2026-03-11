@@ -8,7 +8,7 @@ Live Demo: https://mail.ginpika.cc (Username: `test`, Password: `VFObHC#e5nZ7Fxi
 
 The demo server has outgoing mail disabled, only supports internal mail between users, for demonstration purposes only.
 
-**deployed with docker-compose**
+## Deployed with docker-compose
 
 ```shell
 mkdir ./hostid
@@ -20,7 +20,7 @@ wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/
 docker-compose up -d
 ```
 
-## Tech Stack
+## Built with
 
 ### Backend
 - **Runtime**: Node.js + TypeScript
@@ -55,7 +55,7 @@ docker-compose up -d
 - **Mailbox Management**: Inbox, Archive, Starred emails
 - **Rich Text Compose**: TipTap-based rich text editor with math support (KaTeX)
 - **Attachments**: Full attachment support for sending and receiving
-- **Email Summary**: AI-powered email summarization (optional)
+- **Email Summary**: AI-powered email summarization (not integrated yet, I really don`t know how to design it better)
 
 ### SSO Provider
 - **Single Sign-On**: Act as an identity provider for multiple applications
@@ -75,57 +75,12 @@ docker-compose up -d
 - **Responsive Design**: Works on desktop and mobile
 - **Desktop App**: Native desktop application via Tauri
 
-## Deployment
+## Develop & Compile 
 
 ### Prerequisites
+- Node.js 20+
 - Docker and Docker Compose installed
-- A domain name with DNS configured
-- (Optional) Cloudflare Turnstile keys for bot protection
-
-### Quick Start with Docker
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/hostid.git
-   cd hostid
-   ```
-
-2. **Create environment file**
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Edit `.env` with your configuration**
-   ```env
-   # Required
-   JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-   MAIL_DOMAIN=yourdomain.com
-   
-   # Optional - SMTP Relay
-   SMTP_HOST=
-   SMTP_OUT_PORT=25
-   SMTP_USER=
-   SMTP_PASS=
-   
-   # Optional - Cloudflare Turnstile
-   CF_TURNSTILE_SECRET_KEY=
-   CF_TURNSTILE_SITE_KEY=
-   
-   # SSO Configuration
-   SSO_COOKIE_DOMAIN=.yourdomain.com
-   SSO_COOKIE_SECURE=true
-   ```
-
-4. **Start the services**
-   ```bash
-   docker-compose up -d
-   ```
-
-5. **Access the application**
-   - Web Interface: `http://yourdomain.com` (or `https://` if configured)
-   - SMTP Port: 25 (for receiving emails)
-
-### Manual Deployment
+- Check the .env of backend and frontend
 
 #### Backend Setup
 
@@ -143,10 +98,6 @@ npm run db:migrate
 
 # Start development server
 npm run dev
-
-# Or build and start production
-npm run build
-npm start
 ```
 
 #### Frontend Setup
@@ -159,30 +110,7 @@ npm install
 
 # Start development server
 npm run dev
-
-# Or build for production
-npm run build
-npm run preview
 ```
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | SQLite database path | `file:/app/data/prod.db` |
-| `JWT_SECRET` | Secret key for JWT tokens | *required* |
-| `MAIL_DOMAIN` | Your mail domain | *required* |
-| `PORT` | Web interface port | `80` |
-| `SMTP_PORT` | SMTP server port | `25` |
-| `SMTP_HOST` | External SMTP relay host | - |
-| `SMTP_OUT_PORT` | External SMTP port | `25` |
-| `SMTP_USER` | SMTP authentication user | - |
-| `SMTP_PASS` | SMTP authentication password | - |
-| `CF_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret | - |
-| `CF_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key | - |
-| `SSO_COOKIE_DOMAIN` | Cookie domain for SSO | - |
-| `SSO_COOKIE_SECURE` | Use secure cookies | `false` |
-| `SESSION_TTL` | Session lifetime in seconds | `604800` |
 
 ## SSO Integration
 
