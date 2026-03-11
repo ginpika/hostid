@@ -1,4 +1,4 @@
-![HostID Logo](logo.png)
+![Hostid](poster.png)
 
 [English](./README.md) [中文](./README-zh.md)
 
@@ -19,8 +19,6 @@ wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/
 # 请在正确配置 backend.env & frontend.env 后执行
 docker-compose up -d
 ```
-
-![Hostid](poster.png)
 
 ## 技术栈
 
