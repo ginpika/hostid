@@ -34,7 +34,7 @@ const adminOnly = async (req: AuthRequest, res: Response, next: NextFunction) =>
       select: { role: true }
     })
 
-    if (!user || (user.role !== 'admin' && user.role !== 'root')) {
+    if (!user || (user.role !== 'admin')) {
       return res.status(403).json({ error: 'Admin access required' })
     }
 
