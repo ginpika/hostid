@@ -1,4 +1,4 @@
-![HostID Logo](logo.png)
+![Hostid](poster.png)
 
 [English](./README.md) [中文](./README-zh.md)
 
@@ -19,8 +19,6 @@ wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/
 # please modify backend.env & frontend.env
 docker-compose up -d
 ```
-
-![Hostid](poster.png)
 
 ## Tech Stack
 
