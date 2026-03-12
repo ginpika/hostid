@@ -20,6 +20,8 @@ wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/
 docker-compose up -d
 ```
 
+管理员账号 root 会自动初始化，并且密码写在日志里，请通过 docker-compose logs 查看
+
 ## 技术栈
 
 ### 后端
