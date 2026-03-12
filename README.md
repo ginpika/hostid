@@ -20,6 +20,8 @@ wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/
 docker-compose up -d
 ```
 
+root account will create automatically when the server starts for the first time. check logs for pwd.
+
 ## Built with
 
 ### Backend
