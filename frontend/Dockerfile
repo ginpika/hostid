@@ -22,8 +22,6 @@ COPY frontend/docker-entrypoint.sh /docker-entrypoint.sh
 
 RUN chmod +x /docker-entrypoint.sh
 
-ENV CF_TURNSTILE_SITE_KEY=""
-
 EXPOSE 3000
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
