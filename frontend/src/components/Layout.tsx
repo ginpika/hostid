@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, Plus, LogOut, Menu, X, UserCircle, Globe, Info, Shield, Archive } from 'lucide-react'
+import { Inbox, Send, Trash2, Pen, LogOut, Menu, X, UserCircle, Globe, Info, Shield, Archive } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
@@ -113,13 +113,18 @@ export default function Layout({ children, folder }: LayoutProps) {
             </div>
           </div>
 
-          <div className="p-4">
+          <div className="px-3 py-4">
             <button
               onClick={() => openCompose()}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="group relative w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-xl font-semibold text-[15px] tracking-wide overflow-hidden transition-all duration-300 ease-out shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
+              style={{
+                background: 'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%)',
+                color: 'var(--color-accent-text)',
+                boxShadow: '0 4px 14px -3px color-mix(in srgb, var(--color-accent-primary) 50%, transparent)'
+              }}
             >
-              <Plus className="w-4 h-4" />
-              {t('compose')}
+              <Pen className="w-5 h-5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={2.5} />
+              <span>{t('compose')}</span>
             </button>
           </div>
 
