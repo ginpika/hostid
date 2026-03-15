@@ -82,6 +82,10 @@ function generateSessionId(): string {
   return crypto.randomBytes(32).toString('hex')
 }
 
+router.get('/public-key', (req: Request, res: Response) => {
+  res.json({ publicKey: getPublicKey() })
+})
+
 function getSessionKey(sessionId: string): string {
   return `sso:session:${sessionId}`
 }
@@ -166,7 +170,14 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Invalid credentials', 401)
   }
 
-  const isValid = await bcrypt.compare(password, user.password)
+  let decryptedPassword: string
+  try {
+    decryptedPassword = decryptPassword(password)
+  } catch {
+    throw new AppError('Invalid credentials', 401)
+  }
+
+  const isValid = await bcrypt.compare(decryptedPassword, user.password)
   if (!isValid) {
     throw new AppError('Invalid credentials', 401)
   }
@@ -327,12 +338,25 @@ router.get('/avatar/:filename', asyncHandler(async (req: Request, res: Response)
 }))
 
 const changePasswordSchema = z.object({
-  oldPassword: z.string().min(6),
-  newPassword: z.string().min(6)
+  oldPassword: z.string(),
+  newPassword: z.string()
 })
 
 router.post('/password', auth, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { oldPassword, newPassword } = changePasswordSchema.parse(req.body)
+
+  let decryptedOldPassword: string
+  let decryptedNewPassword: string
+  try {
+    decryptedOldPassword = decryptPassword(oldPassword)
+    decryptedNewPassword = decryptPassword(newPassword)
+  } catch {
+    throw new AppError('Invalid password format', 400)
+  }
+
+  if (decryptedOldPassword.length < 6 || decryptedNewPassword.length < 6) {
+    throw new AppError('Password must be at least 6 characters', 400)
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: req.userId },
@@ -343,12 +367,12 @@ router.post('/password', auth, asyncHandler(async (req: AuthRequest, res: Respon
     throw new AppError('User not found', 404)
   }
 
-  const isValid = await bcrypt.compare(oldPassword, user.password)
+  const isValid = await bcrypt.compare(decryptedOldPassword, user.password)
   if (!isValid) {
     throw new AppError('Current password is incorrect', 400)
   }
 
-  const hashedPassword = await bcrypt.hash(newPassword, 12)
+  const hashedPassword = await bcrypt.hash(decryptedNewPassword, 12)
   
   await prisma.user.update({
     where: { id: req.userId },
