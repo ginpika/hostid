@@ -100,7 +100,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       styleEl.textContent = ''
     }
 
-    root.classList.remove(...root.classList.values())
+    const oldClasses = Array.from(root.classList).filter(c => c.startsWith('theme-') || c.startsWith('system-'))
+    root.classList.remove(...oldClasses)
     root.classList.add(`theme-${currentTheme.id}`)
     
     if (mode === 'system') {
