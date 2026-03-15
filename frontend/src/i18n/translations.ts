@@ -206,7 +206,7 @@ export const translations = {
     registerToAccount: '注册一个新账户',
     
     // Errors
-    invalidCredentials: '无效的凭证',
+    invalidCredentials: '用户名或密码错误',
     emailAlreadyRegistered: '邮箱已注册',
     usernameAlreadyTaken: '用户名已被占用',
     passwordTooShort: '密码太短',
@@ -453,7 +453,7 @@ export const translations = {
     registerToAccount: 'Get started with your free account',
     
     // Errors
-    invalidCredentials: 'Invalid credentials',
+    invalidCredentials: 'Username or password is incorrect',
     emailAlreadyRegistered: 'Email already registered',
     usernameAlreadyTaken: 'Username already taken',
     passwordTooShort: 'Password too short',
