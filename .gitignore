@@ -5,6 +5,7 @@ dist/
 *.log
 logs/
 uploads/
+avatars/
 backend/prisma/dev.db
 backend/prisma/dev.db-journal
 worker.js

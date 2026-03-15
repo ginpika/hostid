@@ -7,6 +7,9 @@ import { prisma } from '../lib/prisma'
 import { auth, AuthRequest } from '../middleware/auth'
 import { AppError } from '../middleware/error'
 import { memoryStore } from '../store'
+import { avatarUpload, getAvatarPath } from '../middleware/avatarUpload'
+import { getPublicKey, decryptPassword } from '../utils/rsa'
+import fs from 'fs'
 
 const router = Router()
 
@@ -276,5 +279,83 @@ router.patch('/language', auth, asyncHandler(async (req: AuthRequest, res: Respo
 router.get('/domain', (req: Request, res: Response) => {
   res.json({ domain: MAIL_DOMAIN })
 })
+
+router.post('/avatar', auth, avatarUpload.single('avatar'), asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) {
+    throw new AppError('No file uploaded', 400)
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { avatar: true }
+  })
+
+  if (user?.avatar) {
+    const oldAvatarPath = getAvatarPath(user.avatar)
+    if (fs.existsSync(oldAvatarPath)) {
+      fs.unlinkSync(oldAvatarPath)
+    }
+  }
+
+  const avatarUrl = `/api/auth/avatar/${req.file.filename}`
+  
+  const updatedUser = await prisma.user.update({
+    where: { id: req.userId },
+    data: { avatar: req.file.filename },
+    select: { 
+      id: true, 
+      email: true, 
+      username: true,
+      nickname: true,
+      avatar: true 
+    }
+  })
+
+  res.json({ ...updatedUser, avatarUrl })
+}))
+
+router.get('/avatar/:filename', asyncHandler(async (req: Request, res: Response) => {
+  const { filename } = req.params
+  const filePath = getAvatarPath(filename)
+  
+  if (!fs.existsSync(filePath)) {
+    throw new AppError('Avatar not found', 404)
+  }
+
+  res.setHeader('Cache-Control', 'public, max-age=31536000')
+  res.sendFile(filePath)
+}))
+
+const changePasswordSchema = z.object({
+  oldPassword: z.string().min(6),
+  newPassword: z.string().min(6)
+})
+
+router.post('/password', auth, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { oldPassword, newPassword } = changePasswordSchema.parse(req.body)
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { password: true }
+  })
+
+  if (!user) {
+    throw new AppError('User not found', 404)
+  }
+
+  const isValid = await bcrypt.compare(oldPassword, user.password)
+  if (!isValid) {
+    throw new AppError('Current password is incorrect', 400)
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12)
+  
+  await prisma.user.update({
+    where: { id: req.userId },
+    data: { password: hashedPassword }
+  })
+
+  res.json({ success: true })
+}))
 
 export default router

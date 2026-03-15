@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Shield, Monitor, Key, Cookie, Clock, LogOut, RefreshCw, ArrowLeft, CheckCircle, XCircle, Info } from 'lucide-react'
+import { Shield, Monitor, Key, Cookie, Clock, LogOut, RefreshCw, CheckCircle, XCircle, Info } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 
 interface SessionInfo {
@@ -32,7 +31,6 @@ interface DecodedToken {
 
 export default function SSOInfoPage() {
   const { language } = useI18n()
-  const navigate = useNavigate()
   
   const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -133,13 +131,6 @@ export default function SSOInfoPage() {
           borderColor: 'var(--color-border-primary)'
         }}
       >
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
-          style={{ color: 'var(--color-text-secondary)' }}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
         <Shield className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
         <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           {language === 'zh-CN' ? '单点登录信息' : 'SSO Information'}
