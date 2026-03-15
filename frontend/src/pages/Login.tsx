@@ -410,7 +410,7 @@ export default function Login() {
                   >
                     {user.avatar ? (
                       <img 
-                        src={user.avatar} 
+                        src={`/api/auth/avatar/${user.avatar}`} 
                         alt={user.username}
                         className="w-full h-full object-cover"
                       />
