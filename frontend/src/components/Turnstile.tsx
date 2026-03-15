@@ -39,6 +39,7 @@ export default function Turnstile({
   onVerify, 
   onError, 
   onExpire,
+  theme,
   language = 'zh-CN'
 }: TurnstileProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -47,27 +48,42 @@ export default function Turnstile({
   const { resolvedSystemTheme, mode, currentTheme } = useTheme()
   
   const getTurnstileTheme = useCallback((): 'light' | 'dark' | 'auto' => {
+    if (theme) return theme
     if (mode === 'system') {
       return resolvedSystemTheme
     }
     if (currentTheme.id === 'light') return 'light'
     return 'dark'
-  }, [mode, resolvedSystemTheme, currentTheme])
+  }, [theme, mode, resolvedSystemTheme, currentTheme])
+
+  const turnstileTheme = getTurnstileTheme()
+
+  const removeWidget = useCallback(() => {
+    if (widgetIdRef.current && window.turnstile) {
+      window.turnstile.remove(widgetIdRef.current)
+      widgetIdRef.current = null
+      setWidgetRendered(false)
+    }
+  }, [])
 
   const renderWidget = useCallback(() => {
-    if (!window.turnstile || !containerRef.current || widgetIdRef.current) return
+    if (!window.turnstile || !containerRef.current) return
+
+    if (widgetIdRef.current) {
+      window.turnstile.remove(widgetIdRef.current)
+    }
 
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: siteKey,
       callback: onVerify,
       'error-callback': onError,
       'expired-callback': onExpire,
-      theme: getTurnstileTheme(),
+      theme: turnstileTheme,
       size: 'normal',
       language
     })
     setWidgetRendered(true)
-  }, [siteKey, onVerify, onError, onExpire, getTurnstileTheme, language])
+  }, [siteKey, onVerify, onError, onExpire, turnstileTheme, language])
 
   useEffect(() => {
     if (window.turnstile) {
@@ -89,12 +105,15 @@ export default function Turnstile({
     document.head.appendChild(script)
     
     return () => {
-      if (widgetIdRef.current && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current)
-        widgetIdRef.current = null
-      }
+      removeWidget()
     }
-  }, [renderWidget])
+  }, [renderWidget, removeWidget])
+
+  useEffect(() => {
+    if (widgetIdRef.current && window.turnstile) {
+      renderWidget()
+    }
+  }, [turnstileTheme, renderWidget])
   
   return (
     <div className="flex justify-center" style={{ minHeight: TURNSTILE_HEIGHT, position: 'relative' }}>

@@ -16,6 +16,7 @@ export const translations = {
     // Login success
     loginSuccess: '登录成功',
     redirecting: '正在跳转...',
+    continue: '继续',
     
     // SSO
     ssoLogin: '统一登录',
@@ -263,6 +264,7 @@ export const translations = {
     // Login success
     loginSuccess: 'Login Successful',
     redirecting: 'Redirecting...',
+    continue: 'Continue',
     
     // SSO
     ssoLogin: 'SSO Login',

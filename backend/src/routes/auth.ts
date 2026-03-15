@@ -151,7 +151,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
 
   res.status(201).json({
     token,
-    user: { id: user.id, email: user.email, username: user.username, language: user.language, role: user.role }
+    user: { id: user.id, email: user.email, username: user.username, nickname: user.nickname, avatar: user.avatar, language: user.language, role: user.role }
   })
 }))
 
@@ -181,7 +181,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
 
   res.json({
     token,
-    user: { id: user.id, email: user.email, username: user.username, language: user.language, role: user.role }
+    user: { id: user.id, email: user.email, username: user.username, nickname: user.nickname, avatar: user.avatar, language: user.language, role: user.role }
   })
 }))
 
