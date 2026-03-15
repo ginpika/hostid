@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Save, Loader2, Pencil, X, Shield, Camera, User, KeyRound } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import Layout from '../components/Layout'
+import { encryptPassword } from '../utils/rsa'
 
 interface UserProfile {
   id: string
@@ -197,6 +198,10 @@ export default function ProfilePage() {
 
     try {
       const token = localStorage.getItem('token')
+      
+      const encryptedOldPassword = await encryptPassword(passwordData.oldPassword)
+      const encryptedNewPassword = await encryptPassword(passwordData.newPassword)
+      
       const res = await fetch('/api/auth/password', {
         method: 'POST',
         headers: {
@@ -204,8 +209,8 @@ export default function ProfilePage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          oldPassword: passwordData.oldPassword,
-          newPassword: passwordData.newPassword
+          oldPassword: encryptedOldPassword,
+          newPassword: encryptedNewPassword
         })
       })
 

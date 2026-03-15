@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useDomain } from '../contexts/DomainContext'
 import ThemeSelector from '../components/ThemeSelector'
+import { encryptPassword } from '../utils/rsa'
 
 interface LocalUser {
   id: string
@@ -118,11 +119,13 @@ export default function Login() {
     setLoading(true)
     
     try {
+      const encryptedPassword = await encryptPassword(password)
+      
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password: encryptedPassword })
       })
       
       if (!res.ok) {

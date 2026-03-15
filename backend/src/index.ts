@@ -11,6 +11,7 @@ import ssoRoutes from './routes/sso'
 import { errorHandler } from './middleware/error'
 import { startSMTPServer } from './smtp'
 import { initAdminUsers } from './utils/initAdmin'
+import { initRSAKeys } from './utils/rsa'
 
 dotenv.config()
 
@@ -47,6 +48,7 @@ app.get('/health', (req, res) => {
 app.use(errorHandler)
 
 const startServer = async () => {
+  initRSAKeys()
   await initAdminUsers()
   
   app.listen(PORT, () => {
