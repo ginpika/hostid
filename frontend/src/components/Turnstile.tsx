@@ -97,10 +97,10 @@ export default function Turnstile({
   }, [renderWidget])
   
   return (
-    <div className="flex justify-center" style={{ minHeight: TURNSTILE_HEIGHT }}>
+    <div className="flex justify-center" style={{ minHeight: TURNSTILE_HEIGHT, position: 'relative' }}>
       {!widgetRendered && (
         <div 
-          className="rounded-lg animate-pulse"
+          className="rounded-lg animate-pulse absolute left-1/2 -translate-x-1/2"
           style={{ 
             width: TURNSTILE_WIDTH, 
             height: TURNSTILE_HEIGHT,
