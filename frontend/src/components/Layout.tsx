@@ -4,7 +4,6 @@ import { Inbox, Send, Trash2, Plus, LogOut, Menu, X, UserCircle, Globe, Info, Sh
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
-import { useConfig } from '../contexts/ConfigContext'
 import ThemeSelector from './ThemeSelector'
 
 type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'ARCHIVED'
@@ -17,7 +16,6 @@ interface LayoutProps {
 export default function Layout({ children, folder }: LayoutProps) {
   const { user, logout } = useAuth()
   const { language, setLanguage, t } = useI18n()
-  const { getDisplayName } = useConfig()
   const { openCompose } = useCompose()
   const location = useLocation()
   const navigate = useNavigate()
@@ -87,8 +85,28 @@ export default function Layout({ children, folder }: LayoutProps) {
       >
         <div className="h-full flex flex-col">
           <div className="p-4 border-b" style={{ borderColor: 'var(--color-border-primary)' }}>
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-bold" style={{ color: 'var(--color-accent-primary)' }}>{getDisplayName(language as 'zh-CN' | 'en-US')}</h1>
+            <div className="flex items-center gap-3">
+              <div 
+                className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
+                style={{ 
+                  backgroundColor: user?.avatar ? 'transparent' : `color-mix(in srgb, var(--color-accent-primary) 20%, transparent)`,
+                  color: 'var(--color-accent-primary)'
+                }}
+              >
+                {user?.avatar ? (
+                  <img src={`/api/auth/avatar/${user.avatar}`} alt={user.nickname || user.username} className="w-full h-full object-cover" />
+                ) : (
+                  <UserCircle className="w-8 h-8" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
+                  {user?.nickname || user?.username}
+                </p>
+                <p className="text-sm truncate" style={{ color: 'var(--color-text-muted)' }}>
+                  {user?.email}
+                </p>
+              </div>
               <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 rounded hover:bg-[var(--color-bg-tertiary)]" style={{ color: 'var(--color-text-muted)' }}>
                 <X className="w-5 h-5" />
               </button>
@@ -199,28 +217,14 @@ export default function Layout({ children, folder }: LayoutProps) {
               )}
             </div>
             
-            <div className="hidden sm:flex items-center gap-2">
-              <div className="text-right">
-                <p className="text-sm font-medium truncate max-w-[180px]" style={{ color: 'var(--color-text-primary)' }}>{user?.email}</p>
-              </div>
-              <div 
-                className="w-8 h-8 rounded-full flex items-center justify-center"
-                style={{ 
-                  backgroundColor: `color-mix(in srgb, var(--color-accent-primary) 20%, transparent)`,
-                  color: 'var(--color-accent-primary)'
-                }}
-              >
-                <UserCircle className="w-5 h-5" />
-              </div>
-              <button
-                onClick={logout}
-                className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
-                style={{ color: 'var(--color-text-muted)' }}
-                title={t('logout')}
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
+            <button
+              onClick={logout}
+              className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
+              style={{ color: 'var(--color-text-muted)' }}
+              title={t('logout')}
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </header>
 
