@@ -34,8 +34,8 @@ COPY reset-admin.cjs ./
 COPY promote-admin.cjs ./
 
 RUN chmod +x docker-entrypoint.sh
-RUN mkdir -p /app/data /app/uploads /app/logs
-RUN chown -R appuser:nodejs /app/data /app/uploads /app/logs
+RUN mkdir -p /app/data /app/uploads /app/logs /app/avatars
+RUN chown -R appuser:nodejs /app/data /app/uploads /app/logs /app/avatars
 
 USER appuser
 
