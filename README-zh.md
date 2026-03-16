@@ -13,7 +13,7 @@
 ```shell
 mkdir ./hostid
 cd hostid
-wget -O https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.yaml
+wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.yaml
 touch frontend.env
 wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
 # 请在正确配置 backend.env & frontend.env 后执行
