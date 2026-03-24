@@ -212,6 +212,7 @@ router.get('/me', auth, asyncHandler(async (req: AuthRequest, res: Response) => 
       avatar: true,
       language: true,
       role: true,
+      githubId: true,
       createdAt: true 
     }
   })
