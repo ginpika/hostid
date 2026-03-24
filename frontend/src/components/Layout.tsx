@@ -94,7 +94,7 @@ export default function Layout({ children, folder }: LayoutProps) {
                 }}
               >
                 {user?.avatar ? (
-                  <img src={`/api/auth/avatar/${user.avatar}`} alt={user.nickname || user.username} className="w-full h-full object-cover" />
+                  <img src={user.avatar.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`} alt={user.nickname || user.username} className="w-full h-full object-cover" />
                 ) : (
                   <UserCircle className="w-8 h-8" />
                 )}

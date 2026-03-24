@@ -237,7 +237,7 @@ export default function ProfilePage() {
 
   const getAvatarUrl = () => {
     if (profile?.avatar) {
-      return `/api/auth/avatar/${profile.avatar}`
+      return profile.avatar.startsWith('http') ? profile.avatar : `/api/auth/avatar/${profile.avatar}`
     }
     return null
   }
