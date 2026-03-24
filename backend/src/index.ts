@@ -8,6 +8,7 @@ import emailRoutes from './routes/email'
 import attachmentRoutes from './routes/attachment'
 import adminRoutes from './routes/admin'
 import ssoRoutes from './routes/sso'
+import oauthRoutes from './routes/oauth'
 import { errorHandler } from './middleware/error'
 import { startSMTPServer } from './smtp'
 import { initAdminUsers } from './utils/initAdmin'
@@ -32,6 +33,7 @@ app.use('/api/emails', emailRoutes)
 app.use('/api/attachments', attachmentRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/sso', ssoRoutes)
+app.use('/api/oauth', oauthRoutes)
 
 app.get('/sso/login', (req, res) => {
   const redirect = req.query.redirect as string || ''

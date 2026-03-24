@@ -18,6 +18,7 @@ model User {
   avatar    String?
   language  String   @default("zh-CN")
   role      String   @default("user")
+  githubId  Int?     @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   emails    Email[]
