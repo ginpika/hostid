@@ -31,6 +31,7 @@ desktop/node_modules/
 # IDE
 .idea/
 .vscode/
+.qoder/
 *.swp
 *.swo
 
