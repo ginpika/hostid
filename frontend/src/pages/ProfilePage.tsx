@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Save, Loader2, Pencil, X, Shield, Camera, User, KeyRound } from 'lucide-react'
+import { Save, Loader2, Pencil, X, Shield, Camera, User, KeyRound, Github, Check } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import Layout from '../components/Layout'
 import { encryptPassword } from '../utils/rsa'
@@ -13,6 +13,7 @@ interface UserProfile {
   birthday: string | null
   avatar: string | null
   language: string
+  githubId: number | null
   createdAt: string
 }
 
@@ -387,17 +388,48 @@ export default function ProfilePage() {
               </div>
               
               <div className="mt-6 pt-4 border-t" style={{ borderColor: 'var(--color-border-primary)' }}>
-                <button
-                  onClick={() => setShowPasswordModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  style={{ 
-                    color: 'var(--color-text-primary)',
-                    backgroundColor: 'var(--color-bg-tertiary)'
-                  }}
-                >
-                  <KeyRound className="w-4 h-4" />
-                  {language === 'zh-CN' ? '修改密码' : 'Change Password'}
-                </button>
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    onClick={() => setShowPasswordModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    style={{ 
+                      color: 'var(--color-text-primary)',
+                      backgroundColor: 'var(--color-bg-tertiary)'
+                    }}
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    {language === 'zh-CN' ? '修改密码' : 'Change Password'}
+                  </button>
+                  
+                  <div 
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm"
+                    style={{ 
+                      backgroundColor: profile.githubId 
+                        ? 'rgba(34, 197, 94, 0.1)' 
+                        : 'var(--color-bg-tertiary)',
+                      border: profile.githubId 
+                        ? '1px solid rgba(34, 197, 94, 0.3)' 
+                        : '1px solid var(--color-border-primary)'
+                    }}
+                  >
+                    <Github className="w-4 h-4" style={{ color: profile.githubId ? '#22c55e' : 'var(--color-text-muted)' }} />
+                    <span style={{ color: profile.githubId ? '#22c55e' : 'var(--color-text-secondary)' }}>
+                      {language === 'zh-CN' ? 'GitHub' : 'GitHub'}
+                    </span>
+                    {profile.githubId ? (
+                      <>
+                        <Check className="w-4 h-4" style={{ color: '#22c55e' }} />
+                        <span className="text-xs" style={{ color: '#22c55e' }}>
+                          {language === 'zh-CN' ? '已绑定' : 'Connected'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        {language === 'zh-CN' ? '未绑定' : 'Not connected'}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
