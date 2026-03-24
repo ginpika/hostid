@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useEffect, useRef } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { I18nProvider } from './i18n/I18nContext'
@@ -15,9 +15,11 @@ import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
 import TosPage from './pages/TosPage'
 import SSOInfoPage from './pages/SSOInfoPage'
+import OAuthCallback from './pages/OAuthCallback'
+import OAuthRegister from './pages/OAuthRegister'
 import ComposeModal from './components/ComposeModal'
 
-const PUBLIC_ROUTES = ['/login', '/register', '/tos', '/sso/info']
+const PUBLIC_ROUTES = ['/login', '/register', '/tos', '/sso/info', '/oauth/callback', '/oauth/register']
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -35,6 +37,8 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
+  const [searchParams] = useSearchParams()
+  const oauthSuccess = searchParams.get('oauth_success') === 'true'
   
   if (loading) {
     return (
@@ -42,6 +46,10 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
       </div>
     )
+  }
+  
+  if (user && oauthSuccess) {
+    return <>{children}</>
   }
   
   return user ? <Navigate to="/" /> : <>{children}</>
@@ -92,6 +100,8 @@ function AppRoutes() {
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           <Route path="/tos" element={<TosPage />} />
           <Route path="/sso/info" element={<SSOInfoPage />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
+          <Route path="/oauth/register" element={<OAuthRegister />} />
           <Route path="/" element={<PrivateRoute><Inbox /></PrivateRoute>} />
           <Route path="/sent" element={<PrivateRoute><Inbox /></PrivateRoute>} />
           <Route path="/trash" element={<PrivateRoute><Inbox /></PrivateRoute>} />

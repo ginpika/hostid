@@ -205,6 +205,13 @@ export const translations = {
     alreadyHaveAccount: '已有账户？',
     loginToAccount: '登录到您的账户',
     registerToAccount: '注册一个新账户',
+    orContinueWith: '或通过以下方式继续',
+    loginWithGitHub: '使用 GitHub 登录',
+    completeRegistration: '完成注册',
+    githubAccountConnected: 'GitHub 账号已连接，请设置用户名',
+    registrationFailed: '注册失败',
+    oauthTokenExpired: 'OAuth 授权已过期，请重新登录',
+    backToLogin: '返回登录',
     
     // Errors
     invalidCredentials: '用户名或密码错误',
@@ -453,6 +460,13 @@ export const translations = {
     alreadyHaveAccount: 'Already have an account?',
     loginToAccount: 'Sign in to your account',
     registerToAccount: 'Get started with your free account',
+    orContinueWith: 'Or continue with',
+    loginWithGitHub: 'Sign in with GitHub',
+    completeRegistration: 'Complete Registration',
+    githubAccountConnected: 'GitHub account connected, please set your username',
+    registrationFailed: 'Registration failed',
+    oauthTokenExpired: 'OAuth authorization expired, please login again',
+    backToLogin: 'Back to Login',
     
     // Errors
     invalidCredentials: 'Username or password is incorrect',
