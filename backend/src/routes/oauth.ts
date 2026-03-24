@@ -302,7 +302,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Username already taken', 400)
   }
 
-  const email = pendingUser.email || `${username}@${MAIL_DOMAIN}`
+  const email = `${username}@${MAIL_DOMAIN}`
   
   const user = await prisma.user.create({
     data: {
