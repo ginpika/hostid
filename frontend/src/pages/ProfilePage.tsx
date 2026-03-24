@@ -243,6 +243,22 @@ export default function ProfilePage() {
     return null
   }
 
+  const handleGitHubClick = async () => {
+    if (!profile?.githubId) return
+
+    try {
+      const res = await fetch(`https://api.github.com/user/${profile.githubId}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.html_url) {
+          window.open(data.html_url, '_blank', 'noopener,noreferrer')
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch GitHub user info:', err)
+    }
+  }
+
   if (loading) {
     return (
       <Layout>
@@ -401,34 +417,44 @@ export default function ProfilePage() {
                     {language === 'zh-CN' ? '修改密码' : 'Change Password'}
                   </button>
                   
-                  <div 
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm"
-                    style={{ 
-                      backgroundColor: profile.githubId 
-                        ? 'rgba(34, 197, 94, 0.1)' 
-                        : 'var(--color-bg-tertiary)',
-                      border: profile.githubId 
-                        ? '1px solid rgba(34, 197, 94, 0.3)' 
-                        : '1px solid var(--color-border-primary)'
-                    }}
-                  >
-                    <Github className="w-4 h-4" style={{ color: profile.githubId ? '#22c55e' : 'var(--color-text-muted)' }} />
-                    <span style={{ color: profile.githubId ? '#22c55e' : 'var(--color-text-secondary)' }}>
-                      {language === 'zh-CN' ? 'GitHub' : 'GitHub'}
-                    </span>
-                    {profile.githubId ? (
-                      <>
-                        <Check className="w-4 h-4" style={{ color: '#22c55e' }} />
-                        <span className="text-xs" style={{ color: '#22c55e' }}>
-                          {language === 'zh-CN' ? '已绑定' : 'Connected'}
-                        </span>
-                      </>
-                    ) : (
+                  {profile.githubId ? (
+                    <button
+                      onClick={handleGitHubClick}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm cursor-pointer transition-all hover:scale-[1.02]"
+                      style={{
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        border: '1px solid rgba(34, 197, 94, 0.3)'
+                      }}
+                    >
+                      <img
+                        src={`https://avatars.githubusercontent.com/u/${profile.githubId}?s=40`}
+                        alt="GitHub"
+                        className="w-5 h-5 rounded-full"
+                      />
+                      <span style={{ color: '#22c55e' }}>GitHub</span>
+                      <Check className="w-4 h-4" style={{ color: '#22c55e' }} />
+                      <span className="text-xs" style={{ color: '#22c55e' }}>
+                        {language === 'zh-CN' ? '已绑定' : 'Connected'}
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        window.location.href = '/api/oauth/github?redirect=' + encodeURIComponent('/profile')
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm cursor-pointer transition-all hover:scale-[1.02]"
+                      style={{
+                        backgroundColor: 'var(--color-bg-tertiary)',
+                        border: '1px solid var(--color-border-primary)'
+                      }}
+                    >
+                      <Github className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
+                      <span style={{ color: 'var(--color-text-secondary)' }}>GitHub</span>
                       <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                         {language === 'zh-CN' ? '未绑定' : 'Not connected'}
                       </span>
-                    )}
-                  </div>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

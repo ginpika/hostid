@@ -225,16 +225,6 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
   })
 
   if (existingUser) {
-    if (githubUser.avatar_url && existingUser.avatar !== githubUser.avatar_url) {
-      await prisma.user.update({
-        where: { id: existingUser.id },
-        data: {
-          avatar: githubUser.avatar_url,
-          nickname: githubUser.name || existingUser.nickname
-        }
-      })
-    }
-
     const token = jwt.sign({ userId: existingUser.id }, JWT_SECRET, { expiresIn: '7d' })
     
     const sessionId = await createSSOSession({
@@ -310,7 +300,6 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
       email,
       password: '',
       nickname: pendingUser.name || pendingUser.githubLogin,
-      avatar: pendingUser.avatarUrl,
       githubId: pendingUser.githubId
     }
   })
@@ -363,5 +352,69 @@ router.get('/status', (req: Request, res: Response) => {
     github: !!(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET && GITHUB_CALLBACK_URL)
   })
 })
+
+const bindGitHubSchema = z.object({
+  token: z.string()
+})
+
+router.post('/bind', asyncHandler(async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new AppError('Unauthorized', 401)
+  }
+
+  const jwtToken = authHeader.substring(7)
+  let userId: string
+
+  try {
+    const decoded = jwt.verify(jwtToken, JWT_SECRET) as { userId: string }
+    userId = decoded.userId
+  } catch {
+    throw new AppError('Invalid token', 401)
+  }
+
+  const { token } = bindGitHubSchema.parse(req.body)
+
+  const pendingUserStr = await memoryStore.get(getPendingOAuthKey(token))
+  if (!pendingUserStr) {
+    throw new AppError('Invalid or expired OAuth token', 400)
+  }
+
+  await memoryStore.delete(getPendingOAuthKey(token))
+
+  const pendingUser: PendingOAuthUser = JSON.parse(pendingUserStr)
+
+  // Check if GitHub ID is already bound to another user
+  const existingGitHubUser = await prisma.user.findFirst({
+    where: {
+      githubId: pendingUser.githubId,
+      NOT: { id: userId }
+    }
+  })
+
+  if (existingGitHubUser) {
+    throw new AppError('This GitHub account is already bound to another user', 400)
+  }
+
+  // Bind GitHub ID to current user
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { githubId: pendingUser.githubId }
+  })
+
+  res.json({
+    success: true,
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      language: user.language,
+      role: user.role,
+      githubId: user.githubId
+    }
+  })
+}))
 
 export default router
