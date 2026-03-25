@@ -1,11 +1,10 @@
-import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Mail, FileText } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Mail, FileText } from 'lucide-react'
 import Layout from '../components/Layout'
 import { useI18n } from '../i18n/I18nContext'
 import { useConfig } from '../contexts/ConfigContext'
 
 export default function InfoPage() {
-  const navigate = useNavigate()
   const { t, language } = useI18n()
   const { config, getDisplayName, getDescription } = useConfig()
 
@@ -85,14 +84,14 @@ export default function InfoPage() {
           </div>
 
           <div className="mt-6 flex justify-center">
-            <button
+            {/* <button
               onClick={() => navigate('/')}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors"
               style={{ color: 'var(--color-text-secondary)' }}
             >
               <ArrowLeft className="w-4 h-4" />
               <span>{t('backToInbox')}</span>
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

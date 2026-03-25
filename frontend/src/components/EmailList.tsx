@@ -199,11 +199,6 @@ export default function EmailList({
                   >
                     {email.subject}
                   </h3>
-                  {email.summary && (
-                    <p className="text-xs truncate" style={{ color: 'var(--color-text-tertiary)' }}>
-                      {email.summary}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
