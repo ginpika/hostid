@@ -111,14 +111,14 @@ export default function AdminPage() {
   }
 
   const TableContent = () => (
-    <div 
+    <div
       className={`rounded-lg border ${isFullscreen ? 'h-full flex flex-col' : ''}`}
-      style={{ 
+      style={{
         backgroundColor: 'var(--color-bg-secondary)',
         borderColor: 'var(--color-border-primary)'
       }}
     >
-      <div 
+      <div
         className="p-4 border-b flex items-center justify-between"
         style={{ borderColor: 'var(--color-border-primary)' }}
       >
@@ -152,10 +152,10 @@ export default function AdminPage() {
               <thead style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
                 <tr>
                   {tableData.columns.map(col => (
-                    <th 
-                      key={col} 
+                    <th
+                      key={col}
                       className="px-4 py-3 text-left font-medium sticky top-0"
-                      style={{ 
+                      style={{
                         color: 'var(--color-text-tertiary)',
                         backgroundColor: 'var(--color-bg-tertiary)'
                       }}
@@ -163,9 +163,9 @@ export default function AdminPage() {
                       {col}
                     </th>
                   ))}
-                  <th 
+                  <th
                     className="px-4 py-3 text-left font-medium w-20 sticky top-0"
-                    style={{ 
+                    style={{
                       color: 'var(--color-text-tertiary)',
                       backgroundColor: 'var(--color-bg-tertiary)'
                     }}
@@ -177,7 +177,7 @@ export default function AdminPage() {
                   <tr key={row.id || idx} className="hover:bg-opacity-50">
                     {tableData.columns.map(col => (
                       <td key={col} className="px-4 py-3" style={{ color: 'var(--color-text-secondary)' }}>
-                        {col === 'createdAt' ? formatDate(row[col]) : formatValue(row[col])}
+                        {col === 'createdAt' || col === 'updatedAt' ? formatDate(row[col]) : formatValue(row[col])}
                       </td>
                     ))}
                     <td className="px-4 py-3">
@@ -197,7 +197,7 @@ export default function AdminPage() {
           </div>
 
           {tableData.pagination.totalPages > 1 && (
-            <div 
+            <div
               className="p-4 border-t flex items-center justify-between"
               style={{ borderColor: 'var(--color-border-primary)' }}
             >
@@ -261,65 +261,62 @@ export default function AdminPage() {
             <p className="mt-1" style={{ color: 'var(--color-text-tertiary)' }}>{t('adminDescription')}</p>
           </div>
 
-          <div className="grid grid-cols-12 gap-6">
-            <div className="col-span-3">
-              <div 
-                className="rounded-lg border p-4"
-                style={{ 
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  borderColor: 'var(--color-border-primary)'
-                }}
-              >
-                <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--color-text-tertiary)' }}>{t('tables')}</h3>
-                <div className="space-y-2">
-                  {tables.map(table => (
-                    <button
-                      key={table.name}
-                      onClick={() => setSelectedTable(table.name)}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors"
-                      style={{ 
-                        backgroundColor: selectedTable === table.name 
-                          ? 'var(--color-accent-muted)' 
-                          : 'transparent',
-                        color: selectedTable === table.name 
-                          ? 'var(--color-accent-primary)' 
-                          : 'var(--color-text-secondary)'
-                      }}
-                    >
-                      <span className="flex items-center gap-2">
-                        <Database className="w-4 h-4" />
-                        <span>{table.name}</span>
-                      </span>
-                      <span 
-                        className="text-xs px-2 py-0.5 rounded-full"
-                        style={{ 
-                          backgroundColor: 'var(--color-bg-tertiary)',
-                          color: 'var(--color-text-secondary)'
-                        }}
-                      >{table.count}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="col-span-9">
-              {selectedTable ? (
-                <TableContent />
-              ) : (
-                <div 
-                  className="rounded-lg border p-8 text-center"
-                  style={{ 
-                    backgroundColor: 'var(--color-bg-secondary)',
-                    borderColor: 'var(--color-border-primary)',
-                    color: 'var(--color-text-tertiary)'
+          {/* 数据表水平排列在上方 */}
+          <div
+            className="mb-6 rounded-lg border p-4"
+            style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              borderColor: 'var(--color-border-primary)'
+            }}
+          >
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--color-text-tertiary)' }}>{t('tables')}</h3>
+            <div className="flex flex-wrap gap-2">
+              {tables.map(table => (
+                <button
+                  key={table.name}
+                  onClick={() => setSelectedTable(table.name)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: selectedTable === table.name
+                      ? 'var(--color-accent-muted)'
+                      : 'var(--color-bg-tertiary)',
+                    color: selectedTable === table.name
+                      ? 'var(--color-accent-primary)'
+                      : 'var(--color-text-secondary)',
+                    border: selectedTable === table.name
+                      ? '1px solid var(--color-accent-primary)'
+                      : '1px solid var(--color-border-primary)'
                   }}
                 >
-                  {t('selectTable')}
-                </div>
-              )}
+                  <Database className="w-4 h-4" />
+                  <span>{table.name}</span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: 'var(--color-bg-secondary)',
+                      color: 'var(--color-text-secondary)'
+                    }}
+                  >{table.count}</span>
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* 下方显示行记录 */}
+          {selectedTable ? (
+            <TableContent />
+          ) : (
+            <div
+              className="rounded-lg border p-8 text-center"
+              style={{
+                backgroundColor: 'var(--color-bg-secondary)',
+                borderColor: 'var(--color-border-primary)',
+                color: 'var(--color-text-tertiary)'
+              }}
+            >
+              {t('selectTable')}
+            </div>
+          )}
         </div>
       </div>
     </Layout>
