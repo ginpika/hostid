@@ -9,10 +9,14 @@ import attachmentRoutes from './routes/attachment'
 import adminRoutes from './routes/admin'
 import ssoRoutes from './routes/sso'
 import oauthRoutes from './routes/oauth'
+import oauthConfigRoutes from './routes/oauthConfig'
+import oauth2Routes from './routes/oauth2'
+import oauthAppsRoutes from './routes/oauthApps'
 import { errorHandler } from './middleware/error'
 import { startSMTPServer } from './smtp'
 import { initAdminUsers } from './utils/initAdmin'
 import { initRSAKeys } from './utils/rsa'
+import { migrateOAuthConfig } from './utils/migrateOAuthConfig'
 
 dotenv.config()
 
@@ -34,6 +38,9 @@ app.use('/api/attachments', attachmentRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/sso', ssoRoutes)
 app.use('/api/oauth', oauthRoutes)
+app.use('/api/admin/oauth', oauthConfigRoutes)
+app.use('/api/oauth2', oauth2Routes)
+app.use('/api/admin/oauth-apps', oauthAppsRoutes)
 
 app.get('/sso/login', (req, res) => {
   const redirect = req.query.redirect as string || ''
@@ -52,11 +59,12 @@ app.use(errorHandler)
 const startServer = async () => {
   initRSAKeys()
   await initAdminUsers()
-  
+  await migrateOAuthConfig()
+
   app.listen(PORT, () => {
     console.log(`[API] Server running on port ${PORT}`)
   })
-  
+
   startSMTPServer(SMTP_PORT)
 }
 

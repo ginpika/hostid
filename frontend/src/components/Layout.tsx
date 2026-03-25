@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, Pen, LogOut, Menu, X, UserCircle, Globe, Info, Shield, Archive } from 'lucide-react'
+import { Inbox, Send, Trash2, Pen, LogOut, Menu, X, UserCircle, Globe, Info, Shield, Archive, Key, AppWindow } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
@@ -58,9 +58,16 @@ export default function Layout({ children, folder }: LayoutProps) {
       items: [
         { path: '/profile', label: t('profile'), icon: UserCircle },
         { path: '/info', label: t('about'), icon: Info },
-        ...(isAdmin ? [{ path: '/admin', label: t('admin'), icon: Shield }] : []),
       ]
-    }
+    },
+    ...(isAdmin ? [{
+      label: t('adminGroup'),
+      items: [
+        { path: '/admin', label: t('admin'), icon: Shield },
+        { path: '/admin/oauth', label: t('oauthConfig'), icon: Key },
+        { path: '/admin/oauth-apps', label: t('oauthApps'), icon: AppWindow }
+      ]
+    }] : [])
   ]
 
   const allNavItems = navGroups.flatMap(g => g.items)
@@ -173,7 +180,7 @@ export default function Layout({ children, folder }: LayoutProps) {
               <Menu className="w-6 h-6" />
             </button>
             <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-              {allNavItems.find(item => folder === item.folder || location.pathname === item.path)?.label || t('mail')}
+              {allNavItems.find(item => (item.folder && folder === item.folder) || location.pathname === item.path)?.label || t('mail')}
             </h1>
           </div>
           

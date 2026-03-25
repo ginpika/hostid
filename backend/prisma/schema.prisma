@@ -8,21 +8,23 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  username  String   @unique
-  password  String
-  nickname  String?
-  phone     String?
-  birthday  String?
-  avatar    String?
-  language  String   @default("zh-CN")
-  role      String   @default("user")
-  githubId  Int?     @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  emails    Email[]
-  ssoApps   SSOApp[]
+  id            String         @id @default(cuid())
+  email         String         @unique
+  username      String         @unique
+  password      String
+  nickname      String?
+  phone         String?
+  birthday      String?
+  avatar        String?
+  language      String         @default("zh-CN")
+  role          String         @default("user")
+  githubId      Int?           @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  emails        Email[]
+  ssoApps       SSOApp[]
+  oauthApps     OAuthApp[]
+  refreshTokens RefreshToken[]
 }
 
 model SSOApp {
@@ -78,4 +80,51 @@ model EmailAttachment {
   attachment   Attachment @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
 
   @@unique([emailId, attachmentId])
+}
+
+model OAuthProvider {
+  id           String   @id @default(cuid())
+  provider     String   @unique
+  displayName  String
+  clientId     String
+  clientSecret String
+  callbackUrl  String
+  scope        String   @default("")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("oauth_providers")
+}
+
+model OAuthApp {
+  id             String   @id @default(cuid())
+  name           String
+  clientId       String   @unique
+  clientSecret   String
+  redirectUris   String   // JSON 数组
+  description    String?
+  homepage       String?
+  scope          String   @default("openid profile email")
+  isConfidential Boolean  @default(true)
+  isActive       Boolean  @default(true)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("oauth_apps")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  clientId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
 }

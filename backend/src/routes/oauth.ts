@@ -6,12 +6,10 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
 import { memoryStore } from '../store'
+import { decrypt } from '../services/encryption'
 
 const router = Router()
 
-const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || ''
-const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || ''
-const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || ''
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const SESSION_TTL = parseInt(process.env.SESSION_TTL || '604800', 10) * 1000
@@ -21,6 +19,58 @@ const SSO_COOKIE_PATH = process.env.SSO_COOKIE_PATH || '/'
 const SSO_COOKIE_SECURE = process.env.SSO_COOKIE_SECURE === 'true'
 const SSO_COOKIE_SAMESITE = (process.env.SSO_COOKIE_SAMESITE || 'lax') as 'strict' | 'lax' | 'none'
 const MAIL_DOMAIN = process.env.MAIL_DOMAIN || 'localhost'
+
+// OAuth Provider Configuration Cache
+interface ProviderConfig {
+  clientId: string
+  clientSecret: string
+  callbackUrl: string
+  scope: string
+}
+
+const providerCache = new Map<string, { config: ProviderConfig; expiresAt: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+async function getProviderConfig(provider: string): Promise<ProviderConfig | null> {
+  // Check cache first
+  const cached = providerCache.get(provider)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.config
+  }
+
+  // Fetch from database
+  const dbConfig = await prisma.oAuthProvider.findUnique({
+    where: { provider, isActive: true }
+  })
+
+  if (!dbConfig) {
+    return null
+  }
+
+  const config: ProviderConfig = {
+    clientId: dbConfig.clientId,
+    clientSecret: decrypt(dbConfig.clientSecret),
+    callbackUrl: dbConfig.callbackUrl,
+    scope: dbConfig.scope || 'user:email'
+  }
+
+  // Update cache
+  providerCache.set(provider, {
+    config,
+    expiresAt: Date.now() + CACHE_TTL
+  })
+
+  return config
+}
+
+// Clear cache when config is updated (called from oauthConfig.ts)
+export function clearProviderCache(provider?: string) {
+  if (provider) {
+    providerCache.delete(provider)
+  } else {
+    providerCache.clear()
+  }
+}
 
 interface SSOSession {
   id: string
@@ -123,19 +173,21 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
 }
 
 router.get('/github', asyncHandler(async (req: Request, res: Response) => {
-  if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_CALLBACK_URL) {
+  const config = await getProviderConfig('github')
+
+  if (!config) {
     throw new AppError('GitHub OAuth is not configured', 500)
   }
 
   const redirect = req.query.redirect as string || '/'
   const state = generateState()
-  
+
   await memoryStore.set(getStateKey(state), JSON.stringify({ redirect, createdAt: Date.now() }), 5 * 60 * 1000)
 
   const githubAuthUrl = new URL('https://github.com/login/oauth/authorize')
-  githubAuthUrl.searchParams.set('client_id', GITHUB_CLIENT_ID)
-  githubAuthUrl.searchParams.set('redirect_uri', GITHUB_CALLBACK_URL)
-  githubAuthUrl.searchParams.set('scope', 'user:email')
+  githubAuthUrl.searchParams.set('client_id', config.clientId)
+  githubAuthUrl.searchParams.set('redirect_uri', config.callbackUrl)
+  githubAuthUrl.searchParams.set('scope', config.scope || 'user:email')
   githubAuthUrl.searchParams.set('state', state)
 
   res.redirect(githubAuthUrl.toString())
@@ -152,10 +204,15 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
   if (!stateDataStr) {
     throw new AppError('Invalid or expired OAuth state', 400)
   }
-  
+
   await memoryStore.delete(getStateKey(state as string))
-  
+
   const stateData: OAuthState = JSON.parse(stateDataStr)
+
+  const config = await getProviderConfig('github')
+  if (!config) {
+    throw new AppError('GitHub OAuth is not configured', 500)
+  }
 
   const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
@@ -164,16 +221,16 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
       'Accept': 'application/json'
     },
     body: JSON.stringify({
-      client_id: GITHUB_CLIENT_ID,
-      client_secret: GITHUB_CLIENT_SECRET,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
       code,
-      redirect_uri: GITHUB_CALLBACK_URL,
+      redirect_uri: config.callbackUrl,
       state
     })
   })
 
   const tokenData = await tokenResponse.json() as { access_token?: string; error?: string; error_description?: string }
-  
+
   if (tokenData.error || !tokenData.access_token) {
     console.error('GitHub token error:', tokenData)
     throw new AppError(`GitHub OAuth error: ${tokenData.error_description || tokenData.error}`, 400)
@@ -193,7 +250,7 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
   const githubUser = await userResponse.json() as GitHubUser
 
   let primaryEmail = githubUser.email
-  
+
   if (!primaryEmail) {
     const emailsResponse = await fetch('https://api.github.com/user/emails', {
       headers: {
@@ -226,7 +283,7 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
 
   if (existingUser) {
     const token = jwt.sign({ userId: existingUser.id }, JWT_SECRET, { expiresIn: '7d' })
-    
+
     const sessionId = await createSSOSession({
       id: existingUser.id,
       username: existingUser.username,
@@ -259,7 +316,7 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
     avatarUrl: githubUser.avatar_url,
     createdAt: Date.now()
   }
-  
+
   await memoryStore.set(getPendingOAuthKey(oauthToken), JSON.stringify(pendingUser), 10 * 60 * 1000)
 
   const registerUrl = `${FRONTEND_URL}/oauth/register?token=${oauthToken}&redirect=${encodeURIComponent(stateData.redirect)}&githubLogin=${githubUser.login}&name=${encodeURIComponent(githubUser.name || '')}&avatar=${encodeURIComponent(githubUser.avatar_url)}`
@@ -347,11 +404,23 @@ router.get('/pending/:token', asyncHandler(async (req: Request, res: Response) =
   })
 }))
 
-router.get('/status', (req: Request, res: Response) => {
-  res.json({
-    github: !!(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET && GITHUB_CALLBACK_URL)
+router.get('/status', asyncHandler(async (req: Request, res: Response) => {
+  const providers = await prisma.oAuthProvider.findMany({
+    where: { isActive: true },
+    select: { provider: true, displayName: true }
   })
-})
+
+  const result: Record<string, { enabled: boolean; displayName: string }> = {}
+
+  for (const p of providers) {
+    result[p.provider] = {
+      enabled: true,
+      displayName: p.displayName
+    }
+  }
+
+  res.json({ providers: result })
+}))
 
 const bindGitHubSchema = z.object({
   token: z.string()

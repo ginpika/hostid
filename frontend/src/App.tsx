@@ -13,13 +13,16 @@ import ArchivePage from './pages/ArchivePage'
 import InfoPage from './pages/InfoPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+import OAuthConfigPage from './pages/OAuthConfigPage'
+import OAuthAppsPage from './pages/OAuthAppsPage'
+import OAuthAuthorizePage from './pages/OAuthAuthorizePage'
 import TosPage from './pages/TosPage'
 import SSOInfoPage from './pages/SSOInfoPage'
 import OAuthCallback from './pages/OAuthCallback'
 import OAuthRegister from './pages/OAuthRegister'
 import ComposeModal from './components/ComposeModal'
 
-const PUBLIC_ROUTES = ['/login', '/register', '/tos', '/sso/info', '/oauth/callback', '/oauth/register']
+const PUBLIC_ROUTES = ['/login', '/register', '/tos', '/sso/info', '/oauth/callback', '/oauth/register', '/oauth2/authorize']
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -109,6 +112,9 @@ function AppRoutes() {
           <Route path="/info" element={<PrivateRoute><InfoPage /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
+          <Route path="/admin/oauth" element={<PrivateRoute><OAuthConfigPage /></PrivateRoute>} />
+          <Route path="/admin/oauth-apps" element={<PrivateRoute><OAuthAppsPage /></PrivateRoute>} />
+          <Route path="/oauth2/authorize" element={<PrivateRoute><OAuthAuthorizePage /></PrivateRoute>} />
         </Routes>
       </RouteGuard>
     </I18nProvider>
