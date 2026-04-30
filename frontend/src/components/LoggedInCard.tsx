@@ -1,3 +1,8 @@
+/**
+ * 已登录用户卡片组件
+ * 登录成功后显示的用户信息卡片
+ * 包含用户头像、用户名和跳转按钮
+ */
 import { useRef, useState, useEffect } from 'react'
 import { ArrowRight, Globe, LogOut, User } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'

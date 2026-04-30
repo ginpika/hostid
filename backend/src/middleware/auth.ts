@@ -1,3 +1,8 @@
+/**
+ * 认证中间件
+ * 验证 JWT Token 并提取用户 ID
+ * 用于保护需要登录的 API 路由
+ */
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { AppError } from './error'

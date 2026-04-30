@@ -1,3 +1,8 @@
+/**
+ * 应用配置上下文
+ * 提供应用名称、版本等静态配置信息
+ * 支持中英文双语显示名称和描述
+ */
 import { createContext, useContext, ReactNode } from 'react'
 import appConfig from '../config/app.config.json'
 

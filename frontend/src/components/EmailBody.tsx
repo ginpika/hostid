@@ -1,3 +1,8 @@
+/**
+ * 邓件正文渲染组件
+ * 支持渲染 HTML、Markdown 和纯文本格式
+ * 使用 DOMPurify 进行安全过滤，支持脚注和 front-matter
+ */
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 import { CSSProperties } from 'react'
@@ -73,7 +78,7 @@ function registerExtensions() {
       return match ? match.index : -1
     },
     tokenizer(src: string) {
-      const match = src.match(/^(---|\+\+)\s*\n([\s\S]*?)\n\1\s*(?:\n|$)/)
+      const match = src.match(/^(---|\+\+\+)\s*\n([\s\S]*?)\n\1\s*(?:\n|$)/)
       if (match) {
         return {
           type: 'frontMatter',

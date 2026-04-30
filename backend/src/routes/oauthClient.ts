@@ -1,3 +1,8 @@
+/**
+ * OAuth 客户端路由（第三方 OAuth 登录）
+ * 处理 GitHub 等第三方 OAuth 登录流程
+ * 包含授权跳转、回调处理和用户注册/绑定
+ */
 import { Router, Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -20,25 +25,24 @@ const SSO_COOKIE_SECURE = process.env.SSO_COOKIE_SECURE === 'true'
 const SSO_COOKIE_SAMESITE = (process.env.SSO_COOKIE_SAMESITE || 'lax') as 'strict' | 'lax' | 'none'
 const MAIL_DOMAIN = process.env.MAIL_DOMAIN || 'localhost'
 
-// OAuth Provider Configuration Cache
 interface ProviderConfig {
   clientId: string
   clientSecret: string
   callbackUrl: string
-  scope: string
+  authorizationUrl: string
+  tokenUrl: string
+  userinfoUrl: string
 }
 
 const providerCache = new Map<string, { config: ProviderConfig; expiresAt: number }>()
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000
 
 async function getProviderConfig(provider: string): Promise<ProviderConfig | null> {
-  // Check cache first
   const cached = providerCache.get(provider)
   if (cached && cached.expiresAt > Date.now()) {
     return cached.config
   }
 
-  // Fetch from database
   const dbConfig = await prisma.oAuthProvider.findUnique({
     where: { provider, isActive: true }
   })
@@ -51,10 +55,11 @@ async function getProviderConfig(provider: string): Promise<ProviderConfig | nul
     clientId: dbConfig.clientId,
     clientSecret: decrypt(dbConfig.clientSecret),
     callbackUrl: dbConfig.callbackUrl,
-    scope: dbConfig.scope || 'user:email'
+    authorizationUrl: dbConfig.authorizationUrl,
+    tokenUrl: dbConfig.tokenUrl,
+    userinfoUrl: dbConfig.userinfoUrl
   }
 
-  // Update cache
   providerCache.set(provider, {
     config,
     expiresAt: Date.now() + CACHE_TTL
@@ -63,7 +68,6 @@ async function getProviderConfig(provider: string): Promise<ProviderConfig | nul
   return config
 }
 
-// Clear cache when config is updated (called from oauthConfig.ts)
 export function clearProviderCache(provider?: string) {
   if (provider) {
     providerCache.delete(provider)
@@ -172,28 +176,48 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   }
 }
 
-router.get('/github', asyncHandler(async (req: Request, res: Response) => {
-  const config = await getProviderConfig('github')
+router.get('/status', asyncHandler(async (req: Request, res: Response) => {
+  const providers = await prisma.oAuthProvider.findMany({
+    where: { isActive: true },
+    select: { provider: true, displayName: true }
+  })
+
+  const result: Record<string, { enabled: boolean; displayName: string }> = {}
+
+  for (const p of providers) {
+    result[p.provider] = {
+      enabled: true,
+      displayName: p.displayName
+    }
+  }
+
+  res.json({ providers: result })
+}))
+
+router.get('/:provider', asyncHandler(async (req: Request, res: Response) => {
+  const { provider } = req.params
+  const config = await getProviderConfig(provider)
 
   if (!config) {
-    throw new AppError('GitHub OAuth is not configured', 500)
+    throw new AppError(`${provider} OAuth is not configured`, 500)
   }
 
   const redirect = req.query.redirect as string || '/'
   const state = generateState()
 
-  await memoryStore.set(getStateKey(state), JSON.stringify({ redirect, createdAt: Date.now() }), 5 * 60 * 1000)
+  await memoryStore.set(getStateKey(state), JSON.stringify({ redirect, provider, createdAt: Date.now() }), 5 * 60 * 1000)
 
-  const githubAuthUrl = new URL('https://github.com/login/oauth/authorize')
-  githubAuthUrl.searchParams.set('client_id', config.clientId)
-  githubAuthUrl.searchParams.set('redirect_uri', config.callbackUrl)
-  githubAuthUrl.searchParams.set('scope', config.scope || 'user:email')
-  githubAuthUrl.searchParams.set('state', state)
+  const authUrl = new URL(config.authorizationUrl)
+  authUrl.searchParams.set('client_id', config.clientId)
+  authUrl.searchParams.set('redirect_uri', config.callbackUrl)
+  authUrl.searchParams.set('scope', 'openid profile email')
+  authUrl.searchParams.set('state', state)
 
-  res.redirect(githubAuthUrl.toString())
+  res.redirect(authUrl.toString())
 }))
 
-router.get('/github/callback', asyncHandler(async (req: Request, res: Response) => {
+router.get('/:provider/callback', asyncHandler(async (req: Request, res: Response) => {
+  const { provider } = req.params
   const { code, state } = req.query
 
   if (!code || !state) {
@@ -207,14 +231,14 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
 
   await memoryStore.delete(getStateKey(state as string))
 
-  const stateData: OAuthState = JSON.parse(stateDataStr)
+  const stateData: OAuthState & { provider: string } = JSON.parse(stateDataStr)
 
-  const config = await getProviderConfig('github')
+  const config = await getProviderConfig(stateData.provider)
   if (!config) {
-    throw new AppError('GitHub OAuth is not configured', 500)
+    throw new AppError(`${stateData.provider} OAuth is not configured`, 500)
   }
 
-  const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+  const tokenResponse = await fetch(config.tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -232,51 +256,30 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
   const tokenData = await tokenResponse.json() as { access_token?: string; error?: string; error_description?: string }
 
   if (tokenData.error || !tokenData.access_token) {
-    console.error('GitHub token error:', tokenData)
-    throw new AppError(`GitHub OAuth error: ${tokenData.error_description || tokenData.error}`, 400)
+    console.error('OAuth token error:', tokenData)
+    throw new AppError(`OAuth error: ${tokenData.error_description || tokenData.error}`, 400)
   }
 
-  const userResponse = await fetch('https://api.github.com/user', {
+  const userResponse = await fetch(config.userinfoUrl, {
     headers: {
       'Authorization': `Bearer ${tokenData.access_token}`,
-      'Accept': 'application/vnd.github.v3+json'
+      'Accept': 'application/json'
     }
   })
 
   if (!userResponse.ok) {
-    throw new AppError('Failed to fetch GitHub user', 400)
+    throw new AppError('Failed to fetch user info', 400)
   }
 
-  const githubUser = await userResponse.json() as GitHubUser
+  const oauthUser = await userResponse.json() as GitHubUser
 
-  let primaryEmail = githubUser.email
-
-  if (!primaryEmail) {
-    const emailsResponse = await fetch('https://api.github.com/user/emails', {
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
-    })
-
-    if (emailsResponse.ok) {
-      const emails = await emailsResponse.json() as GitHubEmail[]
-      const primary = emails.find(e => e.primary && e.verified)
-      if (primary) {
-        primaryEmail = primary.email
-      } else {
-        const verified = emails.find(e => e.verified)
-        if (verified) {
-          primaryEmail = verified.email
-        }
-      }
-    }
-  }
+  let primaryEmail = oauthUser.email
 
   const existingUser = await prisma.user.findFirst({
     where: {
       OR: [
-        { githubId: githubUser.id }
+        { githubId: oauthUser.id },
+        ...(primaryEmail ? [{ email: primaryEmail }] : [])
       ]
     }
   })
@@ -309,17 +312,17 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
 
   const oauthToken = generateOAuthToken()
   const pendingUser: PendingOAuthUser = {
-    githubId: githubUser.id,
-    githubLogin: githubUser.login,
+    githubId: oauthUser.id,
+    githubLogin: oauthUser.login,
     email: primaryEmail,
-    name: githubUser.name,
-    avatarUrl: githubUser.avatar_url,
+    name: oauthUser.name,
+    avatarUrl: oauthUser.avatar_url,
     createdAt: Date.now()
   }
 
   await memoryStore.set(getPendingOAuthKey(oauthToken), JSON.stringify(pendingUser), 10 * 60 * 1000)
 
-  const registerUrl = `${FRONTEND_URL}/oauth/register?token=${oauthToken}&redirect=${encodeURIComponent(stateData.redirect)}&githubLogin=${githubUser.login}&name=${encodeURIComponent(githubUser.name || '')}&avatar=${encodeURIComponent(githubUser.avatar_url)}`
+  const registerUrl = `${FRONTEND_URL}/oauth/register?token=${oauthToken}&redirect=${encodeURIComponent(stateData.redirect)}&githubLogin=${oauthUser.login}&name=${encodeURIComponent(oauthUser.name || '')}&avatar=${encodeURIComponent(oauthUser.avatar_url)}`
 
   res.redirect(registerUrl)
 }))
@@ -404,24 +407,6 @@ router.get('/pending/:token', asyncHandler(async (req: Request, res: Response) =
   })
 }))
 
-router.get('/status', asyncHandler(async (req: Request, res: Response) => {
-  const providers = await prisma.oAuthProvider.findMany({
-    where: { isActive: true },
-    select: { provider: true, displayName: true }
-  })
-
-  const result: Record<string, { enabled: boolean; displayName: string }> = {}
-
-  for (const p of providers) {
-    result[p.provider] = {
-      enabled: true,
-      displayName: p.displayName
-    }
-  }
-
-  res.json({ providers: result })
-}))
-
 const bindGitHubSchema = z.object({
   token: z.string()
 })
@@ -453,7 +438,6 @@ router.post('/bind', asyncHandler(async (req: Request, res: Response) => {
 
   const pendingUser: PendingOAuthUser = JSON.parse(pendingUserStr)
 
-  // Check if GitHub ID is already bound to another user
   const existingGitHubUser = await prisma.user.findFirst({
     where: {
       githubId: pendingUser.githubId,
@@ -465,7 +449,6 @@ router.post('/bind', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('This GitHub account is already bound to another user', 400)
   }
 
-  // Bind GitHub ID to current user
   const user = await prisma.user.update({
     where: { id: userId },
     data: { githubId: pendingUser.githubId }

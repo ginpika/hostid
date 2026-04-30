@@ -1,3 +1,8 @@
+/**
+ * 用户资料页面
+ * 显示和编辑用户个人信息
+ * 包含头像上传、密码修改和 GitHub 绑定功能
+ */
 import { useState, useEffect, useRef } from 'react'
 import { Save, Loader2, Pencil, X, Shield, Camera, User, KeyRound, Github, Check } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'

@@ -1,3 +1,8 @@
+/**
+ * 管理员路由
+ * 提供数据库表浏览和管理功能
+ * 仅限管理员用户访问
+ */
 import { Router, Request, Response, NextFunction } from 'express'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
@@ -172,7 +177,6 @@ router.get('/tables/:tableName', auth, adminOnly, asyncHandler(async (req: AuthR
           displayName: true,
           clientId: true,
           callbackUrl: true,
-          scope: true,
           isActive: true,
           createdAt: true,
           updatedAt: true

@@ -1,3 +1,8 @@
+/**
+ * 认证上下文
+ * 提供用户登录状态、登录/注销方法
+ * 支持 SSO 会话验证和用户信息管理
+ */
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 
 interface User {

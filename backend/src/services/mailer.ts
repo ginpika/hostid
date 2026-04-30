@@ -1,3 +1,8 @@
+/**
+ * 外部邮件发送服务
+ * 使用 nodemailer 发送邮件到外部邮箱
+ * 支持 SMTP 配置和附件发送
+ */
 import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'

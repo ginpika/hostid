@@ -1,3 +1,8 @@
+/**
+ * OAuth 配置迁移工具
+ * 将环境变量中的 OAuth 配置迁移到数据库
+ * 在服务器启动时自动执行
+ */
 import { prisma } from '../lib/prisma'
 import { encrypt } from '../services/encryption'
 
@@ -28,7 +33,6 @@ export async function migrateOAuthConfig(): Promise<void> {
           clientId: githubClientId,
           clientSecret: encrypt(githubClientSecret),
           callbackUrl: githubCallbackUrl,
-          scope: 'user:email',
           isActive: true
         }
       })

@@ -1,3 +1,8 @@
+/**
+ * 后端服务入口文件
+ * 初始化 Express 服务器、SMTP 服务器和各种路由
+ * 包含管理员初始化、RSA 密钥生成和 OAuth 配置迁移
+ */
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
@@ -8,9 +13,9 @@ import emailRoutes from './routes/email'
 import attachmentRoutes from './routes/attachment'
 import adminRoutes from './routes/admin'
 import ssoRoutes from './routes/sso'
-import oauthRoutes from './routes/oauth'
+import oauthClientRoutes from './routes/oauthClient'
 import oauthConfigRoutes from './routes/oauthConfig'
-import oauth2Routes from './routes/oauth2'
+import oauthServerRoutes from './routes/oauthServer'
 import oauthAppsRoutes from './routes/oauthApps'
 import { errorHandler } from './middleware/error'
 import { startSMTPServer } from './smtp'
@@ -37,9 +42,9 @@ app.use('/api/emails', emailRoutes)
 app.use('/api/attachments', attachmentRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/sso', ssoRoutes)
-app.use('/api/oauth', oauthRoutes)
+app.use('/api/oauth', oauthClientRoutes)
 app.use('/api/admin/oauth', oauthConfigRoutes)
-app.use('/api/oauth2', oauth2Routes)
+app.use('/api/oauth2', oauthServerRoutes)
 app.use('/api/admin/oauth-apps', oauthAppsRoutes)
 
 app.get('/sso/login', (req, res) => {

@@ -1,3 +1,8 @@
+/**
+ * 附件路由
+ * 处理邮件附件的下载和访问
+ * 提供 Token 验证和文件流式传输
+ */
 import { Router, Response, NextFunction, Request } from 'express'
 import { prisma } from '../lib/prisma'
 import { auth, AuthRequest } from '../middleware/auth'

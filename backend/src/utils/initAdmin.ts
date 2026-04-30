@@ -1,3 +1,8 @@
+/**
+ * 管理员初始化工具
+ * 从配置文件读取并初始化管理员用户
+ * 支持密码哈希和权限设置
+ */
 import { PrismaClient } from '@prisma/client'
 import fs from 'fs'
 import path from 'path'

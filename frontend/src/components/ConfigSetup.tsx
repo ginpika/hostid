@@ -1,3 +1,8 @@
+/**
+ * 连接配置组件（桌面端专用）
+ * 配置本地或远程后端服务器连接
+ * 注意：当前未被项目使用，为 Tauri 桌面端预留
+ */
 import { useState, useEffect } from 'react'
 import { Server, Globe, Check, X, Loader2, Settings, ChevronRight } from 'lucide-react'
 import { 

@@ -1,3 +1,8 @@
+/**
+ * 国际化上下文
+ * 提供多语言支持，当前支持中文和英文
+ * 管理语言切换和翻译函数
+ */
 import { createContext, useContext, useState, ReactNode } from 'react';
 import { translations } from './translations';
 

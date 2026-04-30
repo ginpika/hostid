@@ -1,3 +1,8 @@
+/**
+ * 撰写邮件组件
+ * 邮件撰写表单，支持收件人、主题、正文和附件
+ * 提供回复/转发功能，自动填充引用内容
+ */
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Loader2, Trash2, Paperclip, Reply, ReplyAll, Forward } from 'lucide-react'

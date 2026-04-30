@@ -1,3 +1,8 @@
+/**
+ * 收件箱页面
+ * 显示邮件列表和邮件详情预览面板
+ * 支持收件箱、已发送和垃圾箱文件夹切换
+ */
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { CheckSquare, Trash, Mail, MailOpen, ChevronLeft, ChevronRight, RotateCcw, Loader2, Users, EyeOff, Paperclip, Download, ZoomIn, Reply, ReplyAll, Forward, Star, StarOff, Copy, Check as CheckIcon, ChevronDown, ChevronUp, Archive, X } from 'lucide-react'

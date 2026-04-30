@@ -1,3 +1,8 @@
+/**
+ * 加密服务
+ * 使用 AES-256-GCM 加密 OAuth 密钥等敏感数据
+ * 提供加密、解密和密钥掩码功能
+ */
 import crypto from 'crypto'
 
 const ALGORITHM = 'aes-256-gcm'

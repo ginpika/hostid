@@ -1,3 +1,8 @@
+/**
+ * RSA 密钥工具
+ * 生成和管理 RSA 密钥对用于密码加密
+ * 提供公钥获取和密码解密功能
+ */
 import crypto from 'crypto'
 
 let publicKey: string

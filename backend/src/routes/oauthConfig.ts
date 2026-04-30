@@ -1,10 +1,15 @@
+/**
+ * OAuth 服务商配置路由
+ * 管理 OAuth 登录服务商的添加、编辑和删除
+ * 仅限管理员用户访问
+ */
 import { Router, Request, Response, NextFunction } from 'express'
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { asyncHandler } from '../middleware/error'
 import { encrypt, maskSecret } from '../services/encryption'
-import { clearProviderCache } from './oauth'
+import { clearProviderCache } from './oauthClient'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -53,7 +58,9 @@ const createProviderSchema = z.object({
   clientId: z.string().min(1),
   clientSecret: z.string().min(1),
   callbackUrl: z.string().url(),
-  scope: z.string().optional()
+  authorizationUrl: z.string().url(),
+  tokenUrl: z.string().url(),
+  userinfoUrl: z.string().url()
 })
 
 const updateProviderSchema = z.object({
@@ -61,10 +68,11 @@ const updateProviderSchema = z.object({
   clientId: z.string().min(1).optional(),
   clientSecret: z.string().min(1).optional(),
   callbackUrl: z.string().url().optional(),
-  scope: z.string().optional()
+  authorizationUrl: z.string().url().optional(),
+  tokenUrl: z.string().url().optional(),
+  userinfoUrl: z.string().url().optional()
 })
 
-// Transform provider for API response (mask secret)
 const transformProvider = (provider: any) => ({
   id: provider.id,
   provider: provider.provider,
@@ -72,7 +80,9 @@ const transformProvider = (provider: any) => ({
   clientId: provider.clientId,
   clientSecret: maskSecret(provider.clientSecret),
   callbackUrl: provider.callbackUrl,
-  scope: provider.scope,
+  authorizationUrl: provider.authorizationUrl,
+  tokenUrl: provider.tokenUrl,
+  userinfoUrl: provider.userinfoUrl,
   isActive: provider.isActive,
   createdAt: provider.createdAt,
   updatedAt: provider.updatedAt
@@ -84,8 +94,12 @@ router.get('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest, 
     orderBy: { createdAt: 'asc' }
   })
 
+  const activeCount = providers.filter(p => p.isActive).length
+
   res.json({
-    providers: providers.map(transformProvider)
+    providers: providers.map(transformProvider),
+    activeCount,
+    maxActiveProviders: 3
   })
 }))
 
@@ -124,7 +138,9 @@ router.post('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest,
       clientId: data.clientId,
       clientSecret: encrypt(data.clientSecret),
       callbackUrl: data.callbackUrl,
-      scope: data.scope || ''
+      authorizationUrl: data.authorizationUrl,
+      tokenUrl: data.tokenUrl,
+      userinfoUrl: data.userinfoUrl
     }
   })
 
@@ -152,7 +168,9 @@ router.put('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthReque
   if (data.clientId) updateData.clientId = data.clientId
   if (data.clientSecret) updateData.clientSecret = encrypt(data.clientSecret)
   if (data.callbackUrl) updateData.callbackUrl = data.callbackUrl
-  if (data.scope !== undefined) updateData.scope = data.scope
+  if (data.authorizationUrl) updateData.authorizationUrl = data.authorizationUrl
+  if (data.tokenUrl) updateData.tokenUrl = data.tokenUrl
+  if (data.userinfoUrl) updateData.userinfoUrl = data.userinfoUrl
 
   const provider = await prisma.oAuthProvider.update({
     where: { id },
@@ -195,6 +213,20 @@ router.patch('/providers/:id/toggle', auth, adminOnly, asyncHandler(async (req: 
 
   if (!existing) {
     return res.status(404).json({ error: 'Provider not found' })
+  }
+
+  if (!existing.isActive) {
+    const activeCount = await prisma.oAuthProvider.count({
+      where: { isActive: true }
+    })
+
+    if (activeCount >= 3) {
+      return res.status(400).json({ 
+        error: 'Maximum 3 active OAuth providers allowed',
+        activeCount,
+        maxAllowed: 3
+      })
+    }
   }
 
   const provider = await prisma.oAuthProvider.update({

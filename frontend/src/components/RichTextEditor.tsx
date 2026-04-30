@@ -1,3 +1,8 @@
+/**
+ * 富文本编辑器组件
+ * 基于 TipTap 实现，支持粗体、斜体、列表、引用等格式
+ * 提供源码模式切换和撤销/重做功能
+ */
 import { useState, useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'

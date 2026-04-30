@@ -1,3 +1,8 @@
+/**
+ * SSO 单点登录信息页面
+ * 显示当前会话状态、Cookie 信息和 Token 解码内容
+ * 提供刷新状态和登出功能
+ */
 import { useState, useEffect } from 'react'
 import { Shield, Monitor, Key, Cookie, Clock, LogOut, RefreshCw, CheckCircle, XCircle, Info } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'

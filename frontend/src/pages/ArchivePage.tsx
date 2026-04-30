@@ -1,3 +1,8 @@
+/**
+ * 归档邮件页面
+ * 显示已归档邮件列表和详情
+ * 提供恢复、删除和邮件预览功能
+ */
 import { useState, useEffect } from 'react'
 import { Maximize2, Trash, Mail, ChevronLeft, ChevronRight, RotateCcw, CheckSquare } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'

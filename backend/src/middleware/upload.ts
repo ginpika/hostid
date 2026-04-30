@@ -1,3 +1,8 @@
+/**
+ * 文件上传中间件
+ * 使用 Multer 处理邮件附件上传
+ * 配置上传目录和文件命名规则
+ */
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
