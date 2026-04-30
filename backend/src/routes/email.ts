@@ -80,9 +80,17 @@ router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 20
   const skip = (page - 1) * limit
   
+  let whereCondition: any = { userId: req.userId }
+  
+  if (folder === 'STARRED') {
+    whereCondition.isStarred = true
+  } else {
+    whereCondition.folder = folder
+  }
+  
   const [emails, total] = await Promise.all([
     prisma.email.findMany({
-      where: { userId: req.userId, folder },
+      where: whereCondition,
       orderBy: { createdAt: 'desc' },
       include: { 
         attachments: {
@@ -93,7 +101,7 @@ router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
       take: limit
     }),
     prisma.email.count({
-      where: { userId: req.userId, folder }
+      where: whereCondition
     })
   ])
   

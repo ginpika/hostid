@@ -15,6 +15,9 @@ interface OAuthProvider {
   clientId: string
   clientSecret: string
   callbackUrl: string
+  authorizationUrl?: string
+  tokenUrl?: string
+  userinfoUrl?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -26,6 +29,9 @@ interface ProviderFormData {
   clientId: string
   clientSecret: string
   callbackUrl: string
+  authorizationUrl: string
+  tokenUrl: string
+  userinfoUrl: string
 }
 
 export default function OAuthConfigPage() {
@@ -44,7 +50,10 @@ export default function OAuthConfigPage() {
     displayName: '',
     clientId: '',
     clientSecret: '',
-    callbackUrl: ''
+    callbackUrl: '',
+    authorizationUrl: '',
+    tokenUrl: '',
+    userinfoUrl: ''
   })
   const [saving, setSaving] = useState(false)
 
@@ -98,9 +107,9 @@ export default function OAuthConfigPage() {
       clientId: provider.clientId,
       clientSecret: '',
       callbackUrl: provider.callbackUrl,
-      authorizationUrl: provider.authorizationUrl,
-      tokenUrl: provider.tokenUrl,
-      userinfoUrl: provider.userinfoUrl
+      authorizationUrl: provider.authorizationUrl || '',
+      tokenUrl: provider.tokenUrl || '',
+      userinfoUrl: provider.userinfoUrl || ''
     })
     setShowModal(true)
   }

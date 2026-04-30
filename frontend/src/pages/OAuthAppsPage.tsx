@@ -110,6 +110,7 @@ export default function OAuthAppsPage() {
       redirectUris: app.redirectUris.join('\n'),
       description: app.description || '',
       homepage: app.homepage || '',
+      scope: app.scope,
       isConfidential: app.isConfidential
     })
     setNewSecret(null)
