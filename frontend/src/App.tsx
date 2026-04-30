@@ -112,6 +112,7 @@ function AppRoutes() {
           <Route path="/oauth/register" element={<OAuthRegister />} />
           <Route path="/" element={<PrivateRoute><Inbox /></PrivateRoute>} />
           <Route path="/sent" element={<PrivateRoute><Inbox /></PrivateRoute>} />
+          <Route path="/starred" element={<PrivateRoute><Inbox /></PrivateRoute>} />
           <Route path="/trash" element={<PrivateRoute><Inbox /></PrivateRoute>} />
           <Route path="/archived" element={<PrivateRoute><ArchivePage /></PrivateRoute>} />
           <Route path="/info" element={<PrivateRoute><InfoPage /></PrivateRoute>} />

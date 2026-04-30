@@ -5,13 +5,13 @@
  */
 import { useState, useRef, useEffect, ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, Pen, LogOut, Menu, X, UserCircle, Globe, Info, Shield, Archive, Key, AppWindow } from 'lucide-react'
+import { Inbox, Send, Trash2, Pen, LogOut, Menu, X, UserCircle, Globe, Info, Shield, Archive, Key, AppWindow, Star } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import ThemeSelector from './ThemeSelector'
 
-type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'ARCHIVED'
+type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'ARCHIVED' | 'STARRED'
 
 interface LayoutProps {
   children: ReactNode
@@ -54,6 +54,7 @@ export default function Layout({ children, folder }: LayoutProps) {
       items: [
         { path: '/', label: t('inbox'), icon: Inbox, folder: 'INBOX' as Folder },
         { path: '/sent', label: t('sent'), icon: Send, folder: 'SENT' as Folder },
+        { path: '/starred', label: t('starred'), icon: Star, folder: 'STARRED' as Folder },
         { path: '/archived', label: t('archived'), icon: Archive, folder: 'ARCHIVED' as Folder },
         { path: '/trash', label: t('trash'), icon: Trash2, folder: 'TRASH' as Folder },
       ]

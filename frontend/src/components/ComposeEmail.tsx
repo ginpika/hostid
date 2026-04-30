@@ -238,7 +238,7 @@ export default function ComposeEmail({ onClose, onSent, replyData }: ComposeEmai
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"
+          className="rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col"
           style={{ backgroundColor: 'var(--color-bg-secondary)' }}
         >
           <div 

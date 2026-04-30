@@ -13,7 +13,7 @@ import Layout from '../components/Layout'
 import EmailList from '../components/EmailList'
 import EmailBody from '../components/EmailBody'
 
-type Folder = 'INBOX' | 'SENT' | 'TRASH'
+type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'STARRED'
 
 interface Pagination {
   page: number
@@ -47,6 +47,7 @@ export default function InboxPage() {
     const path = location.pathname
     if (path === '/sent') return 'SENT'
     if (path === '/trash') return 'TRASH'
+    if (path === '/starred') return 'STARRED'
     return 'INBOX'
   }
 
