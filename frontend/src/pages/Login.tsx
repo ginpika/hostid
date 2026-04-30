@@ -1,6 +1,11 @@
+/**
+ * 登录页面
+ * 用户登录表单，支持用户名密码登录和 OAuth 登录
+ * 包含 RSA 密码加密和登录成功跳转
+ */
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Mail, Lock, ArrowRight, Globe, LogOut, User } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Globe, LogOut, User, Key } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useDomain } from '../contexts/DomainContext'
@@ -27,6 +32,7 @@ interface OAuthStatus {
 type AnimationPhase = 'idle' | 'formFadeOut' | 'heightTransition' | 'cardFadeIn'
 
 const FADE_DURATION = 500
+// 每一个 OAuth 按钮会添加差值 58px 
 const HEIGHT_DURATION = 800
 const LOGIN_FORM_HEIGHT = 646
 const LOGIN_CARD_HEIGHT = 340
@@ -402,7 +408,7 @@ export default function Login() {
                   </button>
                 </form>
 
-                {oauthStatus.providers.github?.enabled && (
+                {Object.entries(oauthStatus.providers).some(([_, p]) => p.enabled) && (
                   <div className="mt-4">
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
@@ -415,41 +421,80 @@ export default function Login() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOauthLoading(true)
-                        // 使用 setTimeout 确保 UI 更新后再跳转
-                        setTimeout(() => {
-                          window.location.href = `/api/oauth/github?redirect=${encodeURIComponent(redirectUrl)}`
-                        }, 100)
-                      }}
-                      disabled={oauthLoading}
-                      className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 border disabled:cursor-not-allowed"
-                      style={{
-                        backgroundColor: oauthLoading ? 'var(--color-bg-tertiary)' : 'var(--color-bg-primary)',
-                        color: oauthLoading ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
-                        borderColor: oauthLoading ? 'var(--color-border-secondary)' : 'var(--color-border-primary)',
-                        opacity: oauthLoading ? 0.7 : 1
-                      }}
-                    >
-                      {oauthLoading ? (
-                        <>
-                          <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
-                            <path className="opacity-75" stroke="currentColor" strokeWidth="3" strokeLinecap="round" d="M12 2a10 10 0 0 1 10 10"></path>
-                          </svg>
-                          {t('oauthRedirecting')}
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                          </svg>
-                          {language === 'zh-CN' ? `使用 ${oauthStatus.providers.github.displayName} 登录` : `Sign in with ${oauthStatus.providers.github.displayName}`}
-                        </>
-                      )}
-                    </button>
+                    <div className="mt-4 space-y-3">
+                      {Object.entries(oauthStatus.providers)
+                        .filter(([_, provider]) => provider.enabled)
+                        .map(([providerId, provider]) => {
+                          const getProviderIcon = () => {
+                            const iconClass = "w-5 h-5"
+                            
+                            if (providerId === 'github') {
+                              return (
+                                <svg className={iconClass} viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                </svg>
+                              )
+                            }
+                            
+                            if (providerId === 'google') {
+                              return (
+                                <svg className={iconClass} viewBox="0 0 24 24">
+                                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                              )
+                            }
+                            
+                            if (providerId === 'wechat') {
+                              return (
+                                <svg className={iconClass} viewBox="0 0 24 24" fill="#07C160">
+                                  <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.36c0 2.212 1.17 4.203 3.002 5.555a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 1 .167-.054l1.943-1.154a.934.934 0 0 1 .446-.138c.089 0 .177.018.265.035.907.235 1.863.371 2.853.371.277 0 .549-.016.819-.04-.159-.583-.246-1.187-.246-1.807 0-3.654 3.396-6.66 7.58-6.66.272 0 .538.018.802.047C15.762 4.256 12.528 2.188 8.691 2.188zm-2.935 5.09c.57 0 1.031.462 1.031 1.03 0 .57-.461 1.031-1.03 1.031-.571 0-1.032-.461-1.032-1.03 0-.57.461-1.031 1.031-1.031zm5.872 0c.57 0 1.031.462 1.031 1.03 0 .57-.461 1.031-1.03 1.031-.571 0-1.032-.461-1.032-1.03 0-.57.461-1.031 1.031-1.031zm4.847 3.54c-3.762 0-6.864 2.67-6.864 5.94 0 3.27 3.102 5.94 6.864 5.94.645 0 1.272-.076 1.874-.219a.67.67 0 0 1 .2-.032.54.54 0 0 1 .264.079l1.46.87a.23.23 0 0 0 .124.04c.118 0 .215-.096.215-.215 0-.054-.017-.107-.036-.16l-.29-1.11a.44.44 0 0 1 .16-.5c1.372-1.01 2.256-2.458 2.256-4.093 0-3.27-3.102-5.94-6.864-5.94zm-2.534 3.46c.427 0 .77.344.77.77 0 .427-.343.77-.77.77-.426 0-.77-.343-.77-.77 0-.426.344-.77.77-.77zm5.07 0c.427 0 .77.344.77.77 0 .427-.343.77-.77.77-.426 0-.77-.343-.77-.77 0-.426.344-.77.77-.77z"/>
+                                </svg>
+                              )
+                            }
+                            
+                            return <Key className={iconClass} />
+                          }
+                          
+                          return (
+                            <button
+                              key={providerId}
+                              type="button"
+                              onClick={() => {
+                                setOauthLoading(true)
+                                setTimeout(() => {
+                                  window.location.href = `/api/oauth/${providerId}?redirect=${encodeURIComponent(redirectUrl)}`
+                                }, 100)
+                              }}
+                              disabled={oauthLoading}
+                              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 border disabled:cursor-not-allowed"
+                              style={{
+                                backgroundColor: oauthLoading ? 'var(--color-bg-tertiary)' : 'var(--color-bg-primary)',
+                                color: oauthLoading ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
+                                borderColor: oauthLoading ? 'var(--color-border-secondary)' : 'var(--color-border-primary)',
+                                opacity: oauthLoading ? 0.7 : 1
+                              }}
+                            >
+                              {oauthLoading ? (
+                                <>
+                                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                                    <path className="opacity-75" stroke="currentColor" strokeWidth="3" strokeLinecap="round" d="M12 2a10 10 0 0 1 10 10"></path>
+                                  </svg>
+                                  {t('oauthRedirecting')}
+                                </>
+                              ) : (
+                                <>
+                                  {getProviderIcon()}
+                                  {language === 'zh-CN' ? `使用 ${provider.displayName} 登录` : `Sign in with ${provider.displayName}`}
+                                </>
+                              )}
+                            </button>
+                          )
+                        })}
+                    </div>
                   </div>
                 )}
 

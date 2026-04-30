@@ -1,3 +1,8 @@
+/**
+ * 认证路由
+ * 处理用户注册、登录、注销和用户信息管理
+ * 包含 RSA 密码解密、头像上传和 SSO 会话管理
+ */
 import { Router, Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'

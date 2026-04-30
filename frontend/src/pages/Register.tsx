@@ -1,3 +1,8 @@
+/**
+ * 注册页面
+ * 用户注册表单，支持用户名密码注册
+ * 包含 RSA 密码加密、域名显示和 Turnstile 人机验证
+ */
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Mail, Lock, ArrowRight, Globe } from 'lucide-react'

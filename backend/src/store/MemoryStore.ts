@@ -1,3 +1,8 @@
+/**
+ * 内存存储类
+ * 实现键值存储，支持 TTL 过期和自动清理
+ * 用于 OAuth 状态、会话和临时数据存储
+ */
 import { KVStoreOptions, StoreEntry, ClusterNode, ReplicationConfig } from './types'
 
 export class MemoryStore {

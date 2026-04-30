@@ -1,3 +1,8 @@
+/**
+ * OAuth 2.0 服务
+ * 实现授权码、访问令牌和刷新令牌的生成与验证
+ * 支持 PKCE 验证和令牌持久化
+ */
 import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 import { memoryStore } from '../store'
@@ -143,8 +148,7 @@ export async function revokeAccessToken(token: string): Promise<void> {
 export async function saveRefreshToken(
   token: string,
   clientId: string,
-  userId: string,
-  scope: string
+  userId: string
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000)
 
@@ -153,7 +157,6 @@ export async function saveRefreshToken(
       token,
       clientId,
       userId,
-      scope,
       expiresAt
     }
   })
@@ -165,7 +168,6 @@ export async function saveRefreshToken(
 export async function verifyRefreshToken(token: string): Promise<{
   userId: string
   clientId: string
-  scope: string
 } | null> {
   const refreshToken = await prisma.refreshToken.findUnique({
     where: { token }
@@ -176,15 +178,13 @@ export async function verifyRefreshToken(token: string): Promise<{
   }
 
   if (refreshToken.expiresAt < new Date()) {
-    // 删除过期的 token
     await prisma.refreshToken.delete({ where: { token } })
     return null
   }
 
   return {
     userId: refreshToken.userId,
-    clientId: refreshToken.clientId,
-    scope: refreshToken.scope
+    clientId: refreshToken.clientId
   }
 }
 
@@ -216,47 +216,6 @@ export function verifyPKCE(
     .digest('base64url')
 
   return hash === codeChallenge
-}
-
-/**
- * 验证 redirect_uri 是否在允许列表中
- */
-export function validateRedirectUri(redirectUri: string, allowedUris: string[]): boolean {
-  // 严格匹配
-  return allowedUris.includes(redirectUri)
-}
-
-/**
- * 解析 scope 字符串
- */
-export function parseScope(scope: string): string[] {
-  return scope.split(' ').filter(s => s.length > 0)
-}
-
-/**
- * 获取 scope 的用户友好描述
- */
-export function getScopeDescription(scope: string): { name: string; description: string }[] {
-  const scopes = parseScope(scope)
-  const descriptions: { name: string; description: string }[] = []
-
-  for (const s of scopes) {
-    switch (s) {
-      case 'openid':
-        descriptions.push({ name: 'openid', description: '用户唯一标识符' })
-        break
-      case 'profile':
-        descriptions.push({ name: 'profile', description: '基本信息（用户名、昵称、头像）' })
-        break
-      case 'email':
-        descriptions.push({ name: 'email', description: '邮箱地址' })
-        break
-      default:
-        descriptions.push({ name: s, description: s })
-    }
-  }
-
-  return descriptions
 }
 
 /**

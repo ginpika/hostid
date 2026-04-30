@@ -1,3 +1,8 @@
+/**
+ * 平台检测工具（桌面端专用）
+ * 检测 Tauri 桌面端环境，提供本地/远程连接配置
+ * 注意：当前未被项目使用，为 Tauri 桌面端预留
+ */
 declare global {
   interface Window {
     __TAURI__?: {

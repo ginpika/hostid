@@ -1,3 +1,8 @@
+/**
+ * 关于页面
+ * 显示系统介绍、功能特性和技术栈信息
+ * 包含服务条款链接
+ */
 import { Link } from 'react-router-dom'
 import { Mail, FileText } from 'lucide-react'
 import Layout from '../components/Layout'

@@ -1,3 +1,8 @@
+/**
+ * RSA 密码加密工具
+ * 使用 Web Crypto API 实现 RSA-OAEP 加密
+ * 用于登录和注册时的密码安全传输
+ */
 let cachedPublicKey: CryptoKey | null = null
 let cachedPublicKeyPem: string | null = null
 

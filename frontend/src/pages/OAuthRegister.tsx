@@ -1,3 +1,8 @@
+/**
+ * OAuth 注册/绑定页面
+ * 处理 OAuth 新用户注册或已有用户绑定 GitHub
+ * 支持设置用户名完成注册流程
+ */
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowRight, Globe, User, Link2, ArrowLeftRight } from 'lucide-react'

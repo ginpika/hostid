@@ -1,3 +1,8 @@
+/**
+ * SSO 单点登录路由
+ * 提供会话状态查询和登出功能
+ * 用于跨应用单点登录集成
+ */
 import { Router, Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'

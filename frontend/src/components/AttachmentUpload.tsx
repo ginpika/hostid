@@ -1,3 +1,8 @@
+/**
+ * 附件上传组件
+ * 支持拖拽上传和点击上传文件
+ * 提供文件类型验证、大小限制和上传状态显示
+ */
 import { useState, useRef } from 'react'
 import { Paperclip, X, File, FileImage, FileText, FileSpreadsheet, FileArchive, Music, Video, Loader2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'

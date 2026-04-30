@@ -1,3 +1,8 @@
+/**
+ * AI 摘要生成服务
+ * 从邮件内容生成简短摘要
+ * 用于邮件列表预览显示
+ */
 export async function generateSummary(content: string): Promise<string> {
   const sentences = content.replace(/<[^>]*>/g, '').split(/[.!?]+/).filter(s => s.trim())
   

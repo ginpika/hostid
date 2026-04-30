@@ -1,3 +1,8 @@
+/**
+ * SMTP 接收服务器
+ * 接收外部邮件并存储到本地用户邮箱
+ * 使用 mailparser 解析邮件内容
+ */
 import { SMTPServer } from 'smtp-server'
 import { simpleParser } from 'mailparser'
 import { prisma } from '../lib/prisma'

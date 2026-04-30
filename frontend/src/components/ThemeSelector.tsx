@@ -1,3 +1,8 @@
+/**
+ * 主题选择器组件
+ * 提供下拉菜单切换系统主题和多种预设主题
+ * 支持浅色、深色和自定义主题选择
+ */
 import { useState, useRef, useEffect } from 'react'
 import { Check, Monitor, Palette } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'

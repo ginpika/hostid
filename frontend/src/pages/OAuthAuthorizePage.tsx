@@ -1,13 +1,13 @@
+/**
+ * OAuth 授权确认页面
+ * 显示第三方应用请求授权的信息
+ * 用户可批准或拒绝授权请求
+ */
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Shield, Check, X, User, ExternalLink } from 'lucide-react'
+import { Shield, X, User, ExternalLink } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
-
-interface ScopeInfo {
-  name: string
-  description: string
-}
 
 interface AuthorizeData {
   app: {
@@ -20,8 +20,6 @@ interface AuthorizeData {
     nickname: string | null
     email: string
   }
-  scope: ScopeInfo[]
-  requestedScope: string
   clientId: string
   redirectUri: string
   state: string | null
@@ -44,7 +42,7 @@ export default function OAuthAuthorizePage() {
   const clientId = searchParams.get('client_id')
   const redirectUri = searchParams.get('redirect_uri')
   const responseType = searchParams.get('response_type')
-  const scope = searchParams.get('scope') || 'openid profile email'
+  const scope = 'openid profile email'
   const state = searchParams.get('state')
   const codeChallenge = searchParams.get('code_challenge')
   const codeChallengeMethod = searchParams.get('code_challenge_method') || 'S256'
@@ -113,7 +111,6 @@ export default function OAuthAuthorizePage() {
         body: JSON.stringify({
           client_id: data.clientId,
           redirect_uri: data.redirectUri,
-          scope: data.requestedScope,
           state: data.state,
           code_challenge: data.codeChallenge,
           code_challenge_method: data.codeChallengeMethod,
@@ -240,37 +237,11 @@ export default function OAuthAuthorizePage() {
             </div>
           </div>
 
-          {/* Permissions */}
-          <div className="mb-6">
-            <p className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-              {t('appPermissions')}
-            </p>
-            <div className="space-y-2">
-              {data.scope.map((s, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 p-2 rounded-lg"
-                  style={{ backgroundColor: 'var(--color-bg-tertiary)' }}
-                >
-                  <Check className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-accent-primary)' }} />
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                      {s.name}
-                    </p>
-                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                      {s.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Warning */}
           <p className="text-xs mb-6" style={{ color: 'var(--color-text-muted)' }}>
             {language === 'zh-CN'
-              ? '授权后，该应用将能够访问上述信息。请确保您信任该应用。'
-              : 'By authorizing, this app will be able to access the information above. Make sure you trust this app.'}
+              ? '授权后，该应用将能够访问您的账号信息。请确保您信任该应用。'
+              : 'By authorizing, this app will be able to access your account information. Make sure you trust this app.'}
           </p>
 
           {/* Actions */}

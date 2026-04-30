@@ -1,3 +1,8 @@
+/**
+ * 域名上下文
+ * 提供系统邮件域名配置
+ * 用于注册页面显示和用户邮箱格式验证
+ */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 interface DomainContextType {

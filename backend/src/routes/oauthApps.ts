@@ -1,3 +1,8 @@
+/**
+ * OAuth 应用管理路由
+ * 管理 OAuth 授权应用的创建、编辑和密钥重置
+ * 仅限管理员用户访问
+ */
 import { Router, Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { z } from 'zod'
@@ -78,7 +83,6 @@ const transformApp = (app: any, includeSecret = false) => ({
   redirectUris: JSON.parse(app.redirectUris),
   description: app.description,
   homepage: app.homepage,
-  scope: app.scope,
   isConfidential: app.isConfidential,
   isActive: app.isActive,
   userId: app.userId,
@@ -137,7 +141,6 @@ router.post('/', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Res
       redirectUris: JSON.stringify(data.redirectUris),
       description: data.description || null,
       homepage: data.homepage || null,
-      scope: data.scope || 'openid profile email',
       isConfidential: data.isConfidential ?? true,
       userId: req.userId!
     },
@@ -175,7 +178,6 @@ router.put('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: R
   if (data.redirectUris) updateData.redirectUris = JSON.stringify(data.redirectUris)
   if (data.description !== undefined) updateData.description = data.description || null
   if (data.homepage !== undefined) updateData.homepage = data.homepage || null
-  if (data.scope) updateData.scope = data.scope
   if (data.isConfidential !== undefined) updateData.isConfidential = data.isConfidential
 
   const app = await prisma.oAuthApp.update({

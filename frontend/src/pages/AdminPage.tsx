@@ -1,3 +1,8 @@
+/**
+ * 管理员面板页面
+ * 数据库管理工具，支持查看和操作数据库表
+ * 提供数据浏览、删除和全屏模式
+ */
 import { useState, useEffect } from 'react'
 import { Database, Trash2, ChevronLeft, ChevronRight, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 import Layout from '../components/Layout'

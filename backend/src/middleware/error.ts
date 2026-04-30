@@ -1,3 +1,8 @@
+/**
+ * 错误处理中间件
+ * 定义自定义错误类和全局错误处理器
+ * 统一处理 API 错误响应格式
+ */
 import { Request, Response, NextFunction } from 'express'
 
 export class AppError extends Error {

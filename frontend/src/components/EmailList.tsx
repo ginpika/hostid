@@ -1,3 +1,8 @@
+/**
+ * 邮件列表组件
+ * 显示邮件列表，支持选择模式、未读/星标状态显示
+ * 用于收件箱和归档页面
+ */
 import { Mail, Paperclip, CheckSquare, Square, Star } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 

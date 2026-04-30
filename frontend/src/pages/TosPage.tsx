@@ -1,3 +1,8 @@
+/**
+ * 服务条款和隐私政策页面
+ * 显示用户服务协议和隐私保护条款
+ * 支持中英文双语显示
+ */
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, FileText, Shield, AlertCircle } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'

@@ -1,3 +1,8 @@
+/**
+ * 邓件路由
+ * 处理邮件列表查询、发送、删除、恢复和归档
+ * 包含附件处理、AI 摘要生成和外部邮件发送
+ */
 import { Router, Response, NextFunction, Request } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'

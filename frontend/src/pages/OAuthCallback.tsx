@@ -1,3 +1,8 @@
+/**
+ * OAuth 回调处理页面
+ * 处理 OAuth 登录成功后的回调
+ * 保存 Token 和用户信息，跳转到目标页面
+ */
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'

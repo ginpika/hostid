@@ -1,3 +1,8 @@
+/**
+ * 邮件详情组件
+ * 显示邮件完整内容，包含发件人、收件人、正文和附件
+ * 提供删除、恢复、回复、转发、归档和星标操作
+ */
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 

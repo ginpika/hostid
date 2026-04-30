@@ -1,3 +1,8 @@
+/**
+ * 头像上传中间件
+ * 使用 Multer 处理用户头像上传
+ * 配置头像目录和文件命名规则
+ */
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'

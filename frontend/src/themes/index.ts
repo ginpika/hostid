@@ -1,3 +1,8 @@
+/**
+ * 主题配置模块
+ * 定义多种预设主题的配色方案
+ * 包含浅色、深色、樱花、星空、森林、海洋、日落、薰衣草主题
+ */
 export interface ThemeColors {
   bg: {
     primary: string

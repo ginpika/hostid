@@ -1,3 +1,8 @@
+/**
+ * 主布局组件
+ * 提供侧边栏导航、顶部栏、主题选择器和语言切换
+ * 包含邮件文件夹导航和管理员入口
+ */
 import { useState, useRef, useEffect, ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Inbox, Send, Trash2, Pen, LogOut, Menu, X, UserCircle, Globe, Info, Shield, Archive, Key, AppWindow } from 'lucide-react'

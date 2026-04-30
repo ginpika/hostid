@@ -1,3 +1,8 @@
+/**
+ * 应用入口文件
+ * 配置路由、认证守卫和全局 Context Provider
+ * 包含私有路由、公开路由和 OAuth 回调处理
+ */
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useEffect, useRef } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'

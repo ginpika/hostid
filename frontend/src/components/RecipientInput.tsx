@@ -1,3 +1,8 @@
+/**
+ * 收件人输入组件
+ * 支持添加多个收件人，包含 to/cc/bcc 三种类型
+ * 提供用户名验证和重复检测
+ */
 import React, { useState, useRef } from 'react'
 import { X, ChevronDown, Plus, Mail, Users, EyeOff } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'

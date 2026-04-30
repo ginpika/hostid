@@ -1,3 +1,8 @@
+/**
+ * 翻译文本配置
+ * 包含中文和英文的所有界面文本翻译
+ * 涵盖导航、邮件操作、管理员、OAuth 等功能模块
+ */
 export const translations = {
   'zh-CN': {
     // Navigation
@@ -271,8 +276,6 @@ export const translations = {
     showSecret: '显示密钥',
     hideSecret: '隐藏密钥',
     providerName: '服务商名称',
-    providerType: '服务商类型',
-    scope: '权限范围',
     noProviders: '暂无 OAuth 配置',
     noProvidersHint: '点击上方按钮添加 OAuth 服务商',
     configSaved: '配置已保存',
@@ -578,8 +581,6 @@ export const translations = {
     showSecret: 'Show Secret',
     hideSecret: 'Hide Secret',
     providerName: 'Provider Name',
-    providerType: 'Provider Type',
-    scope: 'Scope',
     noProviders: 'No OAuth providers configured',
     noProvidersHint: 'Click the button above to add an OAuth provider',
     configSaved: 'Configuration saved',
@@ -605,7 +606,6 @@ export const translations = {
 
     // OAuth Authorize
     authorizeApp: 'Authorize App',
-    appPermissions: 'This app will have access to',
     approve: 'Authorize',
     deny: 'Deny',
   }

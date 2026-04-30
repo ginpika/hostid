@@ -1,3 +1,8 @@
+/**
+ * 主题上下文
+ * 管理系统主题和自定义主题切换
+ * 支持跟随系统、浅色、深色和多种预设主题
+ */
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { themes, ThemeConfig, getThemeById, getDefaultTheme } from '../themes'
 

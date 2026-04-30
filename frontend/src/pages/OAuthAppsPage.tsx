@@ -1,3 +1,8 @@
+/**
+ * OAuth 应用管理页面
+ * 管理 OAuth 授权应用，让其他应用通过 Hostid 登录
+ * 支持创建、编辑、删除应用和重置密钥
+ */
 import { useState, useEffect } from 'react'
 import { AppWindow, Plus, Trash2, Edit, Power, PowerOff, X, Check, RefreshCw, Copy, Eye, EyeOff } from 'lucide-react'
 import Layout from '../components/Layout'
@@ -105,7 +110,6 @@ export default function OAuthAppsPage() {
       redirectUris: app.redirectUris.join('\n'),
       description: app.description || '',
       homepage: app.homepage || '',
-      scope: app.scope,
       isConfidential: app.isConfidential
     })
     setNewSecret(null)
@@ -150,7 +154,6 @@ export default function OAuthAppsPage() {
         redirectUris: redirectUrisArray,
         description: formData.description || null,
         homepage: formData.homepage || null,
-        scope: formData.scope,
         isConfidential: formData.isConfidential
       }
 
@@ -631,26 +634,6 @@ export default function OAuthAppsPage() {
                     }}
                     placeholder="https://example.com"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>
-                    {t('scope')}
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.scope}
-                    onChange={e => setFormData({ ...formData, scope: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
-                    style={{
-                      backgroundColor: 'var(--color-bg-primary)',
-                      borderColor: 'var(--color-border-primary)',
-                      color: 'var(--color-text-primary)'
-                    }}
-                  />
-                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                    {language === 'zh-CN' ? '可用: openid, profile, email' : 'Available: openid, profile, email'}
-                  </p>
                 </div>
 
                 <div className="flex items-center gap-2">

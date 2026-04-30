@@ -1,3 +1,8 @@
+/**
+ * Cloudflare Turnstile 人机验证组件
+ * 集成 Cloudflare Turnstile 验证码服务
+ * 支持自动主题切换和验证回调
+ */
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 

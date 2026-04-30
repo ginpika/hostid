@@ -1,3 +1,8 @@
+/**
+ * 撰写邮件上下文
+ * 控制邮件撰写弹窗的显示状态
+ * 支持回复、回复全部和转发模式数据传递
+ */
 import { createContext, useContext, useState, ReactNode } from 'react'
 
 interface ComposeContextType {
