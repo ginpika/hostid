@@ -5,6 +5,7 @@
  */
 import { prisma } from '../lib/prisma'
 import { encrypt } from '../services/encryption'
+import { clearProviderCache } from '../routes/oauthClient'
 
 /**
  * Migrate OAuth configuration from environment variables to database
@@ -21,6 +22,9 @@ export async function migrateOAuthConfig(): Promise<void> {
     const githubClientId = process.env.GITHUB_CLIENT_ID || ''
     const githubClientSecret = process.env.GITHUB_CLIENT_SECRET || ''
     const githubCallbackUrl = process.env.GITHUB_CALLBACK_URL || ''
+    const githubAuthorizationUrl = process.env.GITHUB_AUTHORIZATION_URL || 'https://github.com/login/oauth/authorize'
+    const githubTokenUrl = process.env.GITHUB_TOKEN_URL || 'https://github.com/login/oauth/access_token'
+    const githubUserinfoUrl = process.env.GITHUB_USERINFO_URL || 'https://api.github.com/user'
 
     // If env vars are set and database doesn't have config, migrate
     if (!existingGitHub && githubClientId && githubClientSecret && githubCallbackUrl) {
@@ -33,10 +37,14 @@ export async function migrateOAuthConfig(): Promise<void> {
           clientId: githubClientId,
           clientSecret: encrypt(githubClientSecret),
           callbackUrl: githubCallbackUrl,
-          isActive: true
+          authorizationUrl: githubAuthorizationUrl,
+          tokenUrl: githubTokenUrl,
+          userinfoUrl: githubUserinfoUrl,
+          isActive: false
         }
       })
 
+      clearProviderCache('github')
       console.log('GitHub OAuth configuration migrated successfully.')
     }
 
@@ -47,6 +55,7 @@ export async function migrateOAuthConfig(): Promise<void> {
         where: { provider: 'github' },
         data: { isActive: true }
       })
+      clearProviderCache('github')
     }
   } catch (error) {
     console.error('Error migrating OAuth configuration:', error)

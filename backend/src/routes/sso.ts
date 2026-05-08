@@ -7,11 +7,20 @@ import { Router, Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { z } from 'zod'
+import rateLimit from 'express-rate-limit'
 import { prisma } from '../lib/prisma'
 import { memoryStore } from '../store'
 import { AppError } from '../middleware/error'
 
 const router = Router()
+
+const ssoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false
+})
 
 const SSO_COOKIE_NAME = process.env.SSO_COOKIE_NAME || 'sso_token'
 const SSO_COOKIE_DOMAIN = process.env.SSO_COOKIE_DOMAIN || ''
@@ -135,7 +144,7 @@ const verifySchema = z.object({
   token: z.string().optional()
 })
 
-router.post('/verify', asyncHandler(async (req: Request, res: Response) => {
+router.post('/verify', ssoLimiter, asyncHandler(async (req: Request, res: Response) => {
   const token = req.cookies?.[SSO_COOKIE_NAME] || req.headers.authorization?.replace('Bearer ', '')
   
   if (!token) {
@@ -172,7 +181,7 @@ router.post('/verify', asyncHandler(async (req: Request, res: Response) => {
   })
 }))
 
-router.post('/login', asyncHandler(async (req: Request, res: Response) => {
+router.post('/login', ssoLimiter, asyncHandler(async (req: Request, res: Response) => {
   const { username, password } = req.body
   
   if (!username || !password) {
@@ -215,7 +224,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   })
 }))
 
-router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
+router.post('/logout', ssoLimiter, asyncHandler(async (req: Request, res: Response) => {
   const token = req.cookies?.[SSO_COOKIE_NAME]
   
   if (token) {
@@ -229,7 +238,7 @@ router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true })
 }))
 
-router.get('/session', asyncHandler(async (req: Request, res: Response) => {
+router.get('/session', ssoLimiter, asyncHandler(async (req: Request, res: Response) => {
   const token = req.cookies?.[SSO_COOKIE_NAME]
   
   if (!token) {
@@ -263,20 +272,6 @@ router.get('/session', asyncHandler(async (req: Request, res: Response) => {
       role: session.role
     }
   })
-}))
-
-router.get('/apps', asyncHandler(async (req: Request, res: Response) => {
-  const apps = await prisma.sSOApp.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      name: true,
-      domain: true,
-      description: true
-    }
-  })
-  
-  res.json({ apps })
 }))
 
 export default router

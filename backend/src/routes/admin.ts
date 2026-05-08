@@ -56,7 +56,6 @@ router.get('/tables', auth, adminOnly, asyncHandler(async (req: AuthRequest, res
       { name: 'Email', count: await prisma.email.count() },
       { name: 'Attachment', count: await prisma.attachment.count() },
       { name: 'EmailAttachment', count: await prisma.emailAttachment.count() },
-      { name: 'SSOApp', count: await prisma.sSOApp.count() },
       { name: 'OAuthProvider', count: await prisma.oAuthProvider.count() }
     ]
   })
@@ -144,26 +143,6 @@ router.get('/tables/:tableName', auth, adminOnly, asyncHandler(async (req: AuthR
       })
       break
 
-    case 'ssoapp':
-      columns = ['id', 'name', 'domain', 'description', 'isActive', 'userId', 'createdAt', 'updatedAt']
-      total = await prisma.sSOApp.count()
-      data = await prisma.sSOApp.findMany({
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          name: true,
-          domain: true,
-          description: true,
-          isActive: true,
-          userId: true,
-          createdAt: true,
-          updatedAt: true
-        }
-      })
-      break
-
     case 'oauthprovider':
       columns = ['id', 'provider', 'displayName', 'clientId', 'callbackUrl', 'scope', 'isActive', 'createdAt', 'updatedAt']
       total = await prisma.oAuthProvider.count()
@@ -218,10 +197,6 @@ router.delete('/tables/:tableName/:id', auth, adminOnly, asyncHandler(async (req
 
     case 'emailattachment':
       await prisma.emailAttachment.delete({ where: { id } })
-      break
-
-    case 'ssoapp':
-      await prisma.sSOApp.delete({ where: { id } })
       break
 
     case 'oauthprovider':
