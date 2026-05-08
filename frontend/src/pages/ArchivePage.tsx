@@ -7,7 +7,6 @@ import { useState, useEffect } from 'react'
 import { Maximize2, Trash, Mail, ChevronLeft, ChevronRight, RotateCcw, CheckSquare } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
-import Layout from '../components/Layout'
 import EmailList from '../components/EmailList'
 import EmailDetail from '../components/EmailDetail'
 import EmailBody from '../components/EmailBody'
@@ -244,7 +243,7 @@ export default function ArchivePage() {
   }
 
   return (
-    <Layout>
+    <>
       <div className="flex-1 flex min-h-0">
         <div 
           className="w-full md:w-2/5 lg:w-1/3 xl:w-1/4 border-r flex flex-col"
@@ -416,7 +415,7 @@ export default function ArchivePage() {
           onForward={handleForward}
         />
       )}
-    </Layout>
+    </>
   )
 }
 

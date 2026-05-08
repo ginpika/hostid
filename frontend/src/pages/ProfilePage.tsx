@@ -6,7 +6,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Save, Loader2, Pencil, X, Shield, Camera, User, KeyRound, Github, Check } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
-import Layout from '../components/Layout'
 import { encryptPassword } from '../utils/rsa'
 
 interface UserProfile {
@@ -266,26 +265,22 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
-        </div>
-      </Layout>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
+      </div>
     )
   }
 
   if (!profile) {
     return (
-      <Layout>
-        <div className="flex-1 flex items-center justify-center">
-          <p style={{ color: 'var(--color-text-tertiary)' }}>{t('profileNotFound')}</p>
-        </div>
-      </Layout>
+      <div className="flex-1 flex items-center justify-center">
+        <p style={{ color: 'var(--color-text-tertiary)' }}>{t('profileNotFound')}</p>
+      </div>
     )
   }
 
   return (
-    <Layout>
+    <>
       <div className="flex-1 overflow-y-auto relative" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
         <a
           href="/sso/info"
@@ -819,6 +814,6 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-    </Layout>
+    </>
   )
 }

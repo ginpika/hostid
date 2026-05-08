@@ -5,7 +5,6 @@
  */
 import { useState, useEffect } from 'react'
 import { Key, Plus, Trash2, Edit, Power, PowerOff, X, Check } from 'lucide-react'
-import Layout from '../components/Layout'
 import { useI18n } from '../i18n/I18nContext'
 
 interface OAuthProvider {
@@ -247,7 +246,7 @@ export default function OAuthConfigPage() {
   }
 
   return (
-    <Layout>
+    <>
       <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
         <div className="max-w-4xl mx-auto p-8">
           <div className="flex items-center justify-between mb-8">
@@ -728,6 +727,6 @@ export default function OAuthConfigPage() {
           </div>
         </div>
       )}
-    </Layout>
+    </>
   )
 }

@@ -5,7 +5,6 @@
  */
 import { Link } from 'react-router-dom'
 import { Mail, FileText } from 'lucide-react'
-import Layout from '../components/Layout'
 import { useI18n } from '../i18n/I18nContext'
 import { useConfig } from '../contexts/ConfigContext'
 
@@ -14,7 +13,7 @@ export default function InfoPage() {
   const { config, getDisplayName, getDescription } = useConfig()
 
   return (
-    <Layout>
+    <>
       <div className="flex-1 overflow-y-auto relative" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
         <Link
           to="/tos"
@@ -100,6 +99,6 @@ export default function InfoPage() {
           </div>
         </div>
       </div>
-    </Layout>
+    </>
   )
 }
