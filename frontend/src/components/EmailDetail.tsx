@@ -528,18 +528,6 @@ export default function EmailDetail({
                   </div>
                 </div>
 
-                {email.summary && (
-                  <div 
-                    className="px-5 py-4 border-l-4"
-                    style={{ 
-                      backgroundColor: 'var(--color-accent-muted)',
-                      borderLeftColor: 'var(--color-accent-primary)'
-                    }}
-                  >
-                    <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{email.summary}</p>
-                  </div>
-                )}
-
                 <div className="p-5">
                   <EmailBody content={email.body} className="leading-relaxed text-[15px]" style={{ color: 'var(--color-text-secondary)' }} />
                 </div>

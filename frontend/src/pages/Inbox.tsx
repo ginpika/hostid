@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import EmailList from '../components/EmailList'
+import EmailDetail from '../components/EmailDetail'
 import EmailBody from '../components/EmailBody'
 
 type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'STARRED'
@@ -38,6 +39,7 @@ export default function InboxPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set())
   const [isSelectMode, setIsSelectMode] = useState(false)
+  const [showMobileDetail, setShowMobileDetail] = useState(false)
   const [emails, setEmails] = useState<any[]>([])
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 0 })
   const [loading, setLoading] = useState(false)
@@ -100,7 +102,12 @@ export default function InboxPage() {
       }
       setSelectedEmailIds(newSelected)
     } else {
-      setSelectedEmail(email)
+      if (window.innerWidth < 768) {
+        setSelectedEmail(email)
+        setShowMobileDetail(true)
+      } else {
+        setSelectedEmail(email)
+      }
 
       if (!email.isRead) {
         try {
@@ -270,6 +277,7 @@ export default function InboxPage() {
   const allSelectedRead = selectedEmailsData.length > 0 && selectedEmailsData.every(e => e.isRead)
 
   return (
+    <>
     <div className="flex-1 flex min-h-0">
       <div
         className="w-full md:w-2/5 lg:w-1/3 xl:w-1/4 border-r flex flex-col"
@@ -425,6 +433,24 @@ export default function InboxPage() {
         )}
       </div>
     </div>
+
+    {showMobileDetail && selectedEmail && (
+      <EmailDetail
+        emailId={selectedEmail.id}
+        onClose={() => setShowMobileDetail(false)}
+        onDelete={handleEmailDeleted}
+        onRestore={handleEmailDeleted}
+        onToggleStar={handleToggleStar}
+        onReply={handleReply}
+        onReplyAll={handleReplyAll}
+        onForward={handleForward}
+        onArchive={() => {
+          setShowMobileDetail(false)
+          setRefreshKey(k => k + 1)
+        }}
+      />
+    )}
+    </>
   )
 }
 

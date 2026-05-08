@@ -26,6 +26,7 @@ export default function ArchivePage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set())
   const [isSelectMode, setIsSelectMode] = useState(false)
+  const [showMobileDetail, setShowMobileDetail] = useState(false)
   const [emails, setEmails] = useState<any[]>([])
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 0 })
   const [loading, setLoading] = useState(false)
@@ -80,6 +81,10 @@ export default function ArchivePage() {
     } else {
       setSelectedEmail(email)
       setShowDetailModal(false)
+      
+      if (window.innerWidth < 768) {
+        setShowMobileDetail(true)
+      }
       
       if (!email.isRead) {
         try {
@@ -415,6 +420,19 @@ export default function ArchivePage() {
           onForward={handleForward}
         />
       )}
+
+      {showMobileDetail && selectedEmail && (
+        <EmailDetail
+          emailId={selectedEmail.id}
+          onClose={() => setShowMobileDetail(false)}
+          onDelete={handleEmailDeleted}
+          onRestore={handleEmailDeleted}
+          onToggleStar={handleToggleStar}
+          onReply={handleReply}
+          onReplyAll={handleReplyAll}
+          onForward={handleForward}
+        />
+      )}
     </>
   )
 }
@@ -502,12 +520,6 @@ function ArchiveEmailPreviewPanel({ emailId, onRefresh }: { emailId: string, onR
           </div>
         </div>
       </div>
-      
-      {email.summary && (
-        <div className="px-4 py-3 border-b flex-shrink-0" style={{ backgroundColor: 'var(--color-bg-tertiary)', borderColor: 'var(--color-border-primary)' }}>
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{email.summary}</p>
-        </div>
-      )}
       
       <div className="flex-1 p-4 overflow-y-auto">
         <EmailBody content={email.body} className="leading-relaxed" style={{ color: 'var(--color-text-secondary)' }} />
