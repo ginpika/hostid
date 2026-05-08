@@ -2,6 +2,7 @@
  * 应用入口文件
  * 配置路由、认证守卫和全局 Context Provider
  * 包含私有路由、公开路由和 OAuth 回调处理
+ * 使用嵌套路由实现侧边栏持久化
  */
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useEffect, useRef } from 'react'
@@ -26,6 +27,7 @@ import SSOInfoPage from './pages/SSOInfoPage'
 import OAuthCallback from './pages/OAuthCallback'
 import OAuthRegister from './pages/OAuthRegister'
 import ComposeModal from './components/ComposeModal'
+import Layout from './components/Layout'
 
 const PUBLIC_ROUTES = ['/login', '/register', '/tos', '/sso/info', '/oauth/callback', '/oauth/register', '/oauth2/authorize']
 
@@ -110,16 +112,20 @@ function AppRoutes() {
           <Route path="/sso/info" element={<SSOInfoPage />} />
           <Route path="/oauth/callback" element={<OAuthCallback />} />
           <Route path="/oauth/register" element={<OAuthRegister />} />
-          <Route path="/" element={<PrivateRoute><Inbox /></PrivateRoute>} />
-          <Route path="/sent" element={<PrivateRoute><Inbox /></PrivateRoute>} />
-          <Route path="/starred" element={<PrivateRoute><Inbox /></PrivateRoute>} />
-          <Route path="/trash" element={<PrivateRoute><Inbox /></PrivateRoute>} />
-          <Route path="/archived" element={<PrivateRoute><ArchivePage /></PrivateRoute>} />
-          <Route path="/info" element={<PrivateRoute><InfoPage /></PrivateRoute>} />
-          <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
-          <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
-          <Route path="/admin/oauth" element={<PrivateRoute><OAuthConfigPage /></PrivateRoute>} />
-          <Route path="/admin/oauth-apps" element={<PrivateRoute><OAuthAppsPage /></PrivateRoute>} />
+          
+          <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
+            <Route index element={<Inbox />} />
+            <Route path="sent" element={<Inbox />} />
+            <Route path="starred" element={<Inbox />} />
+            <Route path="trash" element={<Inbox />} />
+            <Route path="archived" element={<ArchivePage />} />
+            <Route path="info" element={<InfoPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="admin" element={<AdminPage />} />
+            <Route path="admin/oauth" element={<OAuthConfigPage />} />
+            <Route path="admin/oauth-apps" element={<OAuthAppsPage />} />
+          </Route>
+          
           <Route path="/oauth2/authorize" element={<PrivateRoute><OAuthAuthorizePage /></PrivateRoute>} />
         </Routes>
       </RouteGuard>

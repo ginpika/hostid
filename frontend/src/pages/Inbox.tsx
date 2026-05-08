@@ -9,7 +9,6 @@ import { CheckSquare, Trash, Mail, MailOpen, ChevronLeft, ChevronRight, RotateCc
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
-import Layout from '../components/Layout'
 import EmailList from '../components/EmailList'
 import EmailBody from '../components/EmailBody'
 
@@ -271,163 +270,161 @@ export default function InboxPage() {
   const allSelectedRead = selectedEmailsData.length > 0 && selectedEmailsData.every(e => e.isRead)
 
   return (
-    <Layout folder={folder}>
-      <div className="flex-1 flex min-h-0">
+    <div className="flex-1 flex min-h-0">
+      <div
+        className="w-full md:w-2/5 lg:w-1/3 xl:w-1/4 border-r flex flex-col"
+        style={{
+          backgroundColor: 'var(--color-bg-secondary)',
+          borderRightColor: 'var(--color-border-primary)'
+        }}
+      >
         <div
-          className="w-full md:w-2/5 lg:w-1/3 xl:w-1/4 border-r flex flex-col"
+          className="border-b px-4 py-2 flex items-center justify-between flex-shrink-0"
           style={{
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderRightColor: 'var(--color-border-primary)'
+            backgroundColor: 'var(--color-bg-tertiary)',
+            borderBottomColor: 'var(--color-border-primary)'
           }}
         >
+          {isSelectMode ? (
+            <div className="flex items-center gap-2 w-full">
+              <button
+                onClick={handleToggleSelectMode}
+                className="p-1.5 rounded transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                title={t('cancel')}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                {t('selected')}: {selectedEmailIds.size}
+              </span>
+              <div className="flex-1" />
+              {selectedEmailIds.size > 0 && (
+                <>
+                  <button
+                    onClick={handleBatchDelete}
+                    className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
+                    style={{ color: 'var(--color-accent-primary)' }}
+                    title={t('delete')}
+                  >
+                    <Trash className="w-4 h-4" />
+                    <span className="hidden sm:inline">{t('delete')}</span>
+                  </button>
+                  <button
+                    onClick={handleBatchToggleRead}
+                    className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
+                    style={{ color: 'var(--color-accent-primary)' }}
+                    title={allSelectedRead ? t('markAsUnread') : t('markAsRead')}
+                  >
+                    {allSelectedRead ? (
+                      <>
+                        <MailOpen className="w-4 h-4" />
+                        <span className="hidden sm:inline">{t('markAsUnread')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4" />
+                        <span className="hidden sm:inline">{t('markAsRead')}</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 w-full">
+              <span className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>{t('emails')}</span>
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>({pagination.total})</span>
+              <div className="flex-1" />
+              <button
+                onClick={handleToggleSelectMode}
+                className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                title={t('select')}
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span className="hidden sm:inline">{t('select')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
+            </div>
+          ) : (
+            <EmailList
+              key={`${refreshKey}-${pagination.page}`}
+              folder={folder}
+              emails={emails}
+              onSelectEmail={handleSelectEmail}
+              selectedEmailId={selectedEmail?.id}
+              isSelectMode={isSelectMode}
+              selectedEmailIds={selectedEmailIds}
+              onSelectAll={handleSelectAll}
+            />
+          )}
+        </div>
+
+        {pagination.totalPages > 1 && (
           <div
-            className="border-b px-4 py-2 flex items-center justify-between flex-shrink-0"
+            className="border-t px-4 py-2 flex items-center justify-between flex-shrink-0"
             style={{
               backgroundColor: 'var(--color-bg-tertiary)',
-              borderBottomColor: 'var(--color-border-primary)'
+              borderTopColor: 'var(--color-border-primary)'
             }}
           >
-            {isSelectMode ? (
-              <div className="flex items-center gap-2 w-full">
-                <button
-                  onClick={handleToggleSelectMode}
-                  className="p-1.5 rounded transition-colors"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                  title={t('cancel')}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  {t('selected')}: {selectedEmailIds.size}
-                </span>
-                <div className="flex-1" />
-                {selectedEmailIds.size > 0 && (
-                  <>
-                    <button
-                      onClick={handleBatchDelete}
-                      className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
-                      style={{ color: 'var(--color-accent-primary)' }}
-                      title={t('delete')}
-                    >
-                      <Trash className="w-4 h-4" />
-                      <span className="hidden sm:inline">{t('delete')}</span>
-                    </button>
-                    <button
-                      onClick={handleBatchToggleRead}
-                      className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
-                      style={{ color: 'var(--color-accent-primary)' }}
-                      title={allSelectedRead ? t('markAsUnread') : t('markAsRead')}
-                    >
-                      {allSelectedRead ? (
-                        <>
-                          <MailOpen className="w-4 h-4" />
-                          <span className="hidden sm:inline">{t('markAsUnread')}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Mail className="w-4 h-4" />
-                          <span className="hidden sm:inline">{t('markAsRead')}</span>
-                        </>
-                      )}
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 w-full">
-                <span className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>{t('emails')}</span>
-                <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>({pagination.total})</span>
-                <div className="flex-1" />
-                <button
-                  onClick={handleToggleSelectMode}
-                  className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                  title={t('select')}
-                >
-                  <CheckSquare className="w-4 h-4" />
-                  <span className="hidden sm:inline">{t('select')}</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
-              </div>
-            ) : (
-              <EmailList
-                key={`${refreshKey}-${pagination.page}`}
-                folder={folder}
-                emails={emails}
-                onSelectEmail={handleSelectEmail}
-                selectedEmailId={selectedEmail?.id}
-                isSelectMode={isSelectMode}
-                selectedEmailIds={selectedEmailIds}
-                onSelectAll={handleSelectAll}
-              />
-            )}
-          </div>
-
-          {pagination.totalPages > 1 && (
-            <div
-              className="border-t px-4 py-2 flex items-center justify-between flex-shrink-0"
-              style={{
-                backgroundColor: 'var(--color-bg-tertiary)',
-                borderTopColor: 'var(--color-border-primary)'
-              }}
-            >
-              <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                {t('page')} {pagination.page} / {pagination.totalPages}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page <= 1}
-                  className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                  title={t('previous')}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page >= pagination.totalPages}
-                  className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                  title={t('next')}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+              {t('page')} {pagination.page} / {pagination.totalPages}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page <= 1}
+                className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                title={t('previous')}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages}
+                className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                title={t('next')}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
-          )}
-        </div>
-
-        <div className="hidden md:flex flex-1 flex-col min-w-0" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-          {selectedEmail ? (
-            <EmailPreviewPanel
-              emailId={selectedEmail.id}
-              onDelete={handleEmailDeleted}
-              onRestore={handleEmailDeleted}
-              onToggleStar={handleToggleStar}
-              onReply={handleReply}
-              onReplyAll={handleReplyAll}
-              onForward={handleForward}
-              onArchive={() => setRefreshKey(k => k + 1)}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-                <Mail className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--color-text-muted)' }} />
-                <p className="text-lg">{t('selectEmailToView')}</p>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </Layout>
+
+      <div className="hidden md:flex flex-1 flex-col min-w-0" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+        {selectedEmail ? (
+          <EmailPreviewPanel
+            emailId={selectedEmail.id}
+            onDelete={handleEmailDeleted}
+            onRestore={handleEmailDeleted}
+            onToggleStar={handleToggleStar}
+            onReply={handleReply}
+            onReplyAll={handleReplyAll}
+            onForward={handleForward}
+            onArchive={() => setRefreshKey(k => k + 1)}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center" style={{ color: 'var(--color-text-tertiary)' }}>
+              <Mail className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--color-text-muted)' }} />
+              <p className="text-lg">{t('selectEmailToView')}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -762,7 +759,6 @@ function EmailPreviewPanel({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      {/* Header */}
       <div
         className="flex items-center justify-between px-5 py-3 border-b flex-shrink-0"
         style={{
@@ -816,10 +812,8 @@ function EmailPreviewPanel({
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-auto">
         <div>
-          {/* Sender info */}
           <div className="p-5 border-b" style={{ borderColor: 'var(--color-border-secondary)' }}>
             <div className="flex items-start gap-3">
               <div
@@ -909,7 +903,6 @@ function EmailPreviewPanel({
             </div>
           </div>
 
-          {/* Attachments */}
           {email.attachments && email.attachments.length > 0 && (
             <div className="px-5 pt-5">
               <div className="border rounded-xl overflow-hidden" style={{ borderColor: 'var(--color-border-primary)' }}>
@@ -990,14 +983,12 @@ function EmailPreviewPanel({
             </div>
           )}
 
-          {/* Body */}
           <div className="p-5">
             <EmailBody content={email.body} className="leading-relaxed text-[15px]" style={{ color: 'var(--color-text-secondary)' }} />
           </div>
         </div>
       </div>
 
-      {/* Footer actions */}
       <div
         className="border-t px-4 py-2.5 flex items-center justify-between flex-shrink-0"
         style={{
@@ -1050,7 +1041,6 @@ function EmailPreviewPanel({
         </div>
       </div>
 
-      {/* Image preview modal */}
       {previewImage && (
         <div
           className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"

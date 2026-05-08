@@ -5,7 +5,6 @@
  */
 import { useState, useEffect } from 'react'
 import { Database, Trash2, ChevronLeft, ChevronRight, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
-import Layout from '../components/Layout'
 import { useI18n } from '../i18n/I18nContext'
 
 interface TableInfo {
@@ -239,13 +238,11 @@ export default function AdminPage() {
 
   if (error) {
     return (
-      <Layout>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <p style={{ color: '#ef4444' }}>{error}</p>
-          </div>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <p style={{ color: '#ef4444' }}>{error}</p>
         </div>
-      </Layout>
+      </div>
     )
   }
 
@@ -258,7 +255,7 @@ export default function AdminPage() {
   }
 
   return (
-    <Layout>
+    <>
       <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
         <div className="max-w-7xl mx-auto p-8">
           <div className="mb-8">
@@ -324,6 +321,6 @@ export default function AdminPage() {
           )}
         </div>
       </div>
-    </Layout>
+    </>
   )
 }
