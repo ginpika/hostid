@@ -360,7 +360,8 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
       email,
       password: '',
       nickname: pendingUser.name || pendingUser.githubLogin,
-      githubId: pendingUser.githubId
+      githubId: pendingUser.githubId,
+      avatar: pendingUser.avatarUrl
     }
   })
 

@@ -218,10 +218,11 @@ router.get('/me', auth, asyncHandler(async (req: AuthRequest, res: Response) => 
       language: true,
       role: true,
       githubId: true,
+      password: true,
       createdAt: true 
     }
   })
-  res.json(user)
+  res.json({ ...user, hasPassword: !!user?.password })
 }))
 
 router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
@@ -344,23 +345,21 @@ router.get('/avatar/:filename', asyncHandler(async (req: Request, res: Response)
 }))
 
 const changePasswordSchema = z.object({
-  oldPassword: z.string(),
+  oldPassword: z.string().optional(),
   newPassword: z.string()
 })
 
 router.post('/password', auth, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { oldPassword, newPassword } = changePasswordSchema.parse(req.body)
 
-  let decryptedOldPassword: string
   let decryptedNewPassword: string
   try {
-    decryptedOldPassword = decryptPassword(oldPassword)
     decryptedNewPassword = decryptPassword(newPassword)
   } catch {
     throw new AppError('Invalid password format', 400)
   }
 
-  if (decryptedOldPassword.length < 6 || decryptedNewPassword.length < 6) {
+  if (decryptedNewPassword.length < 6) {
     throw new AppError('Password must be at least 6 characters', 400)
   }
 
@@ -373,9 +372,20 @@ router.post('/password', auth, asyncHandler(async (req: AuthRequest, res: Respon
     throw new AppError('User not found', 404)
   }
 
-  const isValid = await bcrypt.compare(decryptedOldPassword, user.password)
-  if (!isValid) {
-    throw new AppError('Current password is incorrect', 400)
+  if (user.password) {
+    if (!oldPassword) {
+      throw new AppError('Current password is required', 400)
+    }
+    let decryptedOldPassword: string
+    try {
+      decryptedOldPassword = decryptPassword(oldPassword)
+    } catch {
+      throw new AppError('Invalid password format', 400)
+    }
+    const isValid = await bcrypt.compare(decryptedOldPassword, user.password)
+    if (!isValid) {
+      throw new AppError('Current password is incorrect', 400)
+    }
   }
 
   const hashedPassword = await bcrypt.hash(decryptedNewPassword, 12)
@@ -385,7 +395,7 @@ router.post('/password', auth, asyncHandler(async (req: AuthRequest, res: Respon
     data: { password: hashedPassword }
   })
 
-  res.json({ success: true })
+  res.json({ success: true, hasPassword: true })
 }))
 
 export default router

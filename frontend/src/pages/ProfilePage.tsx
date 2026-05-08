@@ -18,6 +18,7 @@ interface UserProfile {
   avatar: string | null
   language: string
   githubId: number | null
+  hasPassword: boolean
   createdAt: string
 }
 
@@ -184,7 +185,12 @@ export default function ProfilePage() {
   const handlePasswordChange = async () => {
     setPasswordError('')
     
-    if (!passwordData.oldPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+    if (profile?.hasPassword && !passwordData.oldPassword) {
+      setPasswordError(language === 'zh-CN' ? '请输入当前密码' : 'Please enter current password')
+      return
+    }
+    
+    if (!passwordData.newPassword || !passwordData.confirmPassword) {
       setPasswordError(language === 'zh-CN' ? '请填写所有字段' : 'Please fill in all fields')
       return
     }
@@ -204,8 +210,15 @@ export default function ProfilePage() {
     try {
       const token = localStorage.getItem('token')
       
-      const encryptedOldPassword = await encryptPassword(passwordData.oldPassword)
       const encryptedNewPassword = await encryptPassword(passwordData.newPassword)
+      
+      const payload: { newPassword: string; oldPassword?: string } = {
+        newPassword: encryptedNewPassword
+      }
+      
+      if (profile?.hasPassword && passwordData.oldPassword) {
+        payload.oldPassword = await encryptPassword(passwordData.oldPassword)
+      }
       
       const res = await fetch('/api/auth/password', {
         method: 'POST',
@@ -213,16 +226,20 @@ export default function ProfilePage() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          oldPassword: encryptedOldPassword,
-          newPassword: encryptedNewPassword
-        })
+        body: JSON.stringify(payload)
       })
 
       if (res.ok) {
+        const data = await res.json()
+        if (data.hasPassword !== undefined) {
+          setProfile(prev => prev ? { ...prev, hasPassword: data.hasPassword } : null)
+        }
         setShowPasswordModal(false)
         setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' })
-        setSuccess(language === 'zh-CN' ? '密码修改成功' : 'Password changed successfully')
+        setSuccess(profile?.hasPassword 
+          ? (language === 'zh-CN' ? '密码修改成功' : 'Password changed successfully')
+          : (language === 'zh-CN' ? '密码设置成功' : 'Password set successfully')
+        )
       } else {
         const errData = await res.json()
         setPasswordError(errData.error || (language === 'zh-CN' ? '修改失败' : 'Failed to change password'))
@@ -414,7 +431,10 @@ export default function ProfilePage() {
                     }}
                   >
                     <KeyRound className="w-4 h-4" />
-                    {language === 'zh-CN' ? '修改密码' : 'Change Password'}
+                    {profile.hasPassword 
+                      ? (language === 'zh-CN' ? '修改密码' : 'Change Password')
+                      : (language === 'zh-CN' ? '设置密码' : 'Set Password')
+                    }
                   </button>
                   
                   {profile.githubId ? (
@@ -701,7 +721,10 @@ export default function ProfilePage() {
               style={{ borderColor: 'var(--color-border-primary)' }}
             >
               <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                {language === 'zh-CN' ? '修改密码' : 'Change Password'}
+                {profile?.hasPassword 
+                  ? (language === 'zh-CN' ? '修改密码' : 'Change Password')
+                  : (language === 'zh-CN' ? '设置密码' : 'Set Password')
+                }
               </h3>
               <button
                 onClick={closePasswordModal}
@@ -726,23 +749,25 @@ export default function ProfilePage() {
                 </div>
               )}
               
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-                  {language === 'zh-CN' ? '当前密码' : 'Current Password'}
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.oldPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
-                  style={{ 
-                    backgroundColor: 'var(--color-bg-primary)',
-                    borderColor: 'var(--color-border-primary)',
-                    color: 'var(--color-text-primary)'
-                  }}
-                  placeholder="••••••••"
-                />
-              </div>
+              {profile?.hasPassword && (
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+                    {language === 'zh-CN' ? '当前密码' : 'Current Password'}
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.oldPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
+                    style={{ 
+                      backgroundColor: 'var(--color-bg-primary)',
+                      borderColor: 'var(--color-border-primary)',
+                      color: 'var(--color-text-primary)'
+                    }}
+                    placeholder="••••••••"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
@@ -804,10 +829,12 @@ export default function ProfilePage() {
                 {changingPassword ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    {language === 'zh-CN' ? '修改中...' : 'Changing...'}
+                    {language === 'zh-CN' ? '设置中...' : 'Setting...'}
                   </>
                 ) : (
-                  language === 'zh-CN' ? '确认修改' : 'Confirm'
+                  profile?.hasPassword 
+                    ? (language === 'zh-CN' ? '确认修改' : 'Confirm')
+                    : (language === 'zh-CN' ? '确认设置' : 'Set Password')
                 )}
               </button>
             </div>

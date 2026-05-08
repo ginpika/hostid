@@ -3,8 +3,6 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-      args:
-        - CF_TURNSTILE_SITE_KEY
     ports:
       - "${PORT:-3000}:3000"
     env_file:
