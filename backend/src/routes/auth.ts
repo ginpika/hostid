@@ -339,7 +339,9 @@ router.post('/avatar', auth, avatarUpload.single('avatar'), asyncHandler(async (
     select: { avatar: true }
   })
 
-  if (user?.avatar) {
+  // 仅当旧文件名与新文件名不同时才删除旧文件
+  // 因为 multer 使用 ${userId}${ext} 命名，相同后缀的文件已被 multer 覆盖
+  if (user?.avatar && user.avatar !== req.file.filename) {
     const oldAvatarPath = getAvatarPath(user.avatar)
     if (fs.existsSync(oldAvatarPath)) {
       fs.unlinkSync(oldAvatarPath)

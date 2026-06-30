@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Save, Loader2, Pencil, X, Shield, Camera, User, KeyRound, Github, Check } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
+import { useAuth } from '../contexts/AuthContext'
 import { encryptPassword } from '../utils/rsa'
 
 interface UserProfile {
@@ -25,6 +26,7 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const { t, language } = useI18n()
+  const { setUser } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -157,7 +159,9 @@ export default function ProfilePage() {
 
       if (res.ok) {
         const data = await res.json()
-        setProfile(prev => prev ? { ...prev, avatar: data.avatar } : null)
+        setProfile(prev => prev ? { ...prev, avatar: data.avatar, avatarUrl: data.avatarUrl } : null)
+        // 同步更新 AuthContext，侧边栏等组件会立即反映
+        setUser(prev => prev ? { ...prev, avatar: data.avatar, avatarUrl: data.avatarUrl } : null)
         setShowAvatarModal(false)
         setSelectedFile(null)
         setPreviewUrl(null)
