@@ -93,8 +93,8 @@ export default function Sidebar({ isOpen, currentFolder, onClose }: SidebarProps
                   color: 'var(--color-accent-primary)'
                 }}
               >
-                {user?.avatar ? (
-                  <img src={user.avatar.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`} alt={user.nickname || user.username} className="w-full h-full object-cover" />
+                {user?.avatar || user?.avatarUrl ? (
+                  <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt={user.nickname || user.username} className="w-full h-full object-cover" />
                 ) : (
                   <UserCircle className="w-8 h-8" />
                 )}

@@ -16,6 +16,7 @@ interface UserProfile {
   phone: string | null
   birthday: string | null
   avatar: string | null
+  avatarUrl?: string | null
   language: string
   githubId: number | null
   hasPassword: boolean
@@ -258,6 +259,9 @@ export default function ProfilePage() {
   }
 
   const getAvatarUrl = () => {
+    if (profile?.avatarUrl) {
+      return profile.avatarUrl
+    }
     if (profile?.avatar) {
       return profile.avatar.startsWith('http') ? profile.avatar : `/api/auth/avatar/${profile.avatar}`
     }

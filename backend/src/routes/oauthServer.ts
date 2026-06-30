@@ -21,6 +21,7 @@ import {
   verifyPKCE,
   decryptClientSecret
 } from '../services/oauth2'
+import { getAvatarUrl } from '../utils/avatar'
 
 const router = Router()
 
@@ -341,10 +342,9 @@ router.get('/userinfo', asyncHandler(async (req: Request, res: Response) => {
     email_verified: true
   }
 
-  if (user.avatar) {
-    response.picture = user.avatar.startsWith('http')
-      ? user.avatar
-      : `/api/auth/avatar/${user.avatar}`
+  const avatarUrl = getAvatarUrl(user.avatar)
+  if (avatarUrl) {
+    response.picture = avatarUrl
   }
 
   res.json(response)

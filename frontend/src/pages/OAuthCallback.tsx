@@ -13,6 +13,7 @@ interface OAuthUser {
   username: string
   nickname?: string | null
   avatar?: string | null
+  avatarUrl?: string | null
   language?: string | null
   role: string
 }
@@ -44,6 +45,7 @@ export default function OAuthCallback() {
         username: user.username,
         nickname: user.nickname || null,
         avatar: user.avatar || null,
+        avatarUrl: user.avatarUrl || null,
         language: (user.language as 'zh-CN' | 'en-US') || 'zh-CN',
         role: user.role
       })

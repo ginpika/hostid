@@ -18,6 +18,7 @@ interface LocalUser {
   username: string
   nickname?: string | null
   avatar?: string | null
+  avatarUrl?: string | null
 }
 
 interface OAuthProvider {
@@ -538,9 +539,9 @@ export default function Login() {
                     className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 overflow-hidden"
                     style={{ backgroundColor: 'var(--color-accent-muted)' }}
                   >
-                    {user.avatar ? (
+                    {user.avatar || user.avatarUrl ? (
                       <img 
-                        src={user.avatar.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`}
+                        src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)}
                         alt={user.username}
                         className="w-full h-full object-cover"
                       />

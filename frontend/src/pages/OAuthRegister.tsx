@@ -36,6 +36,9 @@ export default function OAuthRegister() {
 
   // Get local user avatar URL
   const getLocalAvatarUrl = () => {
+    if (currentUser?.avatarUrl) {
+      return currentUser.avatarUrl
+    }
     if (currentUser?.avatar) {
       return currentUser.avatar.startsWith('http') ? currentUser.avatar : `/api/auth/avatar/${currentUser.avatar}`
     }

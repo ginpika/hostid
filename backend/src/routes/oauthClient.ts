@@ -12,6 +12,7 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../middleware/error'
 import { memoryStore } from '../store'
 import { decrypt } from '../services/encryption'
+import { getAvatarUrl } from '../utils/avatar'
 
 const router = Router()
 
@@ -302,6 +303,7 @@ router.get('/:provider/callback', asyncHandler(async (req: Request, res: Respons
       username: existingUser.username,
       nickname: existingUser.nickname,
       avatar: existingUser.avatar,
+      avatarUrl: getAvatarUrl(existingUser.avatar),
       language: existingUser.language,
       role: existingUser.role
     }))}&redirect=${encodeURIComponent(stateData.redirect)}`
@@ -384,6 +386,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
       username: user.username,
       nickname: user.nickname,
       avatar: user.avatar,
+      avatarUrl: getAvatarUrl(user.avatar),
       language: user.language,
       role: user.role
     }
@@ -463,6 +466,7 @@ router.post('/bind', asyncHandler(async (req: Request, res: Response) => {
       username: user.username,
       nickname: user.nickname,
       avatar: user.avatar,
+      avatarUrl: getAvatarUrl(user.avatar),
       language: user.language,
       role: user.role,
       githubId: user.githubId

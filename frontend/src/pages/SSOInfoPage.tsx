@@ -4,7 +4,7 @@
  * 提供刷新状态和登出功能
  */
 import { useState, useEffect } from 'react'
-import { Shield, Monitor, Key, Cookie, Clock, LogOut, RefreshCw, CheckCircle, XCircle, Info } from 'lucide-react'
+import { Shield, Monitor, Key, Cookie, Clock, LogOut, RefreshCw, CheckCircle, XCircle, Info, User } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 
 interface SessionInfo {
@@ -12,8 +12,11 @@ interface SessionInfo {
   user?: {
     id: string
     username: string
+    nickname?: string | null
     email: string
     role: string
+    avatar?: string | null
+    avatarUrl?: string | null
   }
 }
 
@@ -165,6 +168,30 @@ export default function SSOInfoPage() {
           >
             {sessionInfo?.authenticated ? (
               <div className="space-y-4">
+                <div className="flex flex-col items-center gap-3 mb-4">
+                  {sessionInfo.user?.avatarUrl ? (
+                    <img
+                      src={sessionInfo.user.avatarUrl}
+                      alt="Avatar"
+                      className="w-20 h-20 rounded-full object-cover"
+                      style={{ border: '2px solid var(--color-border-primary)' }}
+                    />
+                  ) : (
+                    <div 
+                      className="w-20 h-20 rounded-full flex items-center justify-center"
+                      style={{ 
+                        border: '2px solid var(--color-border-primary)',
+                        backgroundColor: 'var(--color-bg-tertiary)'
+                      }}
+                    >
+                      <User className="w-10 h-10" style={{ color: 'var(--color-text-muted)' }} />
+                    </div>
+                  )}
+                  <span className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                    {sessionInfo.user?.nickname || sessionInfo.user?.username}
+                  </span>
+                </div>
+                
                 <div className="flex items-center gap-3">
                   <CheckCircle className="w-6 h-6" style={{ color: 'var(--color-accent-primary)' }} />
                   <span className="font-medium" style={{ color: 'var(--color-accent-primary)' }}>

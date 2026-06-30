@@ -11,6 +11,7 @@ interface User {
   username: string
   nickname?: string | null
   avatar?: string | null
+  avatarUrl?: string | null
   language?: string
   role?: string
 }

@@ -14,6 +14,7 @@ import { AppError } from '../middleware/error'
 import { memoryStore } from '../store'
 import { avatarUpload, getAvatarPath } from '../middleware/avatarUpload'
 import { getPublicKey, decryptPassword } from '../utils/rsa'
+import { getAvatarUrl } from '../utils/avatar'
 import fs from 'fs'
 
 const router = Router()
@@ -163,7 +164,16 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
 
   res.status(201).json({
     token,
-    user: { id: user.id, email: user.email, username: user.username, nickname: user.nickname, avatar: user.avatar, language: user.language, role: user.role }
+    user: { 
+      id: user.id, 
+      email: user.email, 
+      username: user.username, 
+      nickname: user.nickname, 
+      avatar: user.avatar,
+      avatarUrl: getAvatarUrl(user.avatar),
+      language: user.language, 
+      role: user.role 
+    }
   })
 }))
 
@@ -200,29 +210,47 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
 
   res.json({
     token,
-    user: { id: user.id, email: user.email, username: user.username, nickname: user.nickname, avatar: user.avatar, language: user.language, role: user.role }
+    user: { 
+      id: user.id, 
+      email: user.email, 
+      username: user.username, 
+      nickname: user.nickname, 
+      avatar: user.avatar,
+      avatarUrl: getAvatarUrl(user.avatar),
+      language: user.language, 
+      role: user.role 
+    }
   })
 }))
 
 router.get('/me', auth, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.userId },
-    select: { 
-      id: true, 
-      email: true, 
-      username: true,
-      nickname: true,
-      phone: true,
-      birthday: true,
-      avatar: true,
-      language: true,
-      role: true,
-      githubId: true,
-      password: true,
-      createdAt: true 
-    }
+  const [user, passwordExists] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { 
+        id: true, 
+        email: true, 
+        username: true,
+        nickname: true,
+        phone: true,
+        birthday: true,
+        avatar: true,
+        language: true,
+        role: true,
+        githubId: true,
+        createdAt: true 
+      }
+    }),
+    prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { password: true }
+    })
+  ])
+  res.json({ 
+    ...user, 
+    hasPassword: !!passwordExists?.password,
+    avatarUrl: getAvatarUrl(user?.avatar)
   })
-  res.json({ ...user, hasPassword: !!user?.password })
 }))
 
 router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
@@ -279,7 +307,10 @@ router.patch('/profile', auth, asyncHandler(async (req: AuthRequest, res: Respon
     }
   })
 
-  res.json(updatedUser)
+  res.json({
+    ...updatedUser,
+    avatarUrl: getAvatarUrl(updatedUser.avatar)
+  })
 }))
 
 router.patch('/language', auth, asyncHandler(async (req: AuthRequest, res: Response) => {

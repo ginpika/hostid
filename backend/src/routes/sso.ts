@@ -11,6 +11,7 @@ import rateLimit from 'express-rate-limit'
 import { prisma } from '../lib/prisma'
 import { memoryStore } from '../store'
 import { AppError } from '../middleware/error'
+import { getAvatarUrl } from '../utils/avatar'
 
 const router = Router()
 
@@ -42,6 +43,7 @@ interface SSOSession {
   username: string
   email: string
   role: string
+  avatar?: string
   createdAt: number
   expiresAt: number
   userAgent?: string
@@ -78,12 +80,19 @@ function verifySessionToken(token: string): { sessionId: string } | null {
 
 async function createSession(user: JWTUserPayload, req: Request): Promise<string> {
   const sessionId = generateSessionId()
+  
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.userId },
+    select: { avatar: true }
+  })
+  
   const session: SSOSession = {
     id: sessionId,
     userId: user.userId,
     username: user.username,
     email: user.email,
     role: user.role,
+    avatar: dbUser?.avatar || undefined,
     createdAt: Date.now(),
     expiresAt: Date.now() + SESSION_TTL,
     userAgent: req.headers['user-agent'],
@@ -170,13 +179,22 @@ router.post('/verify', ssoLimiter, asyncHandler(async (req: Request, res: Respon
     return
   }
   
+  // 从数据库获取最新的用户头像
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { avatar: true, nickname: true }
+  })
+  
   res.json({
     valid: true,
     user: {
       id: session.userId,
       username: session.username,
+      nickname: dbUser?.nickname,
       email: session.email,
-      role: session.role
+      role: session.role,
+      avatar: dbUser?.avatar || null,
+      avatarUrl: getAvatarUrl(dbUser?.avatar)
     }
   })
 }))
@@ -219,7 +237,9 @@ router.post('/login', ssoLimiter, asyncHandler(async (req: Request, res: Respons
       id: user.id,
       username: user.username,
       email: user.email,
-      role: user.role
+      role: user.role,
+      avatar: user.avatar,
+      avatarUrl: getAvatarUrl(user.avatar)
     }
   })
 }))
@@ -263,13 +283,22 @@ router.get('/session', ssoLimiter, asyncHandler(async (req: Request, res: Respon
     return
   }
   
+  // 从数据库获取最新的用户头像
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { avatar: true, nickname: true }
+  })
+  
   res.json({
     authenticated: true,
     user: {
       id: session.userId,
       username: session.username,
+      nickname: dbUser?.nickname,
       email: session.email,
-      role: session.role
+      role: session.role,
+      avatar: dbUser?.avatar || null,
+      avatarUrl: getAvatarUrl(dbUser?.avatar)
     }
   })
 }))
