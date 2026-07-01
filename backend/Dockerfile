@@ -10,7 +10,9 @@ RUN apk add --no-cache openssl
 COPY package*.json ./
 COPY prisma ./prisma/
 
-RUN npm ci --only=production && npm install tsx
+RUN npm ci --only=production --ignore-scripts && \
+    npm install tsx --ignore-scripts --no-save && \
+    npm install prisma@^5.22.0 --ignore-scripts --no-save
 
 RUN npx prisma generate
 
