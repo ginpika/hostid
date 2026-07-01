@@ -3,7 +3,7 @@
  * 显示邮件完整内容，包含发件人、收件人、正文和附件
  * 提供删除、恢复、回复、转发、归档和星标操作
  */
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Trash2, RotateCcw, Loader2, Mail, Users, EyeOff, Paperclip, 
@@ -110,8 +110,6 @@ export default function EmailDetail({
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
   const [showDetails, setShowDetails] = useState(false)
   const [isStarred, setIsStarred] = useState(false)
-  const [importLoading, setImportLoading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const fetchEmail = async () => {
@@ -253,30 +251,6 @@ export default function EmailDetail({
       URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Export failed:', err)
-    }
-  }
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setImportLoading(true)
-    try {
-      const token = localStorage.getItem('token')
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/emails/import', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData
-      })
-      if (!res.ok) throw new Error('Import failed')
-      onClose()
-    } catch (err) {
-      console.error('Import failed:', err)
-      alert(t('importMailFailed'))
-    } finally {
-      setImportLoading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -467,19 +441,6 @@ export default function EmailDetail({
                 title={t('exportMail')}
               >
                 <Upload className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={importLoading}
-                className="p-2 rounded-lg transition-colors"
-                style={{ color: 'var(--color-text-quaternary)' }}
-                title={t('importMail')}
-              >
-                {importLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Download className="w-5 h-5" />
-                )}
               </button>
               <button
                 onClick={handleDelete}
@@ -771,13 +732,6 @@ export default function EmailDetail({
         </motion.div>
       )}
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".eml"
-        onChange={handleImport}
-        className="hidden"
-      />
     </AnimatePresence>
   )
 }

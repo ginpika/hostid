@@ -5,7 +5,7 @@
  */
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Menu, Globe, LogOut } from 'lucide-react'
+import { Menu, Globe, LogOut, Download, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import ThemeSelector from './ThemeSelector'
@@ -17,7 +17,9 @@ export default function Layout() {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
   const languageMenuRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -32,6 +34,30 @@ export default function Layout() {
   const toggleLanguage = async (newLanguage: 'zh-CN' | 'en-US') => {
     await setLanguage(newLanguage)
     setShowLanguageMenu(false)
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/emails/import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      })
+      if (!res.ok) throw new Error('Import failed')
+      window.location.reload()
+    } catch (err) {
+      console.error('Import failed:', err)
+      alert(t('importMailFailed'))
+    } finally {
+      setImportLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   const getFolderFromPath = (pathname: string): Folder | undefined => {
@@ -94,6 +120,19 @@ export default function Layout() {
           </div>
           
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importLoading}
+              className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
+              style={{ color: 'var(--color-text-muted)' }}
+              title={t('importMail')}
+            >
+              {importLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Download className="w-5 h-5" />
+              )}
+            </button>
             <ThemeSelector />
 
             <div className="relative" ref={languageMenuRef}>
@@ -151,6 +190,14 @@ export default function Layout() {
 
         <Outlet />
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".eml"
+        onChange={handleImport}
+        className="hidden"
+      />
     </div>
   )
 }
