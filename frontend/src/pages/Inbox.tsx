@@ -3,9 +3,9 @@
  * 显示邮件列表和邮件详情预览面板
  * 支持收件箱、已发送和垃圾箱文件夹切换
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { CheckSquare, Trash, Mail, MailOpen, ChevronLeft, ChevronRight, RotateCcw, Loader2, Users, EyeOff, Paperclip, Download, ZoomIn, Reply, ReplyAll, Forward, Star, StarOff, Copy, Check as CheckIcon, ChevronDown, ChevronUp, Archive, X } from 'lucide-react'
+import { CheckSquare, Trash, Mail, MailOpen, ChevronLeft, ChevronRight, RotateCcw, Loader2, Users, EyeOff, Paperclip, Download, Upload, ZoomIn, Reply, ReplyAll, Forward, Star, StarOff, Copy, Check as CheckIcon, ChevronDown, ChevronUp, Archive, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
@@ -520,6 +520,8 @@ function EmailPreviewPanel({
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null)
   const [showDetails, setShowDetails] = useState(false)
   const [isStarred, setIsStarred] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const fetchEmail = async () => {
@@ -628,6 +630,54 @@ function EmailPreviewPanel({
       onArchive?.(email.id)
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const handleExport = async () => {
+    if (!email) return
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/emails/${email.id}/export`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const disposition = res.headers.get('Content-Disposition')
+      const match = disposition?.match(/filename\*?=(?:UTF-8''|")?([^";]+)/)
+      a.download = match?.[1] || 'email.eml'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed:', err)
+    }
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/emails/import', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      })
+      if (!res.ok) throw new Error('Import failed')
+      onDelete()
+    } catch (err) {
+      console.error('Import failed:', err)
+      alert(t('importMailFailed'))
+    } finally {
+      setImportLoading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -822,6 +872,27 @@ function EmailPreviewPanel({
               )}
             </button>
           )}
+          <button
+            onClick={handleExport}
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--color-text-quaternary)' }}
+            title={t('exportMail')}
+          >
+            <Upload className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importLoading}
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--color-text-quaternary)' }}
+            title={t('importMail')}
+          >
+            {importLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Download className="w-5 h-5" />
+            )}
+          </button>
           <button
             onClick={handleDelete}
             disabled={actionLoading}
@@ -1069,7 +1140,7 @@ function EmailPreviewPanel({
 
       {previewImage && (
         <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[60]"
           onClick={() => setPreviewImage(null)}
         >
           <button
@@ -1086,6 +1157,14 @@ function EmailPreviewPanel({
           />
         </div>
       )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".eml"
+        onChange={handleImport}
+        className="hidden"
+      />
     </div>
   )
 }

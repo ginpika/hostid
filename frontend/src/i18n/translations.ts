@@ -33,6 +33,11 @@ export const translations = {
     // Email actions
     delete: '删除',
     restore: '恢复',
+    exportMail: '导出邮件',
+    importMail: '导入邮件',
+    exportMailSuccess: '邮件导出成功',
+    importMailSuccess: '邮件导入成功',
+    importMailFailed: '邮件导入失败',
     reply: '回复',
     replyAll: '回复全部',
     forward: '转发',
@@ -360,6 +365,11 @@ export const translations = {
     // Email actions
     delete: 'Delete',
     restore: 'Restore',
+    exportMail: 'Export',
+    importMail: 'Import',
+    exportMailSuccess: 'Email exported',
+    importMailSuccess: 'Email imported',
+    importMailFailed: 'Import failed',
     reply: 'Reply',
     replyAll: 'Reply All',
     forward: 'Forward',

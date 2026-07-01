@@ -13,6 +13,8 @@ import { sendEmail } from '../services/mailer'
 import { upload } from '../middleware/upload'
 import fs from 'fs'
 import path from 'path'
+import multer from 'multer'
+import { simpleParser } from 'mailparser'
 
 const router = Router()
 
@@ -146,6 +148,55 @@ router.get('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
     ...email,
     attachments: email.attachments.map(ea => ea.attachment)
   })
+}))
+
+router.get('/:id/export', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const email = await prisma.email.findFirst({
+    where: { id: req.params.id, userId: req.userId },
+    include: {
+      attachments: {
+        include: { attachment: true }
+      }
+    }
+  })
+
+  if (!email) {
+    throw new AppError('Email not found', 404)
+  }
+
+  const fromHeader = email.fromName
+    ? `From: "${email.fromName}" <${email.from}>`
+    : `From: <${email.from}>`
+
+  let toList: string[] = []
+  try { toList = JSON.parse(email.toList) } catch {}
+  const toHeader = toList.length > 0 ? `To: ${toList.join(', ')}` : `To: ${email.to}`
+
+  let ccList: string[] = []
+  try { ccList = JSON.parse(email.ccList || '[]') } catch {}
+  const ccHeader = ccList.length > 0 ? `Cc: ${ccList.join(', ')}` : ''
+
+  const dateHeader = `Date: ${new Date(email.createdAt).toUTCString()}`
+  const subjectHeader = `Subject: ${email.subject}`
+  const mimeHeader = 'MIME-Version: 1.0'
+  const contentTypeHeader = 'Content-Type: text/html; charset=UTF-8'
+
+  const headers = [
+    fromHeader,
+    toHeader,
+    ...(ccHeader ? [ccHeader] : []),
+    dateHeader,
+    subjectHeader,
+    mimeHeader,
+    contentTypeHeader
+  ].join('\r\n')
+
+  const emlContent = `${headers}\r\n\r\n${email.body}`
+
+  const filename = `${email.subject.replace(/[\\/:*?"<>|]/g, '_') || 'no-subject'}.eml`
+  res.setHeader('Content-Type', 'message/rfc822')
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`)
+  res.send(emlContent)
 }))
 
 router.post('/', upload.array('files', 10), asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -350,6 +401,64 @@ router.post('/', upload.array('files', 10), asyncHandler(async (req: AuthRequest
     ...email,
     attachments: email.attachments.map(ea => ea.attachment)
   })
+}))
+
+const emlUpload = multer({
+  dest: path.join(process.cwd(), 'uploads'),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'message/rfc822' || file.originalname.endsWith('.eml')) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only .eml files are allowed'))
+    }
+  }
+})
+
+router.post('/import', emlUpload.single('file'), asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) {
+    throw new AppError('No file uploaded', 400)
+  }
+
+  const emlContent = fs.readFileSync(req.file.path, 'utf-8')
+  let parsed: any
+
+  try {
+    parsed = await simpleParser(emlContent)
+  } catch {
+    fs.unlinkSync(req.file.path)
+    throw new AppError('Failed to parse EML file', 400)
+  }
+
+  fs.unlinkSync(req.file.path)
+
+  const fromAddress = parsed.from?.value?.[0]?.address || 'unknown@unknown'
+  const fromName = parsed.from?.value?.[0]?.name || null
+  const toAddress = parsed.to?.value?.[0]?.address || 'unknown@unknown'
+
+  const toList = (parsed.to?.value || []).map((r: any) => r.address)
+  const ccList = (parsed.cc?.value || []).map((r: any) => r.address)
+  const bccList = (parsed.bcc?.value || []).map((r: any) => r.address)
+
+  const subject = parsed.subject || '(No Subject)'
+  const body = parsed.html || parsed.textAsHtml || parsed.text || ''
+
+  const email = await prisma.email.create({
+    data: {
+      from: fromAddress,
+      fromName,
+      to: toAddress,
+      toList: JSON.stringify(toList),
+      ccList: JSON.stringify(ccList),
+      bccList: JSON.stringify(bccList),
+      subject,
+      body,
+      folder: 'INBOX',
+      userId: req.userId!
+    }
+  })
+
+  res.status(201).json(email)
 }))
 
 router.delete('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
