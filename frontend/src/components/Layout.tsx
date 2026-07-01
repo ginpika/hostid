@@ -123,15 +123,16 @@ export default function Layout() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={importLoading}
-              className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
-              style={{ color: 'var(--color-text-muted)' }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
+              style={{ color: 'var(--color-text-secondary)' }}
               title={t('importMail')}
             >
               {importLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Download className="w-5 h-5" />
+                <Download className="w-4 h-4" />
               )}
+              <span className="text-sm font-medium hidden sm:inline">{t('importMail')}</span>
             </button>
             <ThemeSelector />
 
