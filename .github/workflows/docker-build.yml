@@ -65,6 +65,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             CF_TURNSTILE_SITE_KEY=${{ secrets.CF_TURNSTILE_SITE_KEY }}
+            NODE_OPTIONS=--max-old-space-size=4096
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

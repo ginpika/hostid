@@ -1,11 +1,14 @@
 FROM node:22-alpine AS builder
 
+ARG NODE_OPTIONS
+ENV NODE_OPTIONS=${NODE_OPTIONS}
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
 
-RUN npm install --workspace=frontend
+RUN npm ci --workspace=frontend
 RUN npm install @rollup/rollup-linux-arm64-musl --save-optional --workspace=frontend
 
 COPY frontend ./frontend
