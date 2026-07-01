@@ -26,7 +26,7 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const { t, language } = useI18n()
-  const { setUser } = useAuth()
+  const { user, setUser } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -161,7 +161,9 @@ export default function ProfilePage() {
         const data = await res.json()
         setProfile(prev => prev ? { ...prev, avatar: data.avatar, avatarUrl: data.avatarUrl } : null)
         // 同步更新 AuthContext，侧边栏等组件会立即反映
-        setUser(prev => prev ? { ...prev, avatar: data.avatar, avatarUrl: data.avatarUrl } : null)
+        if (user) {
+          setUser({ ...user, avatar: data.avatar, avatarUrl: data.avatarUrl })
+        }
         setShowAvatarModal(false)
         setSelectedFile(null)
         setPreviewUrl(null)
