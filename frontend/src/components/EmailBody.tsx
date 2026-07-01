@@ -5,7 +5,7 @@
  */
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
-import { CSSProperties } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 interface EmailBodyProps {
   content: string
@@ -180,16 +180,43 @@ function registerExtensions() {
 // 在模块加载时注册扩展
 registerExtensions()
 
+// HTML 邮件在 iframe 内渲染时注入的隔离样式（从 index.css 的 .email-body-html 规则复制）
+// iframe 是独立文档，无法继承主应用的 CSS，因此需要显式注入
+// 注意：DOMPurify 默认会保留 <style> 标签及其 CSS 内容（style 在默认 allow-list 中），
+// 因此邮件自带的样式（如 .pricing-table）在 iframe 内仍然生效。
+// 这里提供基准默认样式作为兜底，确保无自带 CSS 的邮件也能正常显示。
+const EMAIL_IFRAME_CSS = `
+  a {
+    color: #0ea5e9;
+  }
+  /* 表格默认样式 —— 邮件自带 CSS 会被 DOMPurify 去除，这里补回合理默认值 */
+  th, td {
+    padding: 8px 12px;
+  }
+  th {
+    font-weight: 600;
+  }
+`
+
 export default function EmailBody({ content, className = '', style }: EmailBodyProps) {
-  // 检测 Markdown 代码块（```）
-  const hasCodeBlocks = (str: string): boolean => {
-    return /^```\s*\w*\s*$/m.test(str) || /```\s*\w*\s*$/.test(str)
+  // 检测强 Markdown 特征——这些在 HTML 邮件中几乎不会出现
+  // 用于优先判断：如果有这些特征，内容几乎一定是 Markdown
+  const hasStrongMarkdownSyntax = (str: string): boolean => {
+    const strongPatterns = [
+      /^(---|\+\+\+)\s*\n[\s\S]*?\n\1\s*(?:\n|$)/,  // front-matter 块（+++...+++ 或 ---...---）
+      /^#{1,6}\s/m,           // ATX 标题（行首 # 后跟空格）
+      /^```/m,                 // 三反引号代码块开始
+      /^~~~/m,                 // 波浪线代码块开始
+      /\[\^[^\]]+\]:/,         // 脚注定义 [^id]:
+      /^[-:]+\|[-:]+/m,        // 表格分隔行 ---|---
+    ]
+    return strongPatterns.some(pattern => pattern.test(str))
   }
 
-  // 检测 Markdown 特有的语法
+  // 检测弱 Markdown 特征——HTML 邮件中也可能偶然出现
+  // 仅在无强特征且无 HTML 标签时使用
   const hasMarkdownSyntax = (str: string): boolean => {
     const markdownPatterns = [
-      /^#{1,6}\s/m,           // 标题
       /^\s*[-*+]\s/m,         // 无序列表
       /^\s*\d+\.\s/m,         // 有序列表
       /^\s*>/m,               // 引用
@@ -200,38 +227,19 @@ export default function EmailBody({ content, className = '', style }: EmailBodyP
       /__[^_]+__/,            // 粗体 __
       /_[^_]+_/,              // 斜体 _
       /~~[^~]+~~/,            // 删除线 ~~
-      /^```\s*\w*\s*$/m,      // 代码块开始
       /^---\s*$/m,            // 分隔线
       /^\|?\s*\w+.*\|.*/m,    // 表格行（包含 | 分隔符）
-      /^[-:]+\|[-:]+/m,       // 表格分隔符行（如 ---|---）
       /^!\[.+\]\(.+\)/,       // 图片
       /\$\w+\$/,              // LaTeX 行内公式
       /\$\$[^$]+\$\$/,        // LaTeX 块公式
       /\[\^[^\]]+\]/,         // 脚注引用
-      /^(---|\+\+\+)\s*\n/,   // front-matter 块开始
     ]
     return markdownPatterns.some(pattern => pattern.test(str))
   }
 
-  // 移除 Markdown 代码块内容后检测 HTML
-  const removeCodeBlocks = (str: string): string => {
-    return str.replace(/```[\s\S]*?```/g, '')
-  }
-
-  // 检测是否为真正的 HTML（排除 Markdown 代码块中的 HTML）
+  // 检测是否包含 HTML 标签
   const isHtml = (str: string): boolean => {
-    if (hasCodeBlocks(str)) {
-      const contentWithoutCodeBlocks = removeCodeBlocks(str)
-      const htmlPattern = /<[a-zA-Z][^>]*>/
-      return htmlPattern.test(contentWithoutCodeBlocks)
-    }
-    const htmlPattern = /<[a-zA-Z][^>]*>/
-    return htmlPattern.test(str)
-  }
-
-  // 检测是否为 Markdown
-  const isMarkdown = (str: string): boolean => {
-    return hasMarkdownSyntax(str)
+    return /<[a-zA-Z][^>]*>/.test(str)
   }
 
   const sanitizeHtml = (html: string): string => {
@@ -347,27 +355,108 @@ export default function EmailBody({ content, className = '', style }: EmailBodyP
       return ''
     }
 
-    if (isMarkdown(content)) {
+    // 优先检测强 Markdown 特征（front-matter、ATX 标题、代码块等）
+    // 这些特征在 HTML 邮件中几乎不会出现，可以可靠地区分 Markdown 内容
+    if (hasStrongMarkdownSyntax(content)) {
       const processedContent = preprocessMarkdown(content)
       const html = parseMarkdown(processedContent)
       return sanitizeHtmlForMarkdown(html)
     }
 
+    // 其次检测 HTML 标签
     if (isHtml(content)) {
       return sanitizeHtml(content)
+    }
+
+    // 最后检测弱 Markdown 特征（斜体、粗体等）
+    if (hasMarkdownSyntax(content)) {
+      const processedContent = preprocessMarkdown(content)
+      const html = parseMarkdown(processedContent)
+      return sanitizeHtmlForMarkdown(html)
     }
 
     return textToHtml(content)
   }
 
-  const contentIsHtml = isHtml(content) && !isMarkdown(content)
+  // 判断渲染模式用于选择 CSS 类名
+  const contentIsHtml = !hasStrongMarkdownSyntax(content) && (isHtml(content) || !hasMarkdownSyntax(content))
+
+  // ---- iframe 渲染（仅用于 HTML 邮件，实现与主应用的样式隔离）----
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const roRef = useRef<ResizeObserver | null>(null)
+  const [iframeHeight, setIframeHeight] = useState<number>(150)
+
+  const iframeSrcDoc = useMemo(() => {
+    if (!contentIsHtml) return ''
+    const sanitized = renderContent()
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${EMAIL_IFRAME_CSS}</style></head><body class="email-body-html">${sanitized}</body></html>`
+    // renderContent 仅依赖 content，此处无需重复声明
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, contentIsHtml])
+
+  const handleIframeLoad = useCallback(() => {
+    const iframe = iframeRef.current
+    if (!iframe) return
+    const doc = iframe.contentDocument
+    if (!doc) return
+
+    // 清理上一次的观察者
+    roRef.current?.disconnect()
+
+    // 链接统一在新标签页打开，避免在 iframe 内跳转导致死循环
+    doc.querySelectorAll('a').forEach(a => {
+      a.setAttribute('target', '_blank')
+      a.setAttribute('rel', 'noopener noreferrer')
+    })
+
+    // 根据内容高度自适应 iframe 高度
+    const adjustHeight = () => {
+      const body = doc.body
+      if (!body) return
+      const h = Math.max(
+        body.scrollHeight,
+        body.offsetHeight,
+        doc.documentElement.scrollHeight
+      )
+      if (h > 0) setIframeHeight(h)
+    }
+    adjustHeight()
+
+    const ro = new ResizeObserver(adjustHeight)
+    ro.observe(doc.body)
+    roRef.current = ro
+
+    // 图片加载完成后重新计算高度
+    doc.querySelectorAll('img').forEach(img => {
+      if (!img.complete) {
+        img.addEventListener('load', adjustHeight)
+        img.addEventListener('error', adjustHeight)
+      }
+    })
+  }, [])
+
+  // 组件卸载时清理 ResizeObserver
+  useEffect(() => {
+    return () => roRef.current?.disconnect()
+  }, [])
 
   if (contentIsHtml) {
     return (
-      <div
-        className={`email-body-html ${className}`}
-        style={style}
-        dangerouslySetInnerHTML={{ __html: renderContent() }}
+      <iframe
+        ref={iframeRef}
+        srcDoc={iframeSrcDoc}
+        onLoad={handleIframeLoad}
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        title="email-content"
+        style={{
+          width: '100%',
+          height: `${iframeHeight}px`,
+          border: 'none',
+          display: 'block',
+          borderRadius: '8px',
+          backgroundColor: '#ffffff',
+          ...style,
+        }}
       />
     )
   }

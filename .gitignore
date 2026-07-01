@@ -37,3 +37,6 @@ desktop/node_modules/
 
 # mac
 .DS_Store
+
+# private
+email-sample/
