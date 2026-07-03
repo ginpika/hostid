@@ -1,5 +1,3 @@
-![HostID](./logo.png)
-
 ![Preview](./docs/preview2.png)
 
 <details>
