@@ -1,14 +1,25 @@
-![Hostid](poster.png)
+![HostID](./logo.png)
 
-[English](./README.md) [中文](./README-zh.md)
+![Preview](./docs/preview2.png)
 
-A lightweight, self-hosted mail server and sso provider in one, designed as the minimalist identity foundation for someone who want a lite email with them own domain.
+<details>
+  <summary>Others preview</summary>
+  <img src="./docs/preview3.png" alt="Preview3" width="600">
+  <img src="./docs/preview1.png" alt="Preview4" width="600">
+</details>
 
-Live Demo: https://mail.ginpika.cc (Username: `test`, Password: `VFObHC#e5nZ7Fxi&`)
+[English](./README-en.md)
 
-The demo server has outgoing mail disabled, only supports internal mail between users, for demonstration purposes only.
+一个轻量级的自托管邮件应用，提供极简的身份认证服务，基于 nodemailer + express.js。
 
-## Deployed with docker-compose
+## 我为什么写了 hostid
+
+1. 我想要一个 UI/UX 更出色自托管的邮件服务器，市面上的邮件服务虽然免费，要么很卡，要么有广告
+2. 我需要一个简单的 sso or oauth2 的认证服务来管理我自己写的各种 web 服务
+
+Hostid 正是上述两个需求的实现。
+
+## 部署
 
 ```shell
 mkdir ./hostid
@@ -16,116 +27,66 @@ cd hostid
 wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.yaml
 touch frontend.env
 wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
-# please modify backend.env & frontend.env
+# 请在正确配置 backend.env & frontend.env 后执行
 docker-compose up -d
 ```
 
-root account will create automatically when the server starts for the first time. check logs for pwd.
+管理员账号 root 会自动初始化，并且密码写在日志里，请通过 docker-compose logs 查看，或查看 logs/admin-credentials.log
 
-## Built with
+你也可以直接在容器内执行 reset-admin.cjs 来重置 root 账号的密码
 
-### Backend
-- **Runtime**: Node.js + TypeScript
-- **Framework**: Express.js
-- **Database**: SQLite (via Prisma ORM)
-- **Authentication**: JWT + bcryptjs
-- **Mail**: 
-  - SMTP Server (smtp-server)
-  - Mail Parser (mailparser)
-  - Mail Sender (nodemailer)
+## .env
 
-### Frontend
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **Rich Text Editor**: TipTap
-- **Routing**: React Router DOM
-- **Animation**: Framer Motion
+详情请见 ./backend/.env.example & ./frontend/.env.example
 
-### Desktop App
-- **Framework**: Tauri (Rust)
+## 开发
 
-### Deployment
-- **Containerization**: Docker + Docker Compose
-- **Web Server**: Nginx (for frontend)
-
-## Features
-
-### Mail Server
-- **SMTP Server**: Built-in SMTP server for receiving emails on port 25
-- **Mail Sending**: Support direct delivery via MX records or relay through external SMTP
-- **Mailbox Management**: Inbox, Archive, Starred emails
-- **Rich Text Compose**: TipTap-based rich text editor with math support (KaTeX)
-- **Attachments**: Full attachment support for sending and receiving
-- **Email Summary**: AI-powered email summarization (not integrated yet, I really don`t know how to design it better)
-
-### SSO Provider
-- **Single Sign-On**: Act as an identity provider for multiple applications
-- **Cross-domain Auth**: Share authentication across subdomains
-- **Session Management**: Secure session handling with configurable TTL
-- **Easy Integration**: Simple API for integrating with any web application
-
-### User Management
-- **User Registration**: With Cloudflare Turnstile bot protection
-- **User Profiles**: Nickname, phone, birthday, avatar, language preferences
-- **Role System**: Admin and regular user roles
-- **Admin Panel**: User management and SSO app configuration
-
-### UI/UX
-- **Multi-language**: Internationalization support (i18n)
-- **Theme Support**: Multiple theme options
-- **Responsive Design**: Works on desktop and mobile
-- **Desktop App**: Native desktop application via Tauri
-
-## Develop & Compile 
-
-### Prerequisites
+### 前置条件
 - Node.js 20+
-- Docker and Docker Compose installed
-- Check the .env of backend and frontend
+- Docker
 
-#### Backend Setup
+#### 后端设置
 
 ```bash
 cd backend
 
-# Install dependencies
+# 安装依赖
 npm install
 
-# Generate Prisma client
+# 生成 Prisma 客户端
 npm run db:generate
 
-# Run database migrations
+# 运行数据库迁移
 npm run db:migrate
 
-# Start development server
+# 启动开发服务器
 npm run dev
 ```
 
-#### Frontend Setup
+#### 前端设置
 
 ```bash
 cd frontend
 
-# Install dependencies
+# 安装依赖
 npm install
 
-# Start development server
+# 启动开发服务器
 npm run dev
 ```
 
-## SSO Integration
+## SSO 集成
 
-HostID can serve as an SSO provider for your other applications. See the integration guides:
+HostID 可以作为其他应用的 SSO 提供商。请参阅集成指南：
 
-- [Node.js Integration](docs/sso-integration-nodejs.md)
-- [Go Integration](docs/sso-integration-go.md)
-- [Java Integration](docs/sso-integration-java.md)
-- [Rust Integration](docs/sso-integration-rust.md)
+- [Node.js 集成](docs/sso-integration-nodejs.md)
+- [Go 集成](docs/sso-integration-go.md)
+- [Java 集成](docs/sso-integration-java.md)
+- [Rust 集成](docs/sso-integration-rust.md)
 
-### Quick SSO Integration
+### 快速 SSO 集成
 
-1. **Check session** from your client app:
+1. **检查会话** 从客户端应用：
    ```javascript
    const res = await fetch('https://mail.yourdomain.com/api/sso/session', {
      credentials: 'include'
@@ -133,28 +94,28 @@ HostID can serve as an SSO provider for your other applications. See the integra
    const { authenticated, user } = await res.json()
    ```
 
-2. **Redirect to login** if not authenticated:
+2. **重定向到登录页** 如果未认证：
    ```javascript
    window.location.href = `https://mail.yourdomain.com/sso/login?redirect=${encodeURIComponent(currentUrl)}`
    ```
 
-## DNS Configuration
+## DNS 配置
 
-For your mail server to work properly, configure these DNS records:
+为确保邮件服务器正常工作，请配置以下 DNS 记录：
 
 ```
-# MX Record
+# MX 记录
 yourdomain.com.    IN    MX    10    mail.yourdomain.com.
 
-# A Record (pointing to your server IP)
+# A 记录 (指向服务器 IP)
 mail.yourdomain.com.    IN    A    your.server.ip
 
-# SPF Record
+# SPF 记录
 yourdomain.com.    IN    TXT    "v=spf1 mx -all"
 
-# DKIM Record (if configured)
+# DKIM 记录 (如已配置)
 default._domainkey.yourdomain.com.    IN    TXT    "v=DKIM1; k=rsa; p=your-public-key"
 
-# DMARC Record
+# DMARC 记录
 _dmarc.yourdomain.com.    IN    TXT    "v=DMARC1; p=quarantine; rua=mailto:postmaster@yourdomain.com"
 ```
