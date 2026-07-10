@@ -16,8 +16,8 @@ import { getAvatarUrl } from '../utils/avatar'
 const router = Router()
 
 const ssoLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: parseInt(process.env.SSO_RATE_WINDOW_MS || '60000'),
+  max: parseInt(process.env.SSO_RATE_MAX || '180'),
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false
