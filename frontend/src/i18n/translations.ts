@@ -16,6 +16,8 @@ export const translations = {
     mail: '邮件',
     close: '关闭',
     menu: '菜单',
+    pinSidebar: '固定侧边栏',
+    unpinSidebar: '取消固定侧边栏',
     usernameHint: '只能包含字母、数字、点和下划线',
     pleaseCompleteVerification: '请完成人机验证',
     
@@ -348,6 +350,8 @@ export const translations = {
     mail: 'Mail',
     close: 'Close',
     menu: 'Menu',
+    pinSidebar: 'Pin sidebar',
+    unpinSidebar: 'Unpin sidebar',
     usernameHint: 'Only letters, numbers, dots and underscores allowed',
     pleaseCompleteVerification: 'Please complete the verification',
     

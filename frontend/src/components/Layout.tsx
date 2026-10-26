@@ -16,6 +16,7 @@ export default function Layout() {
   const { language, setLanguage, t } = useI18n()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarPinned, setSidebarPinned] = useState(() => localStorage.getItem('sidebar-pinned') === 'true')
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
   const [importLoading, setImportLoading] = useState(false)
   const languageMenuRef = useRef<HTMLDivElement>(null)
@@ -30,6 +31,14 @@ export default function Layout() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  const toggleSidebarPinned = () => {
+    setSidebarPinned(prev => {
+      const next = !prev
+      localStorage.setItem('sidebar-pinned', String(next))
+      return next
+    })
+  }
 
   const toggleLanguage = async (newLanguage: 'zh-CN' | 'en-US') => {
     await setLanguage(newLanguage)
@@ -100,6 +109,8 @@ export default function Layout() {
         isOpen={sidebarOpen} 
         onClose={() => setSidebarOpen(false)}
         currentFolder={folder}
+        pinned={sidebarPinned}
+        onTogglePin={toggleSidebarPinned}
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full">

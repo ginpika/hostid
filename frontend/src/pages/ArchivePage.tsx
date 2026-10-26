@@ -3,11 +3,11 @@
  * 显示已归档邮件列表和详情
  * 提供恢复、删除和邮件预览功能
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Maximize2, Trash, Mail, ChevronLeft, ChevronRight, RotateCcw, CheckSquare } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
-import EmailList from '../components/EmailList'
+import EmailList, { EMAIL_ROW_HEIGHT, SELECT_ALL_ROW_HEIGHT } from '../components/EmailList'
 import EmailDetail from '../components/EmailDetail'
 import EmailBody from '../components/EmailBody'
 
@@ -29,13 +29,16 @@ export default function ArchivePage() {
   const [showMobileDetail, setShowMobileDetail] = useState(false)
   const [emails, setEmails] = useState<any[]>([])
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 0 })
+  const [pageSize, setPageSize] = useState(0)
   const [loading, setLoading] = useState(false)
+  const listRef = useRef<HTMLDivElement>(null)
+  const prevPageSizeRef = useRef(pageSize)
 
   const fetchEmails = async (page: number = 1) => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch(`/api/emails?folder=ARCHIVED&page=${page}&limit=${pagination.limit}`, {
+      const res = await fetch(`/api/emails?folder=ARCHIVED&page=${page}&limit=${pageSize}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (res.ok) {
@@ -50,12 +53,37 @@ export default function ArchivePage() {
     }
   }
 
+  // 根据列表可视高度计算每页条数，避免列表内出现滚动条
   useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+
+    const updatePageSize = () => {
+      const height = el.clientHeight
+      if (height <= 0) return
+      const usableHeight = height - (isSelectMode ? SELECT_ALL_ROW_HEIGHT : 0)
+      const next = Math.max(1, Math.floor(usableHeight / EMAIL_ROW_HEIGHT))
+      setPageSize(prev => (prev === next ? prev : next))
+    }
+
+    updatePageSize()
+    const observer = new ResizeObserver(updatePageSize)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [isSelectMode])
+
+  useEffect(() => {
+    if (pageSize <= 0) return
+    const sizeChanged = prevPageSizeRef.current !== pageSize
+    prevPageSizeRef.current = pageSize
+
     fetchEmails(1)
-    setSelectedEmail(null)
-    setIsSelectMode(false)
-    setSelectedEmailIds(new Set())
-  }, [refreshKey])
+    if (!sizeChanged) {
+      setSelectedEmail(null)
+      setIsSelectMode(false)
+      setSelectedEmailIds(new Set())
+    }
+  }, [refreshKey, pageSize])
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
@@ -319,8 +347,8 @@ export default function ArchivePage() {
             )}
           </div>
           
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
+          <div ref={listRef} className="flex-1 overflow-y-auto">
+            {loading || pageSize <= 0 ? (
               <div className="flex items-center justify-center h-32">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
               </div>

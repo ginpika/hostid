@@ -6,6 +6,11 @@
 import { Mail, Paperclip, CheckSquare, Square, Star } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 
+// 邮件列表单行高度，供页面按可视高度计算每页条数
+export const EMAIL_ROW_HEIGHT = 67
+// 选择模式下"全选"行高度
+export const SELECT_ALL_ROW_HEIGHT = 37
+
 interface Attachment {
   id: string
   filename: string
