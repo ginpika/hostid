@@ -3,8 +3,9 @@
  * 提供邮件文件夹导航、撰写按钮和管理员入口
  * 作为持久化组件，不会随路由切换重新渲染
  */
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, Pen, X, UserCircle, Archive, Shield, Key, AppWindow, Star, Pin, PinOff } from 'lucide-react'
+import { Inbox, Send, Trash2, Pen, X, UserCircle, Archive, Shield, Key, AppWindow, Star, Pin, PinOff, Menu } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
@@ -25,6 +26,10 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
   const { openCompose } = useCompose()
   const location = useLocation()
   const navigate = useNavigate()
+
+  // 桌面端窄菜单模式下 hover 临时展开
+  const [hovered, setHovered] = useState(false)
+  const expanded = pinned || hovered
 
   const isAdmin = user?.role === 'admin'
 
@@ -76,31 +81,50 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
       />
       
       <aside 
-        className={`fixed lg:static inset-y-0 left-0 z-30 transform transition-all duration-200 flex-shrink-0 w-64 ${
+        className={`fixed lg:relative inset-y-0 left-0 z-30 transform transition-all duration-200 flex-shrink-0 w-64 ${
           pinned ? 'lg:w-64' : 'lg:w-[68px]'
         } ${
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
-        style={{ 
-          backgroundColor: 'var(--color-bg-secondary)',
-          borderRight: '1px solid var(--color-border-primary)'
-        }}
+        style={{ backgroundColor: 'var(--color-bg-secondary)' }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
-        <div className="h-full flex flex-col">
+        <div 
+          className={`h-full flex flex-col w-64 transition-all duration-200 lg:absolute lg:inset-y-0 lg:left-0 lg:w-64 ${
+            expanded ? '' : 'lg:w-[68px]'
+          } ${!pinned && hovered ? 'lg:shadow-2xl' : ''}`}
+          style={{ 
+            backgroundColor: 'var(--color-bg-secondary)',
+            borderRight: '1px solid var(--color-border-primary)'
+          }}
+        >
           <div className="relative flex-shrink-0 border-b" style={{ borderColor: 'var(--color-border-primary)' }}>
-            <button
-              onClick={onTogglePin}
-              className="hidden lg:block absolute top-2 right-2 z-10 p-1.5 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
-              style={{ color: pinned ? 'var(--color-accent-primary)' : 'var(--color-text-muted)' }}
-              title={pinned ? t('unpinSidebar') : t('pinSidebar')}
-            >
-              {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-            </button>
+            {expanded && (
+              <button
+                onClick={onTogglePin}
+                className="hidden lg:block absolute top-2 right-2 z-10 p-1.5 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                style={{ color: pinned ? 'var(--color-accent-primary)' : 'var(--color-text-muted)' }}
+                title={pinned ? t('unpinSidebar') : t('pinSidebar')}
+              >
+                {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+              </button>
+            )}
 
-            <div className={`p-4 ${pinned ? 'lg:pr-10' : 'lg:p-2 lg:pt-10 lg:pb-3'}`}>
+            <div className={`p-4 ${expanded ? 'lg:pr-10' : 'lg:p-2 lg:pt-2 lg:pb-3'}`}>
+              {!expanded && (
+                <button
+                  onClick={onTogglePin}
+                  className="hidden lg:flex mx-auto mb-1 p-1 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                  style={{ color: 'var(--color-text-muted)' }}
+                  title={t('pinSidebar')}
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
+              )}
               <div className="flex items-center gap-3 lg:justify-center">
                 <div 
-                  className={`w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center ${pinned ? '' : 'lg:w-9 lg:h-9'}`}
+                  className={`w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center ${expanded ? '' : 'lg:w-9 lg:h-9'}`}
                   style={{ 
                     backgroundColor: user?.avatar ? 'transparent' : `color-mix(in srgb, var(--color-accent-primary) 20%, transparent)`,
                     color: 'var(--color-accent-primary)'
@@ -109,10 +133,10 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
                   {user?.avatar || user?.avatarUrl ? (
                     <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt={user.nickname || user.username} className="w-full h-full object-cover" />
                   ) : (
-                    <UserCircle className={`w-8 h-8 ${pinned ? '' : 'lg:w-5 lg:h-5'}`} />
+                    <UserCircle className={`w-8 h-8 ${expanded ? '' : 'lg:w-5 lg:h-5'}`} />
                   )}
                 </div>
-                <div className={`flex-1 min-w-0 ${pinned ? '' : 'lg:hidden'}`}>
+                <div className={`flex-1 min-w-0 ${expanded ? '' : 'lg:hidden'}`}>
                   <p className="text-base font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
                     {user?.nickname || user?.username}
                   </p>
@@ -127,12 +151,12 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
             </div>
           </div>
 
-          <div className={`${pinned ? 'px-3 py-4' : 'px-3 py-4 lg:px-2 lg:py-3'}`}>
+          <div className={`${expanded ? 'px-3 py-4' : 'px-3 py-4 lg:px-2 lg:py-3'}`}>
             <button
               onClick={() => openCompose()}
               title={t('compose')}
               className={`group relative w-full flex items-center justify-center gap-2.5 rounded-xl font-semibold tracking-wide overflow-hidden transition-all duration-300 ease-out shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 ${
-                pinned ? 'py-3.5 px-5 text-[15px]' : 'py-3.5 px-5 text-[15px] lg:px-0 lg:py-3'
+                expanded ? 'py-3.5 px-5 text-[15px]' : 'py-3.5 px-5 text-[15px] lg:px-0 lg:py-3'
               }`}
               style={{
                 background: 'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%)',
@@ -141,14 +165,14 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
               }}
             >
               <Pen className="w-5 h-5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={2.5} />
-              <span className={pinned ? '' : 'lg:hidden'}>{t('compose')}</span>
+              <span className={expanded ? '' : 'lg:hidden'}>{t('compose')}</span>
             </button>
           </div>
 
           <nav className="flex-1 px-2 overflow-y-auto">
             {navGroups.map((group, groupIndex) => (
               <div key={groupIndex} className="mb-4">
-                <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider ${pinned ? '' : 'lg:hidden'}`} style={{ color: 'var(--color-text-muted)' }}>
+                <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider ${expanded ? '' : 'lg:hidden'}`} style={{ color: 'var(--color-text-muted)' }}>
                   {group.label}
                 </div>
                 {group.items.map(item => {
@@ -158,14 +182,14 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
                       key={item.path}
                       onClick={() => handleNavigate(item.path)}
                       title={item.label}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors hover:bg-[var(--color-bg-tertiary)] ${pinned ? '' : 'lg:justify-center lg:px-0'}`}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors hover:bg-[var(--color-bg-tertiary)] ${expanded ? '' : 'lg:justify-center lg:px-0'}`}
                       style={{
                         backgroundColor: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
                         color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)'
                       }}
                     >
                       <item.icon className="w-5 h-5" />
-                      <span className={`font-medium ${pinned ? '' : 'lg:hidden'}`}>{item.label}</span>
+                      <span className={`font-medium ${expanded ? '' : 'lg:hidden'}`}>{item.label}</span>
                     </button>
                   )
                 })}

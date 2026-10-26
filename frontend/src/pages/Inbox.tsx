@@ -5,7 +5,7 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
-import { CheckSquare, Trash, Mail, MailOpen, ChevronLeft, ChevronRight, RotateCcw, Loader2, Users, EyeOff, Paperclip, Download, Upload, ZoomIn, Reply, ReplyAll, Forward, Star, StarOff, Copy, Check as CheckIcon, ChevronDown, ChevronUp, Archive, X } from 'lucide-react'
+import { CheckSquare, Trash, Mail, MailOpen, ChevronLeft, ChevronRight, RotateCcw, Loader2, Users, EyeOff, Paperclip, Download, Upload, ZoomIn, Reply, ReplyAll, Forward, Star, StarOff, Copy, Check as CheckIcon, ChevronDown, ChevronUp, Archive, X, LayoutList, Columns2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
@@ -14,6 +14,9 @@ import EmailDetail from '../components/EmailDetail'
 import EmailBody from '../components/EmailBody'
 
 type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'STARRED'
+type LayoutMode = 'split' | 'list'
+
+const LAYOUT_STORAGE_KEY = 'inboxLayoutMode'
 
 interface Pagination {
   page: number
@@ -40,6 +43,9 @@ export default function InboxPage() {
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set())
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [showMobileDetail, setShowMobileDetail] = useState(false)
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(() =>
+    localStorage.getItem(LAYOUT_STORAGE_KEY) === 'list' ? 'list' : 'split'
+  )
   const [emails, setEmails] = useState<any[]>([])
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 0 })
   const [pageSize, setPageSize] = useState(0)
@@ -130,7 +136,7 @@ export default function InboxPage() {
       }
       setSelectedEmailIds(newSelected)
     } else {
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 768 || layoutMode === 'list') {
         setSelectedEmail(email)
         setShowMobileDetail(true)
       } else {
@@ -164,6 +170,13 @@ export default function InboxPage() {
     if (isSelectMode) {
       setSelectedEmailIds(new Set())
     }
+  }
+
+  const handleToggleLayout = () => {
+    const next: LayoutMode = layoutMode === 'split' ? 'list' : 'split'
+    setLayoutMode(next)
+    localStorage.setItem(LAYOUT_STORAGE_KEY, next)
+    setShowMobileDetail(false)
   }
 
   const handleSelectAll = (emailIds: string[]) => {
@@ -308,7 +321,7 @@ export default function InboxPage() {
     <>
     <div className="flex-1 flex min-h-0">
       <div
-        className="w-full md:w-2/5 lg:w-1/3 xl:w-1/4 border-r flex flex-col"
+        className={`${layoutMode === 'split' ? 'w-full md:w-2/5 lg:w-1/3 xl:w-1/4 border-r' : 'w-full'} flex flex-col`}
         style={{
           backgroundColor: 'var(--color-bg-secondary)',
           borderRightColor: 'var(--color-border-primary)'
@@ -372,6 +385,18 @@ export default function InboxPage() {
               <span className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>{t('emails')}</span>
               <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>({pagination.total})</span>
               <div className="flex-1" />
+              <button
+                onClick={handleToggleLayout}
+                className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                title={layoutMode === 'split' ? t('listLayout') : t('splitLayout')}
+              >
+                {layoutMode === 'split' ? (
+                  <LayoutList className="w-4 h-4" />
+                ) : (
+                  <Columns2 className="w-4 h-4" />
+                )}
+              </button>
               <button
                 onClick={handleToggleSelectMode}
                 className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
@@ -439,27 +464,29 @@ export default function InboxPage() {
         )}
       </div>
 
-      <div className="hidden md:flex flex-1 flex-col min-w-0" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        {selectedEmail ? (
-          <EmailPreviewPanel
-            emailId={selectedEmail.id}
-            onDelete={handleEmailDeleted}
-            onRestore={handleEmailDeleted}
-            onToggleStar={handleToggleStar}
-            onReply={handleReply}
-            onReplyAll={handleReplyAll}
-            onForward={handleForward}
-            onArchive={() => setRefreshKey(k => k + 1)}
-          />
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-              <Mail className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--color-text-muted)' }} />
-              <p className="text-lg">{t('selectEmailToView')}</p>
+      {layoutMode === 'split' && (
+        <div className="hidden md:flex flex-1 flex-col min-w-0" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+          {selectedEmail ? (
+            <EmailPreviewPanel
+              emailId={selectedEmail.id}
+              onDelete={handleEmailDeleted}
+              onRestore={handleEmailDeleted}
+              onToggleStar={handleToggleStar}
+              onReply={handleReply}
+              onReplyAll={handleReplyAll}
+              onForward={handleForward}
+              onArchive={() => setRefreshKey(k => k + 1)}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center" style={{ color: 'var(--color-text-tertiary)' }}>
+                <Mail className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--color-text-muted)' }} />
+                <p className="text-lg">{t('selectEmailToView')}</p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
 
     {showMobileDetail && selectedEmail && (
