@@ -26,10 +26,12 @@ wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docke
 touch frontend.env
 wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
 # 请在正确配置 backend.env & frontend.env 后执行
-docker-compose up -d
+docker compose up -d --wait
 ```
 
 管理员账号 root 会自动初始化，并且密码写在日志里，请通过 docker-compose logs 查看，或查看 logs/admin-credentials.log
+
+构建、端口配置、升级和 CI 发布说明见 [Docker 部署文档](docs/docker.md)。宿主机端口分别使用 `FRONTEND_PORT` 和 `BACKEND_PORT`，后端 HTTP 默认绑定 `127.0.0.1`；SMTP 对外仍为 25，容器内为 2525。推荐通过 `IMAGE_TAG=sha-<完整提交 SHA>` 固定前后端的一套版本。
 
 你也可以直接在容器内执行 reset-admin.cjs 来重置 root 账号的密码
 

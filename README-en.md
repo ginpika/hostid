@@ -26,10 +26,12 @@ wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docke
 touch frontend.env
 wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
 # After properly configuring backend.env & frontend.env, run:
-docker-compose up -d
+docker compose up -d --wait
 ```
 
 The admin account `root` will be automatically initialized, and the password will be written to the logs. You can view it via `docker-compose logs` or check `logs/admin-credentials.log`.
+
+Use Docker Compose v2.20 or newer. Host ports are configured separately with `FRONTEND_PORT` and `BACKEND_PORT`; backend HTTP binds to `127.0.0.1` by default. SMTP still publishes host port 25, mapped to unprivileged container port 2525. Set `IMAGE_TAG=sha-<full-commit-sha>` in the Compose `.env` file to deploy a matching frontend/backend pair from a successful workflow. Turnstile is configured at runtime through `frontend.env`; no build secret is needed. See the [Docker deployment guide](docs/docker.md) for build, upgrade, and CI details.
 
 You can also run `reset-admin.cjs` inside the container to reset the root account password.
 

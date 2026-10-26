@@ -2,6 +2,16 @@ node_modules
 dist
 *.db
 *.db-journal
+*.db-*
+*.db.*
 .env
+.env.*
+*.env
+*.env.*
+!.env.example
 uploads
 logs
+avatars
+data
+.git
+*.log

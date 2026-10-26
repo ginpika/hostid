@@ -3,7 +3,7 @@
 set -e
 
 echo "Running database migrations..."
-npx prisma migrate deploy
+./node_modules/.bin/prisma migrate deploy
 
 echo "Starting server..."
-exec npx tsx src/index.ts
+exec ./node_modules/.bin/tsx src/index.ts

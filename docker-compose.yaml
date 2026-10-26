@@ -4,11 +4,17 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     ports:
-      - "${PORT:-3000}:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     env_file:
       - ./frontend/.env
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
     restart: unless-stopped
 
   backend:
@@ -16,12 +22,20 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "${SMTP_PORT:-25}:25"
-      - "${PORT:-3001}:3001"
+      - "${SMTP_PORT:-25}:2525"
+      - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-3001}:3001"
     env_file:
       - ./backend/.env
     environment:
-      - DATABASE_URL=file:/app/data/prod.db
+      NODE_ENV: production
+      PORT: "3001"
+      SMTP_PORT: "2525"
+      DATABASE_URL: file:/app/data/prod.db
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
     volumes:
       - backend_data:/app/data
       - backend_uploads:/app/uploads
