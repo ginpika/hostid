@@ -49,7 +49,6 @@ export default function Sidebar({ isOpen, currentFolder, onClose }: SidebarProps
       label: t('general'),
       items: [
         { path: '/profile', label: t('profile'), icon: UserCircle },
-        { path: '/info', label: t('about'), icon: UserCircle },
       ]
     },
     ...(isAdmin ? [{
