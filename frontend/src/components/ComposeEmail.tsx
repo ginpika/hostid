@@ -3,7 +3,7 @@
  * 邮件撰写表单，支持收件人、主题、正文和附件
  * 提供回复/转发功能，自动填充引用内容
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Loader2, Trash2, Paperclip, Reply, ReplyAll, Forward } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
@@ -38,61 +38,113 @@ interface ComposeEmailProps {
 
 const STORAGE_KEY = 'compose_email_draft'
 
+type Translate = ReturnType<typeof useI18n>['t']
+
+interface ComposeInitialState {
+  recipients: Recipient[]
+  subject: string
+  body: string
+  referencedAttachments: ReferencedAttachment[]
+}
+
+const createRecipient = (email: string, type: RecipientType): Recipient => ({
+  id: `reply-${email}-${Date.now()}`,
+  username: email.split('@')[0],
+  email,
+  type
+})
+
+// 根据回复/转发数据构建初始表单内容
+const buildReplyState = (replyData: ReplyData, t: Translate): ComposeInitialState => {
+  const recipients: Recipient[] = []
+
+  if (replyData.mode === 'reply') {
+    recipients.push(createRecipient(replyData.from, 'to'))
+  } else if (replyData.mode === 'replyAll') {
+    recipients.push(createRecipient(replyData.from, 'to'))
+    replyData.toList.forEach(email => {
+      if (email !== replyData.from) {
+        recipients.push(createRecipient(email, 'to'))
+      }
+    })
+    replyData.ccList.forEach(email => {
+      recipients.push(createRecipient(email, 'cc'))
+    })
+  }
+
+  const prefix = replyData.mode === 'forward' ? 'Fwd: ' : 'Re: '
+  let subject = replyData.subject
+  if (!subject.toLowerCase().startsWith('re:') && !subject.toLowerCase().startsWith('fwd:')) {
+    subject = prefix + subject
+  }
+
+  const quotedBody = `<br><br><div style="border-left: 2px solid #ccc; padding-left: 10px; color: #666;">---------- ${t('forwardMessage')} ----------<br>${t('from')}: ${replyData.from}<br>${t('date')}: ${new Date(replyData.date).toLocaleString()}<br>${t('subject')}: ${replyData.subject}<br><br>${replyData.body}</div>`
+
+  return {
+    recipients,
+    subject,
+    body: quotedBody,
+    referencedAttachments: replyData.attachments && replyData.attachments.length > 0 ? replyData.attachments : []
+  }
+}
+
+// 首帧即计算好完整内容，避免弹窗打开后再 setState 造成尺寸跳变
+const buildInitialState = (replyData: ReplyData | null | undefined, t: Translate): ComposeInitialState => {
+  if (replyData) {
+    return buildReplyState(replyData, t)
+  }
+
+  const empty: ComposeInitialState = { recipients: [], subject: '', body: '', referencedAttachments: [] }
+  const savedDraft = localStorage.getItem(STORAGE_KEY)
+  if (!savedDraft) return empty
+
+  try {
+    const draft = JSON.parse(savedDraft)
+    return {
+      recipients: draft.recipients || [],
+      subject: draft.subject || '',
+      body: draft.body || '',
+      referencedAttachments: []
+    }
+  } catch (e) {
+    console.error('Failed to load draft:', e)
+    return empty
+  }
+}
+
 export default function ComposeEmail({ onClose, onSent, replyData }: ComposeEmailProps) {
   const { t } = useI18n()
   const { domain } = useDomain()
-  const [recipients, setRecipients] = useState<Recipient[]>([])
-  const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
+  const initialStateRef = useRef<ComposeInitialState | undefined>(undefined)
+  if (!initialStateRef.current) {
+    initialStateRef.current = buildInitialState(replyData, t)
+  }
+  const initialState = initialStateRef.current!
+  const [recipients, setRecipients] = useState<Recipient[]>(initialState.recipients)
+  const [subject, setSubject] = useState(initialState.subject)
+  const [body, setBody] = useState(initialState.body)
   const [attachments, setAttachments] = useState<AttachmentFile[]>([])
-  const [referencedAttachments, setReferencedAttachments] = useState<ReferencedAttachment[]>([])
+  const [referencedAttachments, setReferencedAttachments] = useState<ReferencedAttachment[]>(initialState.referencedAttachments)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const isFirstRenderRef = useRef(true)
 
   useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false
+      if (replyData) {
+        localStorage.removeItem(STORAGE_KEY)
+      }
+      return
+    }
+
     if (replyData) {
-      const newRecipients: Recipient[] = []
-      
-      const createRecipient = (email: string, type: RecipientType): Recipient => ({
-        id: `reply-${email}-${Date.now()}`,
-        username: email.split('@')[0],
-        email,
-        type
-      })
-      
-      if (replyData.mode === 'reply') {
-        newRecipients.push(createRecipient(replyData.from, 'to'))
-      } else if (replyData.mode === 'replyAll') {
-        newRecipients.push(createRecipient(replyData.from, 'to'))
-        replyData.toList.forEach(email => {
-          if (email !== replyData.from) {
-            newRecipients.push(createRecipient(email, 'to'))
-          }
-        })
-        replyData.ccList.forEach(email => {
-          newRecipients.push(createRecipient(email, 'cc'))
-        })
-      }
-      
-      setRecipients(newRecipients)
-      
-      const prefix = replyData.mode === 'forward' ? 'Fwd: ' : 'Re: '
-      let newSubject = replyData.subject
-      if (!newSubject.toLowerCase().startsWith('re:') && !newSubject.toLowerCase().startsWith('fwd:')) {
-        newSubject = prefix + newSubject
-      }
-      setSubject(newSubject)
-      
-      const quotedBody = `<br><br><div style="border-left: 2px solid #ccc; padding-left: 10px; color: #666;">---------- ${t('forwardMessage')} ----------<br>${t('from')}: ${replyData.from}<br>${t('date')}: ${new Date(replyData.date).toLocaleString()}<br>${t('subject')}: ${replyData.subject}<br><br>${replyData.body}</div>`
-      setBody(quotedBody)
-      
+      const next = buildReplyState(replyData, t)
+      setRecipients(next.recipients)
+      setSubject(next.subject)
+      setBody(next.body)
       setAttachments([])
-      if (replyData.attachments && replyData.attachments.length > 0) {
-        setReferencedAttachments(replyData.attachments)
-      } else {
-        setReferencedAttachments([])
-      }
-      
+      setReferencedAttachments(next.referencedAttachments)
       localStorage.removeItem(STORAGE_KEY)
     } else {
       setAttachments([])

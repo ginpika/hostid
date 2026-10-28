@@ -394,11 +394,11 @@ export default function EmailDetail({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
+          className="rounded-2xl shadow-2xl w-full max-w-3xl h-[80vh] max-h-[90vh] overflow-hidden flex flex-col"
           style={{ backgroundColor: 'var(--color-bg-secondary)' }}
         >
           <div 
-            className="flex items-center justify-between px-5 py-3 border-b"
+            className="flex items-center justify-between px-5 py-3 border-b flex-shrink-0"
             style={{ 
               borderColor: 'var(--color-border-secondary)',
               backgroundColor: 'var(--color-bg-tertiary)'
@@ -465,9 +465,9 @@ export default function EmailDetail({
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 min-h-0 overflow-auto">
             {loading ? (
-              <div className="flex items-center justify-center h-32">
+              <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-accent-primary)' }} />
               </div>
             ) : email ? (
@@ -652,7 +652,7 @@ export default function EmailDetail({
 
           {email && (
             <div 
-              className="border-t px-4 py-2.5 flex items-center justify-between"
+              className="border-t px-4 py-2.5 flex items-center justify-between flex-shrink-0"
               style={{ 
                 borderColor: 'var(--color-border-secondary)',
                 backgroundColor: 'var(--color-bg-tertiary)'

@@ -270,7 +270,30 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
   )
 
   if (!editor) {
-    return null
+    // TipTap 编辑器在挂载后的下一帧才就绪，先渲染等尺寸骨架，
+    // 避免编辑器出现时容器高度突变导致弹窗闪烁
+    return (
+      <div className="relative">
+        <div
+          className="rich-text-editor border rounded-lg overflow-hidden"
+          style={{
+            borderColor: 'var(--color-border-primary)',
+            backgroundColor: 'var(--color-bg-primary)'
+          }}
+        >
+          <div
+            className="border-b"
+            style={{
+              borderColor: 'var(--color-border-primary)',
+              backgroundColor: 'var(--color-bg-tertiary)',
+              padding: '6px 6px',
+              minHeight: '40px'
+            }}
+          />
+          <div className="h-[232px]" style={{ backgroundColor: 'var(--color-bg-primary)' }} />
+        </div>
+      </div>
+    )
   }
 
   const getModeLabel = () => {
