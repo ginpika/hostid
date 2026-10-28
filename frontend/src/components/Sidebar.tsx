@@ -3,14 +3,18 @@
  * 提供邮件文件夹导航、撰写按钮和管理员入口
  * 作为持久化组件，不会随路由切换重新渲染
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, Pen, X, UserCircle, Archive, Shield, Key, AppWindow, Star, Pin, PinOff, Menu } from 'lucide-react'
+import { Inbox, Send, Trash2, Pen, X, UserCircle, Archive, Shield, Key, AppWindow, Star, Pin, PinOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 
 type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'ARCHIVED' | 'STARRED'
+
+// 窄形态展开/收起动画时序（毫秒）：先淡出内容，再过渡宽度，最后淡入内容
+const FADE_DURATION = 120
+const WIDTH_DURATION = 200
 
 interface SidebarProps {
   isOpen: boolean
@@ -29,7 +33,48 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
 
   // 桌面端窄菜单模式下 hover 临时展开
   const [hovered, setHovered] = useState(false)
-  const expanded = pinned || hovered
+  const [hoverExpanded, setHoverExpanded] = useState(false)
+  // 内容可见性：展开/收起过程中先隐藏内容，避免排版跳变导致的闪烁
+  const [contentVisible, setContentVisible] = useState(true)
+  const hoverExpandedRef = useRef(false)
+  const animationTimers = useRef<number[]>([])
+
+  useEffect(() => {
+    const clearTimers = () => {
+      animationTimers.current.forEach(id => window.clearTimeout(id))
+      animationTimers.current = []
+    }
+    const schedule = (fn: () => void, delay: number) => {
+      animationTimers.current.push(window.setTimeout(fn, delay))
+    }
+
+    clearTimers()
+
+    // 固定展开模式不做淡出动画，直接展示完整内容
+    if (pinned) {
+      hoverExpandedRef.current = true
+      setHoverExpanded(true)
+      setContentVisible(true)
+      return clearTimers
+    }
+
+    // 视觉状态与目标一致时无需动画
+    if (hoverExpandedRef.current === hovered) {
+      setContentVisible(true)
+      return clearTimers
+    }
+
+    setContentVisible(false)
+    schedule(() => {
+      hoverExpandedRef.current = hovered
+      setHoverExpanded(hovered)
+    }, FADE_DURATION)
+    schedule(() => setContentVisible(true), FADE_DURATION + WIDTH_DURATION)
+
+    return clearTimers
+  }, [hovered, pinned])
+
+  const expanded = pinned || hoverExpanded
 
   const isAdmin = user?.role === 'admin'
 
@@ -91,7 +136,7 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
         onMouseLeave={() => setHovered(false)}
       >
         <div 
-          className={`h-full flex flex-col w-64 transition-all duration-200 lg:absolute lg:inset-y-0 lg:left-0 lg:w-64 ${
+          className={`h-full w-64 transition-all duration-200 lg:absolute lg:inset-y-0 lg:left-0 lg:w-64 ${
             expanded ? '' : 'lg:w-[68px]'
           } ${!pinned && hovered ? 'lg:shadow-2xl' : ''}`}
           style={{ 
@@ -99,103 +144,99 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
             borderRight: '1px solid var(--color-border-primary)'
           }}
         >
-          <div className="relative flex-shrink-0 border-b" style={{ borderColor: 'var(--color-border-primary)' }}>
-            {expanded && (
-              <button
-                onClick={onTogglePin}
-                className="hidden lg:block absolute top-2 right-2 z-10 p-1.5 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
-                style={{ color: pinned ? 'var(--color-accent-primary)' : 'var(--color-text-muted)' }}
-                title={pinned ? t('unpinSidebar') : t('pinSidebar')}
-              >
-                {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-              </button>
-            )}
-
-            <div className={`p-4 ${expanded ? 'lg:pr-10' : 'lg:p-2 lg:pt-2 lg:pb-3'}`}>
-              {!expanded && (
+          <div
+            className={`h-full flex flex-col transition-opacity duration-100 ${
+              contentVisible ? 'lg:opacity-100' : 'lg:opacity-0 lg:pointer-events-none'
+            }`}
+          >
+            <div className="relative flex-shrink-0 border-b" style={{ borderColor: 'var(--color-border-primary)' }}>
+              {expanded && (
                 <button
                   onClick={onTogglePin}
-                  className="hidden lg:flex mx-auto mb-1 p-1 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
-                  style={{ color: 'var(--color-text-muted)' }}
-                  title={t('pinSidebar')}
+                  className="hidden lg:block absolute top-2 right-2 z-10 p-1.5 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                  style={{ color: pinned ? 'var(--color-accent-primary)' : 'var(--color-text-muted)' }}
+                  title={pinned ? t('unpinSidebar') : t('pinSidebar')}
                 >
-                  <Menu className="w-4 h-4" />
+                  {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                 </button>
               )}
-              <div className="flex items-center gap-3 lg:justify-center">
-                <div 
-                  className={`w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center ${expanded ? '' : 'lg:w-9 lg:h-9'}`}
-                  style={{ 
-                    backgroundColor: user?.avatar ? 'transparent' : `color-mix(in srgb, var(--color-accent-primary) 20%, transparent)`,
-                    color: 'var(--color-accent-primary)'
-                  }}
-                >
-                  {user?.avatar || user?.avatarUrl ? (
-                    <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt={user.nickname || user.username} className="w-full h-full object-cover" />
-                  ) : (
-                    <UserCircle className={`w-8 h-8 ${expanded ? '' : 'lg:w-5 lg:h-5'}`} />
-                  )}
+
+              <div className={`p-4 ${expanded ? 'lg:pr-10' : 'lg:p-2 lg:pt-2 lg:pb-3'}`}>
+                <div className="flex items-center gap-3 lg:justify-center">
+                  <div 
+                    className={`w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center ${expanded ? '' : 'lg:w-9 lg:h-9'}`}
+                    style={{ 
+                      backgroundColor: user?.avatar ? 'transparent' : `color-mix(in srgb, var(--color-accent-primary) 20%, transparent)`,
+                      color: 'var(--color-accent-primary)'
+                    }}
+                  >
+                    {user?.avatar || user?.avatarUrl ? (
+                      <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt={user.nickname || user.username} className="w-full h-full object-cover" />
+                    ) : (
+                      <UserCircle className={`w-8 h-8 ${expanded ? '' : 'lg:w-5 lg:h-5'}`} />
+                    )}
+                  </div>
+                  <div className={`flex-1 min-w-0 ${expanded ? '' : 'lg:hidden'}`}>
+                    <p className="text-base font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
+                      {user?.nickname || user?.username}
+                    </p>
+                    <p className="text-sm truncate" style={{ color: 'var(--color-text-muted)' }}>
+                      {user?.email}
+                    </p>
+                  </div>
+                  <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-[var(--color-bg-tertiary)]" style={{ color: 'var(--color-text-muted)' }}>
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <div className={`flex-1 min-w-0 ${expanded ? '' : 'lg:hidden'}`}>
-                  <p className="text-base font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
-                    {user?.nickname || user?.username}
-                  </p>
-                  <p className="text-sm truncate" style={{ color: 'var(--color-text-muted)' }}>
-                    {user?.email}
-                  </p>
-                </div>
-                <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-[var(--color-bg-tertiary)]" style={{ color: 'var(--color-text-muted)' }}>
-                  <X className="w-5 h-5" />
-                </button>
               </div>
             </div>
-          </div>
 
-          <div className={`${expanded ? 'px-3 py-4' : 'px-3 py-4 lg:px-2 lg:py-3'}`}>
-            <button
-              onClick={() => openCompose()}
-              title={t('compose')}
-              className={`group relative w-full flex items-center justify-center gap-2.5 rounded-xl font-semibold tracking-wide overflow-hidden transition-all duration-300 ease-out shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 ${
-                expanded ? 'py-3.5 px-5 text-[15px]' : 'py-3.5 px-5 text-[15px] lg:px-0 lg:py-3'
-              }`}
-              style={{
-                background: 'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%)',
-                color: 'var(--color-accent-text)',
-                boxShadow: '0 4px 14px -3px color-mix(in srgb, var(--color-accent-primary) 50%, transparent)'
-              }}
-            >
-              <Pen className="w-5 h-5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={2.5} />
-              <span className={expanded ? '' : 'lg:hidden'}>{t('compose')}</span>
-            </button>
-          </div>
+            <div className={`${expanded ? 'px-3 py-4' : 'px-3 py-4 lg:px-2 lg:py-3'}`}>
+              <button
+                onClick={() => openCompose()}
+                title={t('compose')}
+                className={`group relative w-full flex items-center justify-center gap-2.5 rounded-xl font-semibold tracking-wide overflow-hidden transition-all duration-300 ease-out shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 ${
+                  expanded ? 'py-3.5 px-5 text-[15px]' : 'py-3.5 px-5 text-[15px] lg:px-0 lg:py-3'
+                }`}
+                style={{
+                  background: 'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%)',
+                  color: 'var(--color-accent-text)',
+                  boxShadow: '0 4px 14px -3px color-mix(in srgb, var(--color-accent-primary) 50%, transparent)'
+                }}
+              >
+                <Pen className="w-5 h-5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={2.5} />
+                <span className={expanded ? '' : 'lg:hidden'}>{t('compose')}</span>
+              </button>
+            </div>
 
-          <nav className="flex-1 px-2 overflow-y-auto">
-            {navGroups.map((group, groupIndex) => (
-              <div key={groupIndex} className="mb-4">
-                <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider ${expanded ? '' : 'lg:hidden'}`} style={{ color: 'var(--color-text-muted)' }}>
-                  {group.label}
+            <nav className="flex-1 px-2 overflow-y-auto">
+              {navGroups.map((group, groupIndex) => (
+                <div key={groupIndex} className="mb-4">
+                  <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider ${expanded ? '' : 'lg:hidden'}`} style={{ color: 'var(--color-text-muted)' }}>
+                    {group.label}
+                  </div>
+                  {group.items.map(item => {
+                    const isActive = (item.folder && currentFolder === item.folder) || location.pathname === item.path
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => handleNavigate(item.path)}
+                        title={item.label}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors hover:bg-[var(--color-bg-tertiary)] ${expanded ? '' : 'lg:justify-center lg:px-0'}`}
+                        style={{
+                          backgroundColor: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
+                          color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)'
+                        }}
+                      >
+                        <item.icon className="w-5 h-5" />
+                        <span className={`font-medium ${expanded ? '' : 'lg:hidden'}`}>{item.label}</span>
+                      </button>
+                    )
+                  })}
                 </div>
-                {group.items.map(item => {
-                  const isActive = (item.folder && currentFolder === item.folder) || location.pathname === item.path
-                  return (
-                    <button
-                      key={item.path}
-                      onClick={() => handleNavigate(item.path)}
-                      title={item.label}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors hover:bg-[var(--color-bg-tertiary)] ${expanded ? '' : 'lg:justify-center lg:px-0'}`}
-                      style={{
-                        backgroundColor: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
-                        color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)'
-                      }}
-                    >
-                      <item.icon className="w-5 h-5" />
-                      <span className={`font-medium ${expanded ? '' : 'lg:hidden'}`}>{item.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            ))}
-          </nav>
+              ))}
+            </nav>
+          </div>
         </div>
       </aside>
     </>
