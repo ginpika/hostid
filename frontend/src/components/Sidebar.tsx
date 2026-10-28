@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, Pen, X, UserCircle, Archive, Shield, Key, AppWindow, Star, Pin, PinOff } from 'lucide-react'
+import { Inbox, Send, Trash2, Pen, X, UserCircle, Archive, Shield, Key, AppWindow, Star, Pin, PinOff, Menu } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
@@ -31,12 +31,12 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
   const location = useLocation()
   const navigate = useNavigate()
 
-  // 桌面端窄菜单模式下 hover 临时展开
-  const [hovered, setHovered] = useState(false)
-  const [hoverExpanded, setHoverExpanded] = useState(false)
+  // 桌面端窄菜单模式下点击菜单按钮临时展开，鼠标离开后自动收起
+  const [clickExpanded, setClickExpanded] = useState(false)
+  const [visualExpanded, setVisualExpanded] = useState(false)
   // 内容可见性：展开/收起过程中先隐藏内容，避免排版跳变导致的闪烁
   const [contentVisible, setContentVisible] = useState(true)
-  const hoverExpandedRef = useRef(false)
+  const visualExpandedRef = useRef(false)
   const animationTimers = useRef<number[]>([])
 
   useEffect(() => {
@@ -52,29 +52,29 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
 
     // 固定展开模式不做淡出动画，直接展示完整内容
     if (pinned) {
-      hoverExpandedRef.current = true
-      setHoverExpanded(true)
+      visualExpandedRef.current = true
+      setVisualExpanded(true)
       setContentVisible(true)
       return clearTimers
     }
 
     // 视觉状态与目标一致时无需动画
-    if (hoverExpandedRef.current === hovered) {
+    if (visualExpandedRef.current === clickExpanded) {
       setContentVisible(true)
       return clearTimers
     }
 
     setContentVisible(false)
     schedule(() => {
-      hoverExpandedRef.current = hovered
-      setHoverExpanded(hovered)
+      visualExpandedRef.current = clickExpanded
+      setVisualExpanded(clickExpanded)
     }, FADE_DURATION)
     schedule(() => setContentVisible(true), FADE_DURATION + WIDTH_DURATION)
 
     return clearTimers
-  }, [hovered, pinned])
+  }, [clickExpanded, pinned])
 
-  const expanded = pinned || hoverExpanded
+  const expanded = pinned || visualExpanded
 
   const isAdmin = user?.role === 'admin'
 
@@ -132,13 +132,14 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
           isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
         style={{ backgroundColor: 'var(--color-bg-secondary)' }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseLeave={() => {
+          if (!pinned) setClickExpanded(false)
+        }}
       >
         <div 
           className={`h-full w-64 transition-all duration-200 lg:absolute lg:inset-y-0 lg:left-0 lg:w-64 ${
             expanded ? '' : 'lg:w-[68px]'
-          } ${!pinned && hovered ? 'lg:shadow-2xl' : ''}`}
+          } ${!pinned && visualExpanded ? 'lg:shadow-2xl' : ''}`}
           style={{ 
             backgroundColor: 'var(--color-bg-secondary)',
             borderRight: '1px solid var(--color-border-primary)'
@@ -162,6 +163,16 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
               )}
 
               <div className={`p-4 ${expanded ? 'lg:pr-10' : 'lg:p-2 lg:pt-2 lg:pb-3'}`}>
+                {!expanded && (
+                  <button
+                    onClick={() => setClickExpanded(true)}
+                    className="hidden lg:flex mx-auto mb-1 p-1 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                    style={{ color: 'var(--color-text-muted)' }}
+                    title={t('expandSidebar')}
+                  >
+                    <Menu className="w-4 h-4" />
+                  </button>
+                )}
                 <div className="flex items-center gap-3 lg:justify-center">
                   <div 
                     className={`w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center ${expanded ? '' : 'lg:w-9 lg:h-9'}`}

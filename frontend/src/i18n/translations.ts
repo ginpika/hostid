@@ -18,6 +18,7 @@ export const translations = {
     menu: '菜单',
     pinSidebar: '固定侧边栏',
     unpinSidebar: '取消固定侧边栏',
+    expandSidebar: '展开侧边栏',
     usernameHint: '只能包含字母、数字、点和下划线',
     pleaseCompleteVerification: '请完成人机验证',
     
@@ -354,6 +355,7 @@ export const translations = {
     menu: 'Menu',
     pinSidebar: 'Pin sidebar',
     unpinSidebar: 'Unpin sidebar',
+    expandSidebar: 'Expand sidebar',
     usernameHint: 'Only letters, numbers, dots and underscores allowed',
     pleaseCompleteVerification: 'Please complete the verification',
     

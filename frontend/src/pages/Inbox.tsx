@@ -317,6 +317,10 @@ export default function InboxPage() {
   const selectedEmailsData = emails.filter(e => selectedEmailIds.has(e.id))
   const allSelectedRead = selectedEmailsData.length > 0 && selectedEmailsData.every(e => e.isRead)
 
+  // 当前页展示的邮件区间
+  const pageStart = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1
+  const pageEnd = Math.min(pagination.page * pagination.limit, pagination.total)
+
   return (
     <>
     <div className="flex-1 flex min-h-0">
@@ -382,8 +386,9 @@ export default function InboxPage() {
             </div>
           ) : (
             <div className="flex items-center gap-2 w-full">
-              <span className="text-sm" style={{ color: 'var(--color-text-tertiary)' }}>{t('emails')}</span>
-              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>({pagination.total})</span>
+              <span className="text-sm whitespace-nowrap" style={{ color: 'var(--color-text-tertiary)' }}>
+                {pageStart}~{pageEnd} {t('of')} {pagination.total}
+              </span>
               <div className="flex-1" />
               <button
                 onClick={handleToggleLayout}
@@ -405,6 +410,24 @@ export default function InboxPage() {
               >
                 <CheckSquare className="w-4 h-4" />
                 <span className="hidden sm:inline">{t('select')}</span>
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page <= 1}
+                className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                title={t('previous')}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages}
+                className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                title={t('next')}
+              >
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -428,40 +451,6 @@ export default function InboxPage() {
             />
           )}
         </div>
-
-        {pagination.totalPages > 1 && (
-          <div
-            className="border-t px-4 py-2 flex items-center justify-between flex-shrink-0"
-            style={{
-              backgroundColor: 'var(--color-bg-tertiary)',
-              borderTopColor: 'var(--color-border-primary)'
-            }}
-          >
-            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-              {t('page')} {pagination.page} / {pagination.totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page <= 1}
-                className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                style={{ color: 'var(--color-text-secondary)' }}
-                title={t('previous')}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page >= pagination.totalPages}
-                className="p-1.5 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                style={{ color: 'var(--color-text-secondary)' }}
-                title={t('next')}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {layoutMode === 'split' && (
