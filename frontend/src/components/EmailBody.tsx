@@ -410,14 +410,12 @@ export default function EmailBody({ content, className = '', style }: EmailBodyP
     })
 
     // 根据内容高度自适应 iframe 高度
+    // 只取 body 自身高度：documentElement.scrollHeight 最小等于 iframe 视口高度，
+    // 会导致 iframe 被长邮件撑大后无法回缩，短邮件时留下一大片空白
     const adjustHeight = () => {
       const body = doc.body
       if (!body) return
-      const h = Math.max(
-        body.scrollHeight,
-        body.offsetHeight,
-        doc.documentElement.scrollHeight
-      )
+      const h = Math.max(body.scrollHeight, body.offsetHeight)
       if (h > 0) setIframeHeight(h)
     }
     adjustHeight()

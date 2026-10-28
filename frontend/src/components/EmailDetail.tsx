@@ -556,12 +556,8 @@ export default function EmailDetail({
                   </div>
                 </div>
 
-                <div className="p-5">
-                  <EmailBody content={email.body} className="leading-relaxed text-[15px]" style={{ color: 'var(--color-text-secondary)' }} />
-                </div>
-
                 {email.attachments && email.attachments.length > 0 && (
-                  <div className="px-5 pb-5">
+                  <div className="px-5 pt-5">
                     <div className="border rounded-xl overflow-hidden" style={{ borderColor: 'var(--color-border-primary)' }}>
                       <div 
                         className="px-4 py-2.5 border-b flex items-center gap-2"
@@ -639,6 +635,10 @@ export default function EmailDetail({
                     </div>
                   </div>
                 )}
+
+                <div className="p-5">
+                  <EmailBody content={email.body} className="leading-relaxed text-[15px]" style={{ color: 'var(--color-text-secondary)' }} />
+                </div>
               </div>
             ) : (
               <p className="text-center py-8" style={{ color: 'var(--color-text-tertiary)' }}>{t('emailNotFound')}</p>

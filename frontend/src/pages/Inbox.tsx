@@ -955,9 +955,8 @@ function EmailPreviewPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <div>
-          <div className="p-5 border-b" style={{ borderColor: 'var(--color-border-secondary)' }}>
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+        <div className="p-5 border-b flex-shrink-0" style={{ borderColor: 'var(--color-border-secondary)' }}>
             <div className="flex items-start gap-3">
               <div
                 className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 font-medium text-sm"
@@ -1047,7 +1046,7 @@ function EmailPreviewPanel({
           </div>
 
           {email.attachments && email.attachments.length > 0 && (
-            <div className="px-5 pt-5">
+            <div className="px-5 py-5 flex-shrink-0" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
               <div className="border rounded-xl overflow-hidden" style={{ borderColor: 'var(--color-border-primary)' }}>
                 <div
                   className="px-4 py-2.5 border-b flex items-center gap-2"
@@ -1126,10 +1125,9 @@ function EmailPreviewPanel({
             </div>
           )}
 
-          <div className="p-5">
+          <div className="flex-1 p-5" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
             <EmailBody content={email.body} className="leading-relaxed text-[15px]" style={{ color: 'var(--color-text-secondary)' }} />
           </div>
-        </div>
       </div>
 
       <div
