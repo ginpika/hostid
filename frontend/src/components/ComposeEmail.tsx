@@ -4,7 +4,7 @@
  * 提供回复/转发功能，自动填充引用内容
  */
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { createPortal } from 'react-dom'
 import { X, Send, Loader2, Trash2, Paperclip, Reply, ReplyAll, Forward } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useDomain } from '../contexts/DomainContext'
@@ -127,40 +127,23 @@ export default function ComposeEmail({ onClose, onSent, replyData }: ComposeEmai
   const [referencedAttachments, setReferencedAttachments] = useState<ReferencedAttachment[]>(initialState.referencedAttachments)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const isFirstRenderRef = useRef(true)
+  const previousReplyDataRef = useRef(replyData)
 
   useEffect(() => {
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false
-      if (replyData) {
-        localStorage.removeItem(STORAGE_KEY)
-      }
-      return
+    if (replyData) {
+      localStorage.removeItem(STORAGE_KEY)
     }
 
-    if (replyData) {
-      const next = buildReplyState(replyData, t)
-      setRecipients(next.recipients)
-      setSubject(next.subject)
-      setBody(next.body)
-      setAttachments([])
-      setReferencedAttachments(next.referencedAttachments)
-      localStorage.removeItem(STORAGE_KEY)
-    } else {
-      setAttachments([])
-      setReferencedAttachments([])
-      const savedDraft = localStorage.getItem(STORAGE_KEY)
-      if (savedDraft) {
-        try {
-          const draft = JSON.parse(savedDraft)
-          setRecipients(draft.recipients || [])
-          setSubject(draft.subject || '')
-          setBody(draft.body || '')
-        } catch (e) {
-          console.error('Failed to load draft:', e)
-        }
-      }
-    }
+    // 翻译函数变化和 StrictMode 的 effect 重放不应重新填充正在编辑的邮件。
+    if (previousReplyDataRef.current === replyData) return
+    previousReplyDataRef.current = replyData
+
+    const next = buildInitialState(replyData, t)
+    setRecipients(next.recipients)
+    setSubject(next.subject)
+    setBody(next.body)
+    setAttachments([])
+    setReferencedAttachments(next.referencedAttachments)
   }, [replyData, t])
 
   useEffect(() => {
@@ -277,24 +260,17 @@ export default function ComposeEmail({ onClose, onSent, replyData }: ComposeEmai
     }
   }
 
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+  // 遮罩和窗口首帧即显示最终样式，避免双层透明度和弹簧缩放产生闪烁。
+  return createPortal(
+      <div
         className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        <div
           className="rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col"
           style={{ backgroundColor: 'var(--color-bg-secondary)' }}
         >
           <div 
-            className="flex items-center justify-between p-4 border-b"
+            className="flex items-center justify-between p-4 border-b flex-shrink-0"
             style={{ borderColor: 'var(--color-border-primary)' }}
           >
             <div className="flex items-center gap-2" style={{ color: 'var(--color-text-primary)' }}>
@@ -320,7 +296,7 @@ export default function ComposeEmail({ onClose, onSent, replyData }: ComposeEmai
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex-1 overflow-auto">
+          <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-auto">
             <div className="p-4 space-y-4">
               {error && (
                 <div 
@@ -480,8 +456,8 @@ export default function ComposeEmail({ onClose, onSent, replyData }: ComposeEmai
               </button>
             </div>
           </form>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+        </div>
+      </div>,
+    document.body
   )
 }

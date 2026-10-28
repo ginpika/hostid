@@ -4,6 +4,7 @@
  * 提供删除、恢复、回复、转发、归档和星标操作
  */
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Trash2, RotateCcw, Loader2, Mail, Users, EyeOff, Paperclip, 
@@ -380,20 +381,14 @@ export default function EmailDetail({
       return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
     }
   }
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+  // 弹窗脱离页面布局，首帧即显示最终样式，避免淡入叠乘和缩放回弹。
+  return createPortal(
+    <>
+      <div
         className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        <div
           className="rounded-2xl shadow-2xl w-full max-w-3xl h-[80vh] max-h-[90vh] overflow-hidden flex flex-col"
           style={{ backgroundColor: 'var(--color-bg-secondary)' }}
         >
@@ -703,9 +698,10 @@ export default function EmailDetail({
               </div>
             </div>
           )}
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
+      <AnimatePresence>
       {previewImage && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -732,6 +728,8 @@ export default function EmailDetail({
         </motion.div>
       )}
 
-    </AnimatePresence>
+      </AnimatePresence>
+    </>,
+    document.body
   )
 }
