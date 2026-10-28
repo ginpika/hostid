@@ -137,7 +137,7 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
         }}
       >
         <div 
-          className={`h-full w-64 transition-all duration-200 lg:absolute lg:inset-y-0 lg:left-0 lg:w-64 ${
+          className={`h-full w-64 px-2 transition-all duration-200 lg:absolute lg:inset-y-0 lg:left-0 lg:w-64 ${
             expanded ? '' : 'lg:w-[68px]'
           } ${!pinned && visualExpanded ? 'lg:shadow-2xl' : ''}`}
           style={{ 
@@ -202,15 +202,15 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
               </div>
             </div>
 
-            <div className={`${expanded ? 'px-3 py-4' : 'px-3 py-4 lg:px-2 lg:py-3'}`}>
+            <div className={`${expanded ? 'px-3 py-4' : 'px-3 py-4 lg:px-1 lg:py-3'}`}>
               <button
                 onClick={() => openCompose()}
                 title={t('compose')}
-                className={`w-full flex items-center justify-center gap-2.5 rounded-xl font-semibold tracking-wide overflow-hidden ${
-                  expanded ? 'py-3.5 px-5 text-[15px]' : 'py-3.5 px-5 text-[15px] lg:px-0 lg:py-3'
+                className={`w-full flex items-center justify-center gap-2.5 rounded-lg font-semibold tracking-wide overflow-hidden ${
+                  expanded ? 'py-3.5 px-5 text-[15px]' : 'py-3.5 px-5 text-[15px] lg:w-11 lg:h-11 lg:p-0'
                 }`}
                 style={{
-                  background: 'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%)',
+                  backgroundColor: 'var(--color-accent-primary)',
                   color: 'var(--color-accent-text)'
                 }}
               >
@@ -219,7 +219,7 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
               </button>
             </div>
 
-            <nav className="flex-1 px-2 overflow-y-auto">
+            <nav className={`flex-1 overflow-y-auto ${expanded ? 'px-2' : 'px-2 lg:px-1'}`}>
               {navGroups.map((group, groupIndex) => (
                 <div key={groupIndex} className="mb-4">
                   <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider ${expanded ? '' : 'lg:hidden'}`} style={{ color: 'var(--color-text-muted)' }}>
@@ -232,7 +232,7 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
                         key={item.path}
                         onClick={() => handleNavigate(item.path)}
                         title={item.label}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors hover:bg-[var(--color-bg-tertiary)] ${expanded ? '' : 'lg:justify-center lg:px-0'}`}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors hover:bg-[var(--color-bg-tertiary)] ${expanded ? '' : 'lg:justify-center lg:px-0 lg:py-0 lg:h-11'}`}
                         style={{
                           backgroundColor: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
                           color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)'

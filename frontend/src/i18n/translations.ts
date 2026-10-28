@@ -141,6 +141,12 @@ export const translations = {
     
     // Email list
     from: '发件人',
+    emailDetails: '邮件详情',
+    details: '详情',
+    showEmailDetails: '展开邮件详情',
+    hideEmailDetails: '收起邮件详情',
+    me: '我',
+    copied: '已复制',
     subject: '主题',
     received: '收到',
     noEmails: '没有邮件',
@@ -478,6 +484,12 @@ export const translations = {
     
     // Email list
     from: 'From',
+    emailDetails: 'Message details',
+    details: 'Details',
+    showEmailDetails: 'Show message details',
+    hideEmailDetails: 'Hide message details',
+    me: 'me',
+    copied: 'Copied',
     subject: 'Subject',
     received: 'Received',
     noEmails: 'No emails',
