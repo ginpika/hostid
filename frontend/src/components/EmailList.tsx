@@ -6,8 +6,10 @@
 import { Mail, Paperclip, CheckSquare, Square, Star } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 
-// 邮件列表单行高度，供页面按可视高度计算每页条数
+// 邮件列表单行高度（分屏两行布局），供页面按可视高度计算每页条数
 export const EMAIL_ROW_HEIGHT = 67
+// 列表模式单行紧凑布局的邮件行高度
+export const EMAIL_ROW_HEIGHT_COMPACT = 41
 // 选择模式下"全选"行高度
 export const SELECT_ALL_ROW_HEIGHT = 37
 
@@ -42,6 +44,24 @@ interface EmailListProps {
   isSelectMode?: boolean
   selectedEmailIds?: Set<string>
   onSelectAll?: (emailIds: string[]) => void
+  // 列表模式下的单行紧凑布局：发件人、标题、正文开头同行展示
+  compact?: boolean
+}
+
+// 将 HTML 正文转为纯文本摘要，用于列表模式的单行预览
+const toPlainText = (html: string): string => {
+  if (!html) return ''
+  return html
+    .replace(/<(style|script)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 export default function EmailList({ 
@@ -51,7 +71,8 @@ export default function EmailList({
   selectedEmailId,
   isSelectMode = false,
   selectedEmailIds = new Set(),
-  onSelectAll
+  onSelectAll,
+  compact = false
 }: EmailListProps) {
   const { t } = useI18n()
 
@@ -149,7 +170,7 @@ export default function EmailList({
             }}
           >
             <div 
-              className="pl-4 pr-4 py-3"
+              className={`pl-4 pr-4 ${compact ? 'py-2.5' : 'py-3'}`}
               style={{ 
                 borderLeftWidth: '4px',
                 borderLeftStyle: 'solid',
@@ -158,6 +179,61 @@ export default function EmailList({
                   : 'transparent'
               }}
             >
+              {compact ? (
+                <div className="flex items-center gap-3">
+                  {isSelectMode && (
+                    <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                      {isChecked ? (
+                        <CheckSquare className="w-4 h-4" style={{ color: 'var(--color-accent-primary)' }} />
+                      ) : (
+                        <Square className="w-4 h-4" style={{ color: 'var(--color-text-quaternary)' }} />
+                      )}
+                    </div>
+                  )}
+                  <div 
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${email.isRead ? 'border' : ''}`}
+                    style={{ 
+                      backgroundColor: email.isRead ? 'transparent' : 'var(--color-accent-primary)',
+                      borderColor: email.isRead ? 'var(--color-text-quaternary)' : 'transparent'
+                    }} 
+                  />
+                  {email.isStarred && (
+                    <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                  )}
+                  <span 
+                    className="w-24 sm:w-40 flex-shrink-0 truncate text-sm"
+                    style={{ 
+                      color: email.isRead ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
+                      fontWeight: email.isRead ? 'normal' : '600'
+                    }}
+                  >
+                    {formatSender(email, folder)}
+                  </span>
+                  <span 
+                    className="w-[34%] flex-shrink-0 truncate text-sm"
+                    style={{ 
+                      color: email.isRead ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
+                      fontWeight: email.isRead ? 'normal' : '600'
+                    }}
+                  >
+                    {email.subject}
+                  </span>
+                  <span 
+                    className="flex-1 min-w-0 truncate text-sm"
+                    style={{ color: 'var(--color-text-tertiary)' }}
+                  >
+                    {toPlainText(email.body)}
+                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {email.attachments && email.attachments.length > 0 && (
+                      <Paperclip className="w-3 h-3" style={{ color: 'var(--color-text-quaternary)' }} />
+                    )}
+                    <span className="text-xs whitespace-nowrap" style={{ color: 'var(--color-text-tertiary)' }}>
+                      {formatEmailDate(email.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
               <div className="flex items-start gap-3">
                 {isSelectMode && (
                   <div className="w-4 h-4 mt-0.5 flex items-center justify-center flex-shrink-0">
@@ -211,6 +287,7 @@ export default function EmailList({
                   </h3>
                 </div>
               </div>
+              )}
             </div>
           </div>
         )

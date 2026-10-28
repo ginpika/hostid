@@ -9,7 +9,7 @@ import { CheckSquare, Trash, Mail, MailOpen, ChevronLeft, ChevronRight, RotateCc
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
-import EmailList, { EMAIL_ROW_HEIGHT, SELECT_ALL_ROW_HEIGHT } from '../components/EmailList'
+import EmailList, { EMAIL_ROW_HEIGHT, EMAIL_ROW_HEIGHT_COMPACT, SELECT_ALL_ROW_HEIGHT } from '../components/EmailList'
 import EmailDetail from '../components/EmailDetail'
 import EmailBody from '../components/EmailBody'
 
@@ -91,7 +91,8 @@ export default function InboxPage() {
       const height = el.clientHeight
       if (height <= 0) return
       const usableHeight = height - (isSelectMode ? SELECT_ALL_ROW_HEIGHT : 0)
-      const next = Math.max(1, Math.floor(usableHeight / EMAIL_ROW_HEIGHT))
+      const rowHeight = layoutMode === 'list' ? EMAIL_ROW_HEIGHT_COMPACT : EMAIL_ROW_HEIGHT
+      const next = Math.max(1, Math.floor(usableHeight / rowHeight))
       setPageSize(prev => (prev === next ? prev : next))
     }
 
@@ -99,7 +100,7 @@ export default function InboxPage() {
     const observer = new ResizeObserver(updatePageSize)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [isSelectMode])
+  }, [isSelectMode, layoutMode])
 
   useEffect(() => {
     if (pageSize <= 0) return
@@ -448,6 +449,7 @@ export default function InboxPage() {
               isSelectMode={isSelectMode}
               selectedEmailIds={selectedEmailIds}
               onSelectAll={handleSelectAll}
+              compact={layoutMode === 'list'}
             />
           )}
         </div>

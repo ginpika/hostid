@@ -206,16 +206,15 @@ export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogg
               <button
                 onClick={() => openCompose()}
                 title={t('compose')}
-                className={`group relative w-full flex items-center justify-center gap-2.5 rounded-xl font-semibold tracking-wide overflow-hidden transition-all duration-300 ease-out shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 ${
+                className={`w-full flex items-center justify-center gap-2.5 rounded-xl font-semibold tracking-wide overflow-hidden ${
                   expanded ? 'py-3.5 px-5 text-[15px]' : 'py-3.5 px-5 text-[15px] lg:px-0 lg:py-3'
                 }`}
                 style={{
                   background: 'linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%)',
-                  color: 'var(--color-accent-text)',
-                  boxShadow: '0 4px 14px -3px color-mix(in srgb, var(--color-accent-primary) 50%, transparent)'
+                  color: 'var(--color-accent-text)'
                 }}
               >
-                <Pen className="w-5 h-5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={2.5} />
+                <Pen className="w-5 h-5" strokeWidth={2.5} />
                 <span className={expanded ? '' : 'lg:hidden'}>{t('compose')}</span>
               </button>
             </div>
