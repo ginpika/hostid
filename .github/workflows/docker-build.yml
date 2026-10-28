@@ -24,7 +24,7 @@ jobs:
       repository: ${{ steps.names.outputs.repository }}
       candidate: ${{ steps.names.outputs.candidate }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Prepare image names
@@ -71,7 +71,7 @@ jobs:
       BACKEND_IMAGE: ghcr.io/${{ needs.verify.outputs.repository }}-backend
       CANDIDATE: ${{ needs.verify.outputs.candidate }}-${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
