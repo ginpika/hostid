@@ -160,7 +160,7 @@ jobs:
           echo "current=$current" >> "$GITHUB_OUTPUT"
       - name: Frontend release tags
         id: frontend
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.FRONTEND_IMAGE }}
           flavor: latest=false
@@ -173,7 +173,7 @@ jobs:
             type=raw,value=latest,enable=${{ steps.fresh.outputs.current == 'true' && github.ref_name == github.event.repository.default_branch }}
       - name: Backend release tags
         id: backend
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.BACKEND_IMAGE }}
           flavor: latest=false
