@@ -4,12 +4,16 @@
  * 提供恢复、删除和邮件预览功能
  */
 import { useState, useEffect, useRef } from 'react'
-import { Maximize2, Trash, Mail, ChevronLeft, ChevronRight, RotateCcw, CheckSquare } from 'lucide-react'
+import { Maximize2, Trash, Mail, ChevronLeft, ChevronRight, RotateCcw, CheckSquare, LayoutList, Columns2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import EmailList, { EMAIL_ROW_HEIGHT, SELECT_ALL_ROW_HEIGHT } from '../components/EmailList'
 import EmailDetail from '../components/EmailDetail'
 import EmailBody from '../components/EmailBody'
+
+type LayoutMode = 'split' | 'list'
+
+const LAYOUT_STORAGE_KEY = 'inboxLayoutMode'
 
 interface Pagination {
   page: number
@@ -27,6 +31,9 @@ export default function ArchivePage() {
   const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set())
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [showMobileDetail, setShowMobileDetail] = useState(false)
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(() =>
+    localStorage.getItem(LAYOUT_STORAGE_KEY) === 'list' ? 'list' : 'split'
+  )
   const [emails, setEmails] = useState<any[]>([])
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 0 })
   const [pageSize, setPageSize] = useState(0)
@@ -110,7 +117,7 @@ export default function ArchivePage() {
       setSelectedEmail(email)
       setShowDetailModal(false)
       
-      if (window.innerWidth < 768) {
+      if (window.innerWidth < 768 || layoutMode === 'list') {
         setShowMobileDetail(true)
       }
       
@@ -141,6 +148,13 @@ export default function ArchivePage() {
     if (isSelectMode) {
       setSelectedEmailIds(new Set())
     }
+  }
+
+  const handleToggleLayout = () => {
+    const next: LayoutMode = layoutMode === 'split' ? 'list' : 'split'
+    setLayoutMode(next)
+    localStorage.setItem(LAYOUT_STORAGE_KEY, next)
+    setShowMobileDetail(false)
   }
 
   const handleSelectAll = (emailIds: string[]) => {
@@ -283,7 +297,7 @@ export default function ArchivePage() {
     <>
       <div className="flex-1 flex min-h-0">
         <div 
-          className="w-full md:w-2/5 lg:w-1/3 xl:w-1/4 border-r flex flex-col"
+          className={`${layoutMode === 'split' ? 'w-full md:w-2/5 lg:w-1/3 xl:w-1/4 border-r' : 'w-full'} flex flex-col`}
           style={{ 
             backgroundColor: 'var(--color-bg-secondary)',
             borderRightColor: 'var(--color-border-primary)'
@@ -340,6 +354,18 @@ export default function ArchivePage() {
                 </span>
                 <div className="flex-1" />
                 <button
+                  onClick={handleToggleLayout}
+                  className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                  title={layoutMode === 'split' ? t('listLayout') : t('splitLayout')}
+                >
+                  {layoutMode === 'split' ? (
+                    <LayoutList className="w-4 h-4" />
+                  ) : (
+                    <Columns2 className="w-4 h-4" />
+                  )}
+                </button>
+                <button
                   onClick={handleToggleSelectMode}
                   className="flex items-center gap-1 px-2 py-1 text-sm rounded transition-colors"
                   style={{ color: 'var(--color-text-secondary)' }}
@@ -390,39 +416,41 @@ export default function ArchivePage() {
           </div>
         </div>
 
-        <div className="hidden md:flex flex-1 flex-col min-w-0" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-          {selectedEmail ? (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div 
-                className="px-4 py-3 flex items-center justify-between flex-shrink-0"
-                style={{ 
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  borderBottom: '1px solid var(--color-border-primary)'
-                }}
-              >
-                <h2 className="text-lg font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>{selectedEmail.subject}</h2>
-                <button
-                  onClick={() => setShowDetailModal(true)}
-                  className="p-2 rounded-lg transition-colors flex-shrink-0"
-                  style={{ color: 'var(--color-text-muted)' }}
-                  title={t('openInNewWindow')}
+        {layoutMode === 'split' && (
+          <div className="hidden md:flex flex-1 flex-col min-w-0" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+            {selectedEmail ? (
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div 
+                  className="px-4 py-3 flex items-center justify-between flex-shrink-0"
+                  style={{ 
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    borderBottom: '1px solid var(--color-border-primary)'
+                  }}
                 >
-                  <Maximize2 className="w-5 h-5" />
-                </button>
+                  <h2 className="text-lg font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>{selectedEmail.subject}</h2>
+                  <button
+                    onClick={() => setShowDetailModal(true)}
+                    className="p-2 rounded-lg transition-colors flex-shrink-0"
+                    style={{ color: 'var(--color-text-muted)' }}
+                    title={t('openInNewWindow')}
+                  >
+                    <Maximize2 className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <ArchiveEmailPreviewPanel emailId={selectedEmail.id} onRefresh={() => setRefreshKey(k => k + 1)} />
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                <ArchiveEmailPreviewPanel emailId={selectedEmail.id} onRefresh={() => setRefreshKey(k => k + 1)} />
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center" style={{ color: 'var(--color-text-tertiary)' }}>
+                  <Mail className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--color-text-muted)' }} />
+                  <p className="text-lg">{t('selectEmailToView')}</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-                <Mail className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--color-text-muted)' }} />
-                <p className="text-lg">{t('selectEmailToView')}</p>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {showDetailModal && selectedEmail && (
