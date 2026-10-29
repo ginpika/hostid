@@ -14,7 +14,8 @@ import { upload } from '../middleware/upload'
 import fs from 'fs'
 import path from 'path'
 import multer from 'multer'
-import { simpleParser } from 'mailparser'
+import { parseEmailFile } from '../lib/parse-email-file'
+import { getParsedEmailBody } from '../lib/parsed-email-body'
 import { buildEmailListWhere, getEmailPagination, parseEmailListQuery } from '../lib/mail-list-query'
 
 const router = Router()
@@ -408,11 +409,10 @@ router.post('/import', emlUpload.single('file'), asyncHandler(async (req: AuthRe
     throw new AppError('No file uploaded', 400)
   }
 
-  const emlContent = fs.readFileSync(req.file.path, 'utf-8')
   let parsed: any
 
   try {
-    parsed = await simpleParser(emlContent)
+    parsed = await parseEmailFile(req.file.path)
   } catch {
     fs.unlinkSync(req.file.path)
     throw new AppError('Failed to parse EML file', 400)
@@ -429,7 +429,7 @@ router.post('/import', emlUpload.single('file'), asyncHandler(async (req: AuthRe
   const bccList = (parsed.bcc?.value || []).map((r: any) => r.address)
 
   const subject = parsed.subject || '(No Subject)'
-  const body = parsed.html || parsed.textAsHtml || parsed.text || ''
+  const body = getParsedEmailBody(parsed)
 
   const email = await prisma.email.create({
     data: {

@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- Run `npm run dev --workspace=frontend`, then open /tests/html-email.browser.html.
+     The harness uses real browser layout and the production component, with no test dependencies. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML email rendering regression tests</title>
+    <style>
+      body { margin: 24px; font: 14px/1.5 system-ui, sans-serif; }
+      #test-results { white-space: pre-wrap; }
+      #fixtures { width: 920px; max-width: 100%; }
+      #fixtures > div { width: 100%; }
+      iframe { display: block; border: 1px solid #ddd; }
+    </style>
+  </head>
+  <body data-test-status="running">
+    <h1 id="host-heading">HTML email rendering regression tests</h1>
+    <pre id="test-results">Running…</pre>
+    <div id="fixtures"></div>
+    <script type="module" src="./html-email.browser.mjs"></script>
+  </body>
+</html>

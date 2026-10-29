@@ -7,6 +7,7 @@ import { SMTPServer } from 'smtp-server'
 import { simpleParser } from 'mailparser'
 import { prisma } from '../lib/prisma'
 import { generateSummary } from '../services/ai'
+import { getParsedEmailBody } from '../lib/parsed-email-body'
 import fs from 'fs'
 import path from 'path'
 
@@ -116,7 +117,7 @@ export function createSMTPServer() {
               ccList: JSON.stringify(ccList),
               bccList: JSON.stringify(bccList),
               subject: parsed.subject || '(No Subject)',
-              body: parsed.html || parsed.text || '',
+              body: getParsedEmailBody(parsed),
               summary,
               folder: 'INBOX',
               isRead: false,
