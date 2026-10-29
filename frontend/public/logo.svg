@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <mask id="banana-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128">
+      <rect width="128" height="128" fill="#FFFFFF"/>
+      <path d="M34 101C54 110 79 96 90 77" stroke="#000000" stroke-width="6" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <g transform="translate(4 -5)">
+    <path d="M85 39C85 33 85 26 89 21C92 17 97 16 102 19C106 21 108 25 105 30L102 36Q101 38 102 41C115 63 109 93 89 110C67 129 33 124 14 103C6 95 4 84 10 76C15 69 22 69 28 74C39 84 51 80 61 70C77 56 85 49 85 39Z" fill="#000000" mask="url(#banana-cut)"/>
+  </g>
+</svg>

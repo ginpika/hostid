@@ -4,9 +4,10 @@
  * 包含服务条款链接
  */
 import { Link } from 'react-router-dom'
-import { Mail, FileText } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useConfig } from '../contexts/ConfigContext'
+import BrandMark from '../components/BrandMark'
 
 export default function InfoPage() {
   const { t, language } = useI18n()
@@ -39,10 +40,9 @@ export default function InfoPage() {
           >
             <div className="text-center mb-8">
               <div 
-                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ backgroundColor: 'var(--color-accent-muted)' }}
+                className="brand-mark-tile w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
               >
-                <Mail className="w-8 h-8" style={{ color: 'var(--color-accent-primary)' }} />
+                <BrandMark size={40} />
               </div>
               <h1 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{getDisplayName(language as 'zh-CN' | 'en-US')}</h1>
               <p className="text-sm mt-1" style={{ color: 'var(--color-text-quaternary)' }}>v{config.version}</p>

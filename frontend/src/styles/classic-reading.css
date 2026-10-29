@@ -1,0 +1,70 @@
+/* Classic is a presentation layer; mail, draft and safety logic stays shared. */
+.design-classic .mail-message-surface, .design-classic .classic-reader-dialog { container: classic-reader / inline-size; }
+.design-classic .classic-reader-header { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; padding: 12px 20px; border-bottom: 1px solid var(--color-border-secondary); background: var(--color-bg-secondary); }
+.design-classic .classic-reader-title { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.design-classic .classic-reader-subject { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: 18px; line-height: 28px; font-weight: 600; color: var(--color-text-primary); }
+.design-classic .classic-reader-header-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.design-classic .classic-reader-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px; color: var(--color-text-tertiary); transition: background 150ms; }
+.design-classic .classic-reader-icon:hover:not(:disabled) { background: var(--color-bg-tertiary); }
+.design-classic .classic-reader-icon:focus-visible, .design-classic .classic-reader-footer button:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: -2px; }
+.design-classic .classic-reader-icon:disabled { opacity: .4; }
+.design-classic .classic-reader-star { width: 32px; height: 32px; }
+.design-classic .classic-reader-footer { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 4px; padding: 10px 16px; border-top: 1px solid var(--color-border-secondary); background: var(--color-bg-secondary); }
+.design-classic .classic-reader-footer-group { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.design-classic .classic-reader-footer button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 14px; color: var(--color-text-secondary); white-space: nowrap; }
+.design-classic .classic-reader-footer button:hover:not(:disabled) { background: var(--color-bg-tertiary); }
+.design-classic .classic-reader-footer button:disabled { opacity: .4; }
+.design-classic .mail-reader-overlay { padding: 16px; background: rgb(0 0 0 / .5); backdrop-filter: none; }
+.design-classic .classic-reader-dialog { max-width: 48rem; height: 80dvh; max-height: calc(100dvh - 32px); border-radius: 16px; border: 0; }
+.design-classic .classic-reader-dialog .classic-reader-header, .design-classic .classic-reader-dialog .classic-reader-footer { background: var(--color-bg-tertiary); }
+.design-classic .mail-message-body { padding: 20px; }
+.design-classic .mail-message-content { max-width: none; }
+.design-classic .mail-message-content .email-body { overflow-wrap: anywhere; }
+.design-classic .mail-attachment-section { margin: 20px 20px 0; padding: 0; border: 1px solid var(--color-border-primary); border-radius: 12px; overflow: hidden; }
+.design-classic .mail-attachment-heading { margin: 0; padding: 10px 16px; font-size: 14px; font-weight: 500; border-bottom: 1px solid var(--color-border-primary); background: var(--color-bg-tertiary); }
+.design-classic .mail-attachment-list { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+.design-classic .mail-attachment-item { border: 0; padding: 10px; border-radius: 8px; background: var(--color-bg-tertiary) !important; }
+.design-classic .mail-compose-overlay { padding: 16px; background: rgb(0 0 0 / .5); backdrop-filter: none; }
+.design-classic .mail-compose-dialog { max-height: min(90dvh, calc(100dvh - 32px)); border-radius: 16px; border: 0; box-shadow: 0 25px 50px -12px rgb(0 0 0 / .25); }
+.design-classic .mail-compose-header { padding: 16px; }
+.design-classic .mail-compose-header > div { gap: 8px; }
+.design-classic .mail-compose-mode-icon { width: auto; height: auto; border-radius: 0; background: transparent !important; color: var(--color-text-primary) !important; }
+.design-classic .mail-compose-mode-icon:empty, .design-classic .mail-compose-subtitle { display: none; }
+.design-classic .mail-compose-fields { padding: 16px; }
+.design-classic .mail-compose-fields > :not([hidden]) ~ :not([hidden]) { margin-top: 16px; }
+.design-classic .mail-compose-fields label, .design-classic .mail-compose-fields [role=group] > div:first-child, .design-classic .mail-compose-body-label { font-size: 14px; font-weight: 500; color: var(--color-text-secondary) !important; }
+.design-classic .mail-compose-body-label { margin-bottom: 4px; }
+.design-classic .mail-compose-subject { padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 400; }
+.design-classic .mail-compose-footer { padding: 16px; background: var(--color-bg-tertiary) !important; }
+.design-classic .mail-compose-footer button { border-radius: 8px; }
+.design-classic .mail-compose-discard { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--color-bg-secondary); color: var(--color-text-secondary); font-size: 14px; font-weight: 500; }
+.design-classic .mail-compose-discard > svg { display: none; }
+.design-classic .mail-compose-send { padding: 8px 16px; box-shadow: none !important; font-weight: 500; }
+/* Reading panes can be narrow even on a wide desktop viewport. */
+@container classic-reader (max-width: 560px) {
+  .design-classic .classic-reader-footer button > span { display: none; }
+  .design-classic .classic-reader-footer button { min-width: 40px; min-height: 36px; padding-inline: 12px; }
+  .design-classic .classic-reader-header { padding: 12px 16px; }
+  .design-classic .classic-reader-subject { font-size: 16px; }
+}
+@container classic-reader (max-width: 420px) {
+  .design-classic .classic-reader-header { flex-wrap: wrap; gap: 4px; }
+  .design-classic .classic-reader-title { flex-basis: 100%; }
+  .design-classic .classic-reader-header.has-close .classic-reader-title { padding-right: 40px; }
+  .design-classic .classic-reader-header-actions { margin-left: auto; }
+  .design-classic .classic-reader-close { position: absolute; top: 12px; right: 12px; }
+  .design-classic .classic-reader-footer { padding-inline: 8px; }
+  .design-classic .classic-reader-footer button { padding-inline: 8px; }
+  .design-classic .mail-message-body { padding: 16px; }
+  .design-classic .mail-attachment-section { margin-inline: 16px; }
+  .design-classic .mail-attachment-list { padding: 8px; }
+  .design-classic .mail-attachment-item { gap: 8px; padding: 8px; }
+}
+@media (max-width: 639px) {
+  .design-classic .mail-reader-overlay, .design-classic .mail-compose-overlay { padding: 8px; }
+  .design-classic .classic-reader-dialog { height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); border-radius: 12px; }
+  .design-classic .mail-compose-dialog { max-height: calc(100dvh - 16px); border-radius: 12px; }
+  .design-classic .mail-compose-header, .design-classic .mail-compose-fields, .design-classic .mail-compose-footer { padding: 12px; }
+  .design-classic .mail-compose-discard { padding-inline: 10px; }
+  .design-classic .mail-compose-footer .mail-compose-save-close { padding-inline: 10px; }
+}

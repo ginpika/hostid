@@ -1,256 +1,140 @@
-/**
- * 侧边栏导航组件
- * 提供邮件文件夹导航、撰写按钮和管理员入口
- * 作为持久化组件，不会随路由切换重新渲染
- */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, Pen, X, UserCircle, Archive, Shield, Key, AppWindow, Star, Pin, PinOff, Menu } from 'lucide-react'
+import { Inbox, Send, Trash2, PenLine, X, UserCircle, Archive, Shield, KeyRound, AppWindow, Star, PanelLeftClose, PanelLeftOpen, ChevronRight, Pin, PinOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
+import { useTheme } from '../contexts/ThemeContext'
+import BrandMark from './BrandMark'
+import { isTopModal, restoreModalFocus } from '../lib/modalStack'
 
-type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'ARCHIVED' | 'STARRED'
-
-// 窄形态展开/收起动画时序（毫秒）：先淡出内容，再过渡宽度，最后淡入内容
-const FADE_DURATION = 120
-const WIDTH_DURATION = 200
-
-interface SidebarProps {
-  isOpen: boolean
-  onClose: () => void
-  currentFolder?: Folder
-  pinned: boolean
-  onTogglePin: () => void
-}
-
-export default function Sidebar({ isOpen, currentFolder, onClose, pinned, onTogglePin }: SidebarProps) {
+export type Folder = 'INBOX' | 'SENT' | 'TRASH' | 'ARCHIVED' | 'STARRED'
+interface SidebarProps { isOpen: boolean; onClose: () => void; currentFolder?: Folder; pinned: boolean; onTogglePin: () => void }
+export default function Sidebar({ isOpen, onClose, currentFolder, pinned, onTogglePin }: SidebarProps) {
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const { openCompose } = useCompose()
-  const location = useLocation()
+  const { layout } = useTheme()
+  const classic = layout === 'classic'
+  const { pathname } = useLocation()
   const navigate = useNavigate()
-
-  // 桌面端窄菜单模式下点击菜单按钮临时展开，鼠标离开后自动收起
-  const [clickExpanded, setClickExpanded] = useState(false)
-  const [visualExpanded, setVisualExpanded] = useState(false)
-  // 内容可见性：展开/收起过程中先隐藏内容，避免排版跳变导致的闪烁
-  const [contentVisible, setContentVisible] = useState(true)
-  const visualExpandedRef = useRef(false)
-  const animationTimers = useRef<number[]>([])
-
-  useEffect(() => {
-    const clearTimers = () => {
-      animationTimers.current.forEach(id => window.clearTimeout(id))
-      animationTimers.current = []
-    }
-    const schedule = (fn: () => void, delay: number) => {
-      animationTimers.current.push(window.setTimeout(fn, delay))
-    }
-
-    clearTimers()
-
-    // 固定展开模式不做淡出动画，直接展示完整内容
-    if (pinned) {
-      visualExpandedRef.current = true
-      setVisualExpanded(true)
-      setContentVisible(true)
-      return clearTimers
-    }
-
-    // 视觉状态与目标一致时无需动画
-    if (visualExpandedRef.current === clickExpanded) {
-      setContentVisible(true)
-      return clearTimers
-    }
-
-    setContentVisible(false)
-    schedule(() => {
-      visualExpandedRef.current = clickExpanded
-      setVisualExpanded(clickExpanded)
-    }, FADE_DURATION)
-    schedule(() => setContentVisible(true), FADE_DURATION + WIDTH_DURATION)
-
-    return clearTimers
-  }, [clickExpanded, pinned])
-
-  const expanded = pinned || visualExpanded
-
-  const isAdmin = user?.role === 'admin'
-
-  const navGroups: {
-    label: string
-    items: {
-      path: string
-      label: string
-      icon: React.ComponentType<any>
-      folder?: Folder
-    }[]
-  }[] = [
-    {
-      label: t('mailbox'),
-      items: [
-        { path: '/', label: t('inbox'), icon: Inbox, folder: 'INBOX' as Folder },
-        { path: '/sent', label: t('sent'), icon: Send, folder: 'SENT' as Folder },
-        { path: '/starred', label: t('starred'), icon: Star, folder: 'STARRED' as Folder },
-        { path: '/archived', label: t('archived'), icon: Archive, folder: 'ARCHIVED' as Folder },
-        { path: '/trash', label: t('trash'), icon: Trash2, folder: 'TRASH' as Folder },
-      ]
-    },
-    {
-      label: t('general'),
-      items: [
-        { path: '/profile', label: t('profile'), icon: UserCircle },
-      ]
-    },
-    ...(isAdmin ? [{
-      label: t('adminGroup'),
-      items: [
-        { path: '/admin', label: t('admin'), icon: Shield },
-        { path: '/admin/oauth', label: t('oauthConfig'), icon: Key },
-        { path: '/admin/oauth-apps', label: t('oauthApps'), icon: AppWindow }
-      ]
-    }] : [])
-  ]
-
-  const handleNavigate = (path: string) => {
-    navigate(path)
-    onClose()
+  const [expanded, setExpanded] = useState(false)
+  const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches)
+  const asideRef = useRef<HTMLElement>(null)
+  const expandButtonRef = useRef<HTMLButtonElement>(null)
+  const keyboardExpandedRef = useRef(false)
+  const wide = !desktop || pinned || expanded
+  const togglePin = () => {
+    keyboardExpandedRef.current = false
+    setExpanded(false)
+    onTogglePin()
+    if (pinned) requestAnimationFrame(() => expandButtonRef.current?.focus())
   }
-
-  return (
-    <>
-      <div 
-        className={`fixed inset-0 bg-black/50 z-20 transition-opacity lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
-        onClick={onClose} 
-      />
-      
-      <aside 
-        className={`fixed lg:relative inset-y-0 left-0 z-30 transform transition-all duration-200 flex-shrink-0 w-64 ${
-          pinned ? 'lg:w-64' : 'lg:w-[68px]'
-        } ${
-          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
-        style={{ backgroundColor: 'var(--color-bg-secondary)' }}
-        onMouseLeave={() => {
-          if (!pinned) setClickExpanded(false)
-        }}
-      >
-        <div 
-          className={`h-full w-64 px-2 transition-all duration-200 lg:absolute lg:inset-y-0 lg:left-0 lg:w-64 ${
-            expanded ? '' : 'lg:w-[68px]'
-          } ${!pinned && visualExpanded ? 'lg:shadow-2xl' : ''}`}
-          style={{ 
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderRight: '1px solid var(--color-border-primary)'
-          }}
-        >
-          <div
-            className={`h-full flex flex-col transition-opacity duration-100 ${
-              contentVisible ? 'lg:opacity-100' : 'lg:opacity-0 lg:pointer-events-none'
-            }`}
-          >
-            <div className="relative flex-shrink-0 border-b" style={{ borderColor: 'var(--color-border-primary)' }}>
-              {expanded && (
-                <button
-                  onClick={onTogglePin}
-                  className="hidden lg:block absolute top-2 right-2 z-10 p-1.5 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
-                  style={{ color: pinned ? 'var(--color-accent-primary)' : 'var(--color-text-muted)' }}
-                  title={pinned ? t('unpinSidebar') : t('pinSidebar')}
-                >
-                  {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-                </button>
-              )}
-
-              <div className={`p-4 ${expanded ? 'lg:pr-10' : 'lg:p-2 lg:pt-2 lg:pb-3'}`}>
-                {!expanded && (
-                  <button
-                    onClick={() => setClickExpanded(true)}
-                    className="hidden lg:flex mx-auto mb-1 p-1 rounded-md transition-colors hover:bg-[var(--color-bg-tertiary)]"
-                    style={{ color: 'var(--color-text-muted)' }}
-                    title={t('expandSidebar')}
-                  >
-                    <Menu className="w-4 h-4" />
-                  </button>
-                )}
-                <div className="flex items-center gap-3 lg:justify-center">
-                  <div 
-                    className={`w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center ${expanded ? '' : 'lg:w-9 lg:h-9'}`}
-                    style={{ 
-                      backgroundColor: user?.avatar ? 'transparent' : `color-mix(in srgb, var(--color-accent-primary) 20%, transparent)`,
-                      color: 'var(--color-accent-primary)'
-                    }}
-                  >
-                    {user?.avatar || user?.avatarUrl ? (
-                      <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt={user.nickname || user.username} className="w-full h-full object-cover" />
-                    ) : (
-                      <UserCircle className={`w-8 h-8 ${expanded ? '' : 'lg:w-5 lg:h-5'}`} />
-                    )}
-                  </div>
-                  <div className={`flex-1 min-w-0 ${expanded ? '' : 'lg:hidden'}`}>
-                    <p className="text-base font-semibold truncate" style={{ color: 'var(--color-text-primary)' }}>
-                      {user?.nickname || user?.username}
-                    </p>
-                    <p className="text-sm truncate" style={{ color: 'var(--color-text-muted)' }}>
-                      {user?.email}
-                    </p>
-                  </div>
-                  <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-[var(--color-bg-tertiary)]" style={{ color: 'var(--color-text-muted)' }}>
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className={`${expanded ? 'px-3 py-4' : 'px-3 py-4 lg:px-1 lg:py-3'}`}>
-              <button
-                onClick={() => openCompose()}
-                title={t('compose')}
-                className={`w-full flex items-center justify-center gap-2.5 rounded-lg font-semibold tracking-wide overflow-hidden ${
-                  expanded ? 'py-3.5 px-5 text-[15px]' : 'py-3.5 px-5 text-[15px] lg:w-11 lg:h-11 lg:p-0'
-                }`}
-                style={{
-                  backgroundColor: 'var(--color-accent-primary)',
-                  color: 'var(--color-accent-text)'
-                }}
-              >
-                <Pen className="w-5 h-5" strokeWidth={2.5} />
-                <span className={expanded ? '' : 'lg:hidden'}>{t('compose')}</span>
-              </button>
-            </div>
-
-            <nav className={`flex-1 overflow-y-auto ${expanded ? 'px-2' : 'px-2 lg:px-1'}`}>
-              {navGroups.map((group, groupIndex) => (
-                <div key={groupIndex} className="mb-4">
-                  <div className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider ${expanded ? '' : 'lg:hidden'}`} style={{ color: 'var(--color-text-muted)' }}>
-                    {group.label}
-                  </div>
-                  {group.items.map(item => {
-                    const isActive = (item.folder && currentFolder === item.folder) || location.pathname === item.path
-                    return (
-                      <button
-                        key={item.path}
-                        onClick={() => handleNavigate(item.path)}
-                        title={item.label}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors hover:bg-[var(--color-bg-tertiary)] ${expanded ? '' : 'lg:justify-center lg:px-0 lg:py-0 lg:h-11'}`}
-                        style={{
-                          backgroundColor: isActive ? 'var(--color-bg-tertiary)' : 'transparent',
-                          color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)'
-                        }}
-                      >
-                        <item.icon className="w-5 h-5" />
-                        <span className={`font-medium ${expanded ? '' : 'lg:hidden'}`}>{item.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              ))}
-            </nav>
+  const expandSidebar = (event: MouseEvent<HTMLButtonElement>) => {
+    const keyboard = event.detail === 0
+    keyboardExpandedRef.current = keyboard
+    setExpanded(true)
+    if (keyboard) requestAnimationFrame(() => asideRef.current?.querySelector<HTMLButtonElement>('button')?.focus())
+  }
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)')
+    const update = () => setDesktop(query.matches)
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+  useEffect(() => {
+    if (asideRef.current) asideRef.current.inert = !desktop && !isOpen
+    if (desktop || !isOpen) return
+    const previous = document.activeElement as HTMLElement | null
+    asideRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const handleKey = (event: KeyboardEvent) => {
+      if (!asideRef.current || !isTopModal(asideRef.current)) return
+      if (event.key === 'Escape') { event.preventDefault(); onClose() }
+      if (event.key === 'Tab') {
+        const items = Array.from(asideRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href]') || []).filter(item => item.offsetParent !== null)
+        if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items[items.length - 1]?.focus() }
+        else if (!event.shiftKey && document.activeElement === items[items.length - 1]) { event.preventDefault(); items[0]?.focus() }
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => { document.removeEventListener('keydown', handleKey); restoreModalFocus(previous) }
+  }, [desktop, isOpen, onClose])
+  useEffect(() => {
+    if (!desktop || pinned || !expanded) return
+    const closeExpanded = (event: PointerEvent) => {
+      if (!asideRef.current?.contains(event.target as Node)) setExpanded(false)
+    }
+    const closeOnPointerMove = (event: PointerEvent) => {
+      if (!keyboardExpandedRef.current && !asideRef.current?.contains(event.target as Node)) setExpanded(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      const modalOwnsFocus = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"][role="dialog"], [aria-modal="true"][role="alertdialog"]')).some(dialog => isTopModal(dialog))
+      if (modalOwnsFocus) return
+      event.preventDefault()
+      setExpanded(false)
+      requestAnimationFrame(() => expandButtonRef.current?.focus())
+    }
+    document.addEventListener('pointerdown', closeExpanded)
+    document.addEventListener('pointermove', closeOnPointerMove, { passive: true })
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', closeExpanded)
+      document.removeEventListener('pointermove', closeOnPointerMove)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [desktop, pinned, expanded])
+  const navGroups: { label: string; items: { path: string; label: string; icon: LucideIcon; folder?: Folder }[] }[] = [
+    { label: t('mailbox'), items: [
+      { path: '/', label: t('inbox'), icon: Inbox, folder: 'INBOX' },
+      { path: '/sent', label: t('sent'), icon: Send, folder: 'SENT' },
+      { path: '/starred', label: t('starred'), icon: Star, folder: 'STARRED' },
+      { path: '/archived', label: t('archived'), icon: Archive, folder: 'ARCHIVED' },
+      { path: '/trash', label: t('trash'), icon: Trash2, folder: 'TRASH' }
+    ] },
+    { label: t('general'), items: [{ path: '/profile', label: t('profile'), icon: UserCircle }] },
+    ...(user?.role === 'admin' ? [{ label: t('adminGroup'), items: [
+      { path: '/admin', label: t('admin'), icon: Shield },
+      { path: '/admin/oauth', label: t('oauthConfig'), icon: KeyRound },
+      { path: '/admin/oauth-apps', label: t('oauthApps'), icon: AppWindow }
+    ] }] : [])
+  ]
+  return <>
+    {!desktop && isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+    <aside id="workspace-sidebar" ref={asideRef} className={`workspace-sidebar ${wide ? 'is-wide' : 'is-compact'} ${isOpen ? 'is-open' : ''} ${!pinned && expanded ? 'is-expanded' : ''}`} role={!desktop && isOpen ? 'dialog' : undefined} aria-modal={!desktop && isOpen ? true : undefined} aria-label={t('menu')}
+      onPointerDownCapture={() => { keyboardExpandedRef.current = false }}
+      onMouseLeave={() => { if (desktop && !pinned && (!keyboardExpandedRef.current || !asideRef.current?.contains(document.activeElement))) setExpanded(false) }}
+      onBlur={event => { if (desktop && !pinned && !event.currentTarget.contains(event.relatedTarget as Node | null)) setExpanded(false) }}
+      onKeyDown={() => { keyboardExpandedRef.current = true }}>
+      <div className="sidebar-inner">
+        {classic ? <div className="classic-sidebar-identity">
+          {wide && desktop && <button className="mail-icon-button classic-sidebar-pin" onClick={togglePin} aria-label={pinned ? t('unpinSidebar') : t('pinSidebar')} title={pinned ? t('unpinSidebar') : t('pinSidebar')}>{pinned ? <PinOff size={16} /> : <Pin size={16} />}</button>}
+          {!wide && <button ref={expandButtonRef} className="mail-icon-button classic-sidebar-expand" onClick={expandSidebar} aria-label={t('expandSidebar')} title={t('expandSidebar')}><PanelLeftOpen size={16} /></button>}
+          <div className="classic-sidebar-user">
+            <span className="classic-sidebar-avatar">{user?.avatarUrl || user?.avatar ? <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt="" /> : <UserCircle size={wide ? 32 : 22} />}</span>
+            {wide && <span className="classic-sidebar-user-text"><strong>{user?.nickname || user?.username}</strong><small>{user?.email}</small></span>}
+            {!desktop && <button className="mail-icon-button" onClick={onClose} aria-label={t('close')}><X size={20} /></button>}
           </div>
-        </div>
-      </aside>
-    </>
-  )
+        </div> : <div className="sidebar-brand-row">
+          <a href="/" className="sidebar-brand" onClick={event => { event.preventDefault(); navigate('/'); onClose() }} aria-label="HostID"><span className="sidebar-brand-icon"><BrandMark size={36} /></span>{wide && <span>HostID<small>MAIL WORKSPACE</small></span>}</a>
+          {wide && <button className="mail-icon-button sidebar-close" onClick={desktop ? togglePin : onClose} aria-label={desktop ? pinned ? t('unpinSidebar') : t('pinSidebar') : t('close')} title={desktop ? pinned ? t('unpinSidebar') : t('pinSidebar') : t('close')}>{desktop ? pinned ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} /> : <X size={19} />}</button>}
+        </div>}
+        {!classic && !wide && <button ref={expandButtonRef} className="mail-icon-button mx-auto mb-3" aria-label={t('expandSidebar')} title={t('expandSidebar')} onClick={expandSidebar}><PanelLeftOpen size={17} /></button>}
+        <div className="sidebar-compose-wrap"><button className="sidebar-compose" title={t('compose')} aria-label={t('compose')} onClick={() => { setExpanded(false); openCompose(); onClose() }}><PenLine size={classic ? 20 : 18} />{wide && <span>{classic ? t('compose') : language === 'zh-CN' ? '撰写邮件' : 'Compose'}</span>}</button></div>
+        <nav className="sidebar-nav" aria-label={t('mailbox')}>
+          {navGroups.map(group => <div className="sidebar-nav-group" key={group.label}>
+            {wide && <div className="sidebar-group-label">{group.label}</div>}
+            {group.items.map(item => {
+              const active = item.folder ? item.folder === currentFolder : item.path === pathname
+              return <button key={item.path} title={item.label} aria-label={item.label} aria-current={active ? 'page' : undefined} className={`sidebar-nav-item ${active ? 'is-active' : ''}`} onClick={() => { navigate(item.path); onClose(); if (!pinned) setExpanded(false) }}><item.icon size={19} strokeWidth={active ? 2 : 1.7} />{wide && <><span>{item.label}</span>{active && <span className="sidebar-active-dot" />}</>}</button>
+            })}
+          </div>)}
+        </nav>
+        {!classic && <button className="sidebar-account" title={user?.email} aria-label={t('profile')} onClick={() => { navigate('/profile'); onClose() }}>
+          <span className="sidebar-avatar">{user?.avatarUrl || user?.avatar ? <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt="" /> : <UserCircle size={24} />}</span>
+          {wide && <><span className="sidebar-account-text"><strong>{user?.nickname || user?.username}</strong><small>{user?.email}</small></span><ChevronRight size={15} /></>}
+        </button>}
+      </div>
+    </aside>
+  </>
 }
-
-export { type Folder }

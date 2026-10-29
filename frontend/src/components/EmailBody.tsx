@@ -186,6 +186,9 @@ registerExtensions()
 // 因此邮件自带的样式（如 .pricing-table）在 iframe 内仍然生效。
 // 这里提供基准默认样式作为兜底，确保无自带 CSS 的邮件也能正常显示。
 const EMAIL_IFRAME_CSS = `
+  html { color-scheme: light; }
+  body.email-body-html { margin: 0; display: flow-root; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.8; color: #283348; overflow-wrap: anywhere; }
+  img { max-width: 100%; height: auto; }
   a {
     color: #0ea5e9;
   }
@@ -379,7 +382,8 @@ export default function EmailBody({ content, className = '', style }: EmailBodyP
   }
 
   // 判断渲染模式用于选择 CSS 类名
-  const contentIsHtml = !hasStrongMarkdownSyntax(content) && (isHtml(content) || !hasMarkdownSyntax(content))
+  const contentIsHtml = !hasStrongMarkdownSyntax(content) && isHtml(content)
+  const contentIsPlainText = !contentIsHtml && !hasStrongMarkdownSyntax(content) && !hasMarkdownSyntax(content)
 
   // ---- iframe 渲染（仅用于 HTML 邮件，实现与主应用的样式隔离）----
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -437,6 +441,10 @@ export default function EmailBody({ content, className = '', style }: EmailBodyP
   useEffect(() => {
     return () => roRef.current?.disconnect()
   }, [])
+
+  if (contentIsPlainText) {
+    return <div className={`email-body ${className}`} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...style }}>{content}</div>
+  }
 
   if (contentIsHtml) {
     return (

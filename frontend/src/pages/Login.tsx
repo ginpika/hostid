@@ -5,11 +5,12 @@
  */
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Mail, Lock, ArrowRight, Globe, LogOut, User, Key } from 'lucide-react'
+import { Lock, ArrowRight, Globe, LogOut, User, Key } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useDomain } from '../contexts/DomainContext'
 import ThemeSelector from '../components/ThemeSelector'
+import BrandMark from '../components/BrandMark'
 import { encryptPassword } from '../utils/rsa'
 
 interface LocalUser {
@@ -313,10 +314,9 @@ export default function Login() {
               >
                 <div className="text-center mb-8">
                   <div 
-                    className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-                    style={{ backgroundColor: 'var(--color-accent-muted)' }}
+                    className="brand-mark-tile inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
                   >
-                    <Mail className="w-8 h-8" style={{ color: 'var(--color-accent-primary)' }} />
+                    <BrandMark size={40} label="HostID" />
                   </div>
                   <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{t('login')}</h1>
                   <p className="mt-2" style={{ color: 'var(--color-text-tertiary)' }}>{t('loginToAccount')}</p>

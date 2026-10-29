@@ -3,7 +3,7 @@
  * 集成 Cloudflare Turnstile 验证码服务
  * 支持自动主题切换和验证回调
  */
-import { useEffect, useRef, useCallback, useState, useMemo } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 
 declare global {
@@ -51,16 +51,8 @@ export default function Turnstile({
   const widgetIdRef = useRef<string | null>(null)
   const currentThemeRef = useRef<string | null>(null)
   const [widgetRendered, setWidgetRendered] = useState(false)
-  const { resolvedSystemTheme, mode, currentTheme } = useTheme()
-  
-  const turnstileTheme = useMemo((): 'light' | 'dark' | 'auto' => {
-    if (theme) return theme
-    if (mode === 'system') {
-      return resolvedSystemTheme
-    }
-    if (currentTheme.id === 'light') return 'light'
-    return 'dark'
-  }, [theme, mode, resolvedSystemTheme, currentTheme])
+  const { currentTheme } = useTheme()
+  const turnstileTheme = theme || currentTheme.colorScheme
 
   const removeWidget = useCallback(() => {
     if (widgetIdRef.current && window.turnstile) {

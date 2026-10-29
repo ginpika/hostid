@@ -3,8 +3,8 @@
  * 管理系统主题和自定义主题切换
  * 支持跟随系统、浅色、深色和多种预设主题
  */
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { themes, ThemeConfig, getThemeById, getDefaultTheme } from '../themes'
+import { createContext, useContext, useEffect, useLayoutEffect, useState, ReactNode } from 'react'
+import { themes, ThemeConfig, ThemeLayout, getThemeLayout, resolveTheme, getThemeClasses } from '../themes'
 
 type SystemTheme = 'light' | 'dark'
 type ThemeMode = 'system' | string
@@ -13,6 +13,7 @@ interface ThemeContextType {
   mode: ThemeMode
   setMode: (mode: ThemeMode) => void
   currentTheme: ThemeConfig
+  layout: ThemeLayout
   resolvedSystemTheme: SystemTheme
   allThemes: ThemeConfig[]
 }
@@ -44,13 +45,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handler)
   }, [])
 
-  const currentTheme = mode === 'system'
-    ? getThemeById(resolvedSystemTheme) || getDefaultTheme()
-    : getThemeById(mode) || getDefaultTheme()
+  const currentTheme = resolveTheme(mode, resolvedSystemTheme)
+  const layout = getThemeLayout(currentTheme)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement
     const { colors, background, customCSS } = currentTheme
+    // Theme native controls in the body without making the document canvas opaque.
+    root.style.setProperty('--app-color-scheme', currentTheme.colorScheme)
 
     root.style.setProperty('--color-bg-primary', colors.bg.primary)
     root.style.setProperty('--color-bg-secondary', colors.bg.secondary)
@@ -105,13 +107,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       styleEl.textContent = ''
     }
 
-    const oldClasses = Array.from(root.classList).filter(c => c.startsWith('theme-') || c.startsWith('system-'))
+    const oldClasses = Array.from(root.classList).filter(c => c.startsWith('theme-') || c.startsWith('system-') || c.startsWith('design-'))
     root.classList.remove(...oldClasses)
-    root.classList.add(`theme-${currentTheme.id}`)
-    
-    if (mode === 'system') {
-      root.classList.add(`system-${resolvedSystemTheme}`)
-    }
+    root.classList.add(...getThemeClasses(currentTheme, mode, resolvedSystemTheme))
   }, [currentTheme, mode, resolvedSystemTheme])
 
   const setMode = (newMode: ThemeMode) => {
@@ -124,6 +122,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       mode,
       setMode,
       currentTheme,
+      layout,
       resolvedSystemTheme,
       allThemes: themes
     }}>

@@ -11,6 +11,7 @@
   },
   "app": {
     "withGlobalTauri": true,
+    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "HostID",
@@ -20,7 +21,9 @@
         "minHeight": 600,
         "resizable": true,
         "fullscreen": false,
-        "center": true
+        "center": true,
+        "transparent": true,
+        "backgroundColor": [0, 0, 0, 0]
       }
     ],
     "security": {

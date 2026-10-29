@@ -3,9 +3,11 @@
  * 支持添加多个收件人，包含 to/cc/bcc 三种类型
  * 提供用户名验证和重复检测
  */
-import React, { useState, useRef } from 'react'
+import React, { forwardRef, useImperativeHandle, useState, useRef, useEffect, useId } from 'react'
+import { createPortal } from 'react-dom'
 import { X, ChevronDown, Plus, Mail, Users, EyeOff } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
+import { isTopModal, restoreModalFocus } from '../lib/modalStack'
 
 export type RecipientType = 'to' | 'cc' | 'bcc'
 
@@ -23,6 +25,11 @@ interface RecipientInputProps {
   maxRecipients?: number
 }
 
+export interface RecipientInputHandle {
+  /** Commit the unfinished entry, or keep it visible and block sending if invalid. */
+  commit: () => Recipient[] | null
+}
+
 const typeConfig = {
   to: {
     icon: Mail,
@@ -38,7 +45,7 @@ const typeConfig = {
   }
 }
 
-export default function RecipientInput({ recipients, onChange, domain, maxRecipients = 50 }: RecipientInputProps) {
+export default forwardRef<RecipientInputHandle, RecipientInputProps>(function RecipientInput({ recipients, onChange, domain, maxRecipients = 50 }, ref) {
   const { t } = useI18n()
   const [inputValue, setInputValue] = useState('')
   const [showTypeMenu, setShowTypeMenu] = useState<string | null>(null)
@@ -46,6 +53,71 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
   const [showAddModal, setShowAddModal] = useState(false)
   const [modalInput, setModalInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const addButtonRef = useRef<HTMLButtonElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const modalInputRef = useRef<HTMLInputElement>(null)
+  const fieldId = useId()
+  const hintId = useId()
+  const errorId = useId()
+  const modalTitleId = useId()
+  const modalFieldId = useId()
+  const menuPrefix = useId()
+  const closeAddModal = () => {
+    setShowAddModal(false)
+    setModalInput('')
+    setError('')
+  }
+  const closeModalRef = useRef(closeAddModal)
+  closeModalRef.current = closeAddModal
+
+  useEffect(() => {
+    if (!showAddModal) return
+    const previous = addButtonRef.current || (document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    modalInputRef.current?.focus()
+    const keydown = (event: KeyboardEvent) => {
+      const dialog = modalRef.current
+      if (!dialog || !isTopModal(dialog)) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        closeModalRef.current()
+      } else if (event.key === 'Tab') {
+        const items = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [tabindex="0"]')).filter(element => element.getClientRects().length > 0)
+        const first = items[0]
+        const last = items[items.length - 1]
+        if (!first) { event.preventDefault(); dialog.focus(); return }
+        if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { event.preventDefault(); last.focus() }
+        else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) { event.preventDefault(); first.focus() }
+        event.stopPropagation()
+      }
+    }
+    const focusin = (event: FocusEvent) => {
+      if (modalRef.current && isTopModal(modalRef.current) && event.target instanceof Node && !modalRef.current.contains(event.target)) modalInputRef.current?.focus()
+    }
+    document.addEventListener('keydown', keydown, true)
+    document.addEventListener('focusin', focusin)
+    return () => {
+      document.removeEventListener('keydown', keydown, true)
+      document.removeEventListener('focusin', focusin)
+      restoreModalFocus(previous)
+    }
+  }, [showAddModal])
+
+  useEffect(() => {
+    if (!showTypeMenu) return
+    const menu = containerRef.current?.querySelector<HTMLElement>('[role="menu"]')
+    menu?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus()
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Element && !event.target.closest('[data-recipient-type-menu], [data-recipient-type-trigger]')) setShowTypeMenu(null)
+    }
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
+  }, [showTypeMenu])
+
+  const focusTypeTrigger = (id: string) => {
+    Array.from(containerRef.current?.querySelectorAll<HTMLButtonElement>('[data-recipient-type-trigger]') || []).find(button => button.dataset.recipientTypeTrigger === id)?.focus()
+  }
 
   const usernameRegex = /^[a-zA-Z0-9._]+$/
 
@@ -53,7 +125,7 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
     return usernameRegex.test(username) && username.length >= 3 && username.length <= 30
   }
 
-  const parseInput = (input: string): { username: string; email: string; valid: boolean }[] => {
+  const parseInput = (input: string): { input: string; username: string; email: string; valid: boolean }[] => {
     const parts = input.split(/[,，]/).map(s => s.trim()).filter(s => s)
     
     return parts.map(part => {
@@ -67,11 +139,14 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
         username = part
         email = `${part}@${domain}`
       }
+      const addressParts = email.split('@')
+      const validDomain = addressParts.length === 2 && addressParts[1].split('.').every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))
       
       return {
+        input: part,
         username,
         email,
-        valid: validateUsername(username)
+        valid: validateUsername(username) && validDomain
       }
     })
   }
@@ -87,6 +162,7 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing) return
     if (e.key === 'Enter' && inputValue.trim()) {
       e.preventDefault()
       addRecipientsFromInput(inputValue)
@@ -97,31 +173,32 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
   }
 
   const handleBlur = () => {
-    setTimeout(() => {
-      if (inputValue.trim()) {
-        addRecipientsFromInput(inputValue)
-      }
-    }, 100)
+    // Commit before a subsequent send click; a delayed blur can omit the last recipient.
+    if (inputValue.trim()) addRecipientsFromInput(inputValue)
   }
 
-  const addRecipientsFromInput = (input: string) => {
+  const addRecipientsFromInput = (input: string): Recipient[] | null => {
     const parsed = parseInput(input)
     const validRecipients: Recipient[] = []
     const invalidUsernames: string[] = []
+    const unfinished: string[] = []
+    let limitReached = false
     
     for (const item of parsed) {
       if (!item.valid) {
-        invalidUsernames.push(item.username)
+        invalidUsernames.push(item.input)
+        unfinished.push(item.input)
         continue
       }
       
-      if (recipients.some(r => r.email === item.email)) {
+      if ([...recipients, ...validRecipients].some(r => r.email.toLowerCase() === item.email.toLowerCase())) {
         continue
       }
       
       if (recipients.length + validRecipients.length >= maxRecipients) {
-        setError(t('maxRecipientsReached'))
-        break
+        limitReached = true
+        unfinished.push(item.input)
+        continue
       }
       
       validRecipients.push({
@@ -132,16 +209,27 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
       })
     }
     
-    if (invalidUsernames.length > 0) {
-      setError(`${t('invalidUsernames')}: ${invalidUsernames.join(', ')}`)
-    }
+    setError([
+      ...(invalidUsernames.length ? [`${t('invalidUsernames')}: ${invalidUsernames.join(', ')}`] : []),
+      ...(limitReached ? [t('maxRecipientsReached')] : [])
+    ].join(' '))
     
     if (validRecipients.length > 0) {
       onChange([...recipients, ...validRecipients])
     }
     
-    setInputValue('')
+    setInputValue(unfinished.join(', '))
+    return unfinished.length ? null : [...recipients, ...validRecipients]
   }
+
+  useImperativeHandle(ref, () => ({
+    commit: () => {
+      if (!inputValue.trim()) return recipients
+      const committed = addRecipientsFromInput(inputValue)
+      if (!committed) inputRef.current?.focus()
+      return committed
+    }
+  }))
 
   const addSingleRecipient = () => {
     if (!modalInput.trim()) return
@@ -151,18 +239,18 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
     
     for (const item of parsed) {
       if (!item.valid) {
-        setError(`${t('invalidUsername')}: ${item.username}`)
+        setError(`${t('invalidUsername')}: ${item.input}`)
         return
       }
       
-      if (recipients.some(r => r.email === item.email)) {
+      if ([...recipients, ...validRecipients].some(r => r.email.toLowerCase() === item.email.toLowerCase())) {
         setError(`${t('duplicateEmail')}: ${item.email}`)
         return
       }
       
       if (recipients.length + validRecipients.length >= maxRecipients) {
         setError(t('maxRecipientsReached'))
-        break
+        return
       }
       
       validRecipients.push({
@@ -192,6 +280,7 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
       r.id === id ? { ...r, type: newType } : r
     ))
     setShowTypeMenu(null)
+    focusTypeTrigger(id)
   }
 
   const handleTypeMenuToggle = (e: React.MouseEvent, id: string) => {
@@ -204,6 +293,7 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
     e.preventDefault()
     e.stopPropagation()
     removeRecipient(id)
+    inputRef.current?.focus()
   }
 
   const getTypeColor = (type: RecipientType) => {
@@ -220,31 +310,44 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
     return (
       <div
         key={recipient.id}
-        className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm border relative"
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm border relative min-w-0 max-w-full"
         style={{ 
           backgroundColor: colors.bg,
           color: colors.text,
           borderColor: colors.border
         }}
       >
-        <span className="font-medium">{recipient.email}</span>
+        <span className="font-medium min-w-0 truncate" title={recipient.email}>{recipient.email}</span>
         <button
           type="button"
           onClick={(e) => handleTypeMenuToggle(e, recipient.id)}
-          className="ml-1 hover:opacity-70 flex items-center"
+          onKeyDown={event => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setShowTypeMenu(recipient.id) }
+          }}
+          data-recipient-type-trigger={recipient.id}
+          aria-label={`${t('changeType')}: ${recipient.email}, ${t(typeConfig[recipient.type].label)}`}
+          aria-haspopup="menu"
+          aria-expanded={showTypeMenu === recipient.id}
+          aria-controls={showTypeMenu === recipient.id ? `${menuPrefix}-${recipient.id}` : undefined}
+          className="ml-1 hover:opacity-70 flex items-center justify-center w-6 h-6 shrink-0 rounded-full focus-visible:outline focus-visible:outline-2"
         >
           <ChevronDown className="w-3 h-3" />
         </button>
         <button
           type="button"
           onClick={(e) => handleRemoveClick(e, recipient.id)}
-          className="hover:opacity-70 ml-1"
+          aria-label={`${t('delete')}: ${recipient.email}`}
+          className="hover:opacity-70 ml-1 shrink-0 flex items-center justify-center w-6 h-6 rounded-full focus-visible:outline focus-visible:outline-2"
         >
           <X className="w-3 h-3" />
         </button>
         
         {showTypeMenu === recipient.id && (
           <div 
+            id={`${menuPrefix}-${recipient.id}`}
+            data-recipient-type-menu
+            role="menu"
+            aria-label={t('changeType')}
             className="absolute top-full left-0 mt-1 rounded-lg shadow-lg py-1 z-20 border min-w-[140px]"
             style={{ 
               backgroundColor: 'var(--color-bg-secondary)',
@@ -253,6 +356,17 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
+            }}
+            onKeyDown={event => {
+              if (event.key === 'Escape') {
+                event.preventDefault(); event.stopPropagation(); setShowTypeMenu(null); focusTypeTrigger(recipient.id)
+              } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault(); event.stopPropagation()
+                const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]'))
+                const current = items.indexOf(document.activeElement as HTMLButtonElement)
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
+                items[next]?.focus()
+              } else if (event.key === 'Tab') setShowTypeMenu(null)
             }}
           >
             <div 
@@ -271,6 +385,9 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
                 <button
                   type="button"
                   key={type}
+                  role="menuitemradio"
+                  aria-checked={isActive}
+                  tabIndex={-1}
                   onClick={(e) => changeRecipientType(e, recipient.id, type)}
                   className="w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 transition-colors"
                   style={{ 
@@ -290,9 +407,11 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
   }
 
   return (
-    <div className="space-y-3">
-      {error && (
+    <div ref={containerRef} className="space-y-3 min-w-0">
+      {error && !showAddModal && (
         <div 
+          id={errorId}
+          role="alert"
           className="p-2 rounded-lg text-sm"
           style={{ 
             backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -324,15 +443,19 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
       )}
       
       <div className="flex gap-2">
-        <div className="flex-1 relative">
+        <div className="flex-1 min-w-0 relative">
+          <label htmlFor={fieldId} className="sr-only">{t('recipients')}</label>
           <input
+            id={fieldId}
             ref={inputRef}
             type="text"
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
-            className="w-full px-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 pr-24"
+            aria-describedby={`${hintId}${error && !showAddModal ? ` ${errorId}` : ''}`}
+            aria-invalid={Boolean(error && !showAddModal)}
+            className="w-full px-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 sm:pr-32"
             style={{ 
               backgroundColor: 'var(--color-bg-primary)',
               borderColor: 'var(--color-border-primary)',
@@ -341,7 +464,7 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
             placeholder={t('recipientPlaceholder')}
           />
           <span 
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+            className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-sm max-w-[42%] truncate pointer-events-none"
             style={{ color: 'var(--color-text-quaternary)' }}
           >
             @{domain}
@@ -349,30 +472,41 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
         </div>
         
         <button
+          ref={addButtonRef}
           type="button"
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          onClick={() => { setShowTypeMenu(null); setShowAddModal(true) }}
+          aria-label={t('addRecipient')}
+          aria-haspopup="dialog"
+          aria-expanded={showAddModal}
+          aria-controls={showAddModal ? `${modalTitleId}-dialog` : undefined}
+          className="flex items-center justify-center gap-1 px-3 sm:px-4 py-2 min-h-[42px] shrink-0 rounded-lg text-sm font-medium transition-colors"
           style={{ 
             color: 'var(--color-text-secondary)',
             backgroundColor: 'var(--color-bg-tertiary)'
           }}
         >
           <Plus className="w-4 h-4" />
-          {t('addRecipient')}
+          <span className="hidden sm:inline">{t('addRecipient')}</span>
         </button>
       </div>
       
-      <p className="text-xs" style={{ color: 'var(--color-text-quaternary)' }}>
+      <p id={hintId} className="text-xs" style={{ color: 'var(--color-text-quaternary)' }}>
         {t('recipientHint')} ({recipients.length}/{maxRecipients})
       </p>
       
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" 
-          onClick={() => { setShowAddModal(false); setModalInput(''); setError(''); }}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-[80]"
+          onClick={closeAddModal}
         >
           <div 
-            className="rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            ref={modalRef}
+            id={`${modalTitleId}-dialog`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={modalTitleId}
+            tabIndex={-1}
+            className="rounded-2xl shadow-2xl w-full max-w-md overflow-hidden outline-none"
             style={{ backgroundColor: 'var(--color-bg-secondary)' }}
             onClick={e => e.stopPropagation()}
           >
@@ -380,14 +514,11 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
               className="flex items-center justify-between p-4 border-b"
               style={{ borderColor: 'var(--color-border-primary)' }}
             >
-              <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>{t('addRecipient')}</h3>
+              <h3 id={modalTitleId} className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>{t('addRecipient')}</h3>
               <button
                 type="button"
-                onClick={() => {
-                  setShowAddModal(false)
-                  setModalInput('')
-                  setError('')
-                }}
+                onClick={closeAddModal}
+                aria-label={t('close')}
                 className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
                 style={{ color: 'var(--color-text-quaternary)' }}
               >
@@ -398,6 +529,8 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
             <div className="p-4 space-y-4">
               {error && (
                 <div 
+                  id={`${errorId}-modal`}
+                  role="alert"
                   className="p-2 rounded-lg text-sm"
                   style={{ 
                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -411,6 +544,7 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
               
               <div>
                 <label 
+                  htmlFor={modalFieldId}
                   className="block text-sm font-medium mb-1"
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
@@ -418,8 +552,12 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
                 </label>
                 <div className="relative">
                   <input
+                    ref={modalInputRef}
+                    id={modalFieldId}
                     type="text"
                     value={modalInput}
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? `${errorId}-modal` : undefined}
                     onChange={(e) => setModalInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -427,17 +565,16 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
                         addSingleRecipient()
                       }
                     }}
-                    className="w-full px-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 pr-24"
+                    className="w-full px-4 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 sm:pr-32"
                     style={{ 
                       backgroundColor: 'var(--color-bg-primary)',
                       borderColor: 'var(--color-border-primary)',
                       color: 'var(--color-text-primary)'
                     }}
                     placeholder={t('recipientPlaceholder')}
-                    autoFocus
                   />
                   <span 
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sm"
+                    className="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 text-sm max-w-[42%] truncate pointer-events-none"
                     style={{ color: 'var(--color-text-quaternary)' }}
                   >
                     @{domain}
@@ -455,11 +592,7 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
             >
               <button
                 type="button"
-                onClick={() => {
-                  setShowAddModal(false)
-                  setModalInput('')
-                  setError('')
-                }}
+                onClick={closeAddModal}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 style={{ 
                   color: 'var(--color-text-secondary)',
@@ -479,8 +612,8 @@ export default function RecipientInput({ recipients, onChange, domain, maxRecipi
               </button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
     </div>
   )
-}
+})

@@ -1,17 +1,11 @@
 # Icon Generation
 
-To generate the required icons, you need to:
+The approved colored source is [`frontend/public/logo-stylized.png`](../../../frontend/public/logo-stylized.png). Regenerate the complete desktop, Windows, iOS, and Android icon suite from the repository root:
 
-1. Place a 1024x1024 PNG icon named `icon.png` in this directory
-2. Run `npm run tauri icon` from the desktop directory
+```sh
+npm run tauri --workspace=desktop -- icon ../frontend/public/logo-stylized.png
+```
 
-Or use the provided SVG (`icon.svg`) to generate icons:
-- On macOS: Use `sips` or a design tool
-- Online tools: https://www.xiconeditor.com/
+npm runs the command from the `desktop` workspace, so the input path is relative to that directory. Generated `icon.png`, PNG sizes, `icon.icns`, and `icon.ico` are outputs, not source files.
 
-Required icon sizes:
-- 32x32.png
-- 128x128.png
-- 128x128@2x.png
-- icon.icns (macOS)
-- icon.ico (Windows)
+The previous black source and app icon are preserved in [`design/brand`](../../../design/brand/README.md), including `banana-black-final.svg` and `banana-black-app-icon.svg`.

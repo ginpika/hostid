@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "prisma migrate dev",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

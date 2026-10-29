@@ -44,8 +44,11 @@ export interface ThemeBackground {
   pattern?: string
 }
 
+export type ThemeLayout = 'workspace' | 'classic'
+
 export interface ThemeConfig {
   id: string
+  colorScheme: 'light' | 'dark'
   name: string
   nameEn: string
   description?: string
@@ -54,6 +57,7 @@ export interface ThemeConfig {
   author?: string
   version?: string
   colors: ThemeColors
+  layout?: ThemeLayout
   background?: ThemeBackground
   customCSS?: string
 }
@@ -61,13 +65,47 @@ export interface ThemeConfig {
 export const themes: ThemeConfig[] = [
   {
     id: 'light',
+    colorScheme: 'light',
     name: '浅色模式',
     nameEn: 'Light',
-    description: '经典浅色主题',
-    descriptionEn: 'Classic light theme',
+    description: '留白充足的浅色工作空间',
+    descriptionEn: 'A spacious light workspace',
+    colors: {
+      bg: { primary: '#f4f6fa', secondary: '#ffffff', tertiary: '#edf1f7', hover: '#f4f7fc' },
+      text: { primary: '#202b40', secondary: '#526078', tertiary: '#627188', quaternary: '#8490a4', muted: '#8490a4' },
+      border: { primary: '#e4e9f1', secondary: '#d5deea' },
+      accent: { primary: '#286cde', secondary: '#1e5cc5', muted: 'rgba(40, 108, 222, 0.075)', text: '#ffffff' },
+      code: { bg: '#f3f4f6', text: '#1f2937' },
+      pre: { bg: '#1e293b', text: '#e2e8f0' }
+    }
+  },
+  {
+    id: 'dark',
+    colorScheme: 'dark',
+    name: '深色模式',
+    nameEn: 'Dark',
+    description: '柔和蓝灰色的深色工作空间',
+    descriptionEn: 'A calm blue-gray workspace after dark',
+    colors: {
+      bg: { primary: '#10151e', secondary: '#171e29', tertiary: '#222c3a', hover: '#202b3b' },
+      text: { primary: '#e8edf6', secondary: '#bdc8da', tertiary: '#98a7be', quaternary: '#8291a8', muted: '#8291a8' },
+      border: { primary: '#2b3545', secondary: '#3b485d' },
+      accent: { primary: '#8db5ff', secondary: '#6b9cf5', muted: 'rgba(141, 181, 255, 0.1)', text: '#14213b' },
+      code: { bg: '#262626', text: '#e5e5e5' },
+      pre: { bg: '#0d1117', text: '#c9d1d9' }
+    }
+  },
+  {
+    id: 'classic',
+    colorScheme: 'light',
+    name: '经典',
+    nameEn: 'Classic',
+    description: '保留旧版布局与浅色配色',
+    descriptionEn: 'Original layout and light palette',
+    layout: 'classic',
     colors: {
       bg: { primary: '#f9fafb', secondary: '#ffffff', tertiary: '#f3f4f6', hover: '#f3f4f6' },
-      text: { primary: '#111827', secondary: '#374151', tertiary: '#6b7280', quaternary: '#9ca3af', muted: '#9ca3af' },
+      text: { primary: '#111827', secondary: '#374151', tertiary: '#626b78', quaternary: '#626b78', muted: '#626b78' },
       border: { primary: '#e5e7eb', secondary: '#d1d5db' },
       accent: { primary: '#0ea5e9', secondary: '#0284c7', muted: 'rgba(14, 165, 233, 0.1)', text: '#ffffff' },
       code: { bg: '#f3f4f6', text: '#1f2937' },
@@ -75,14 +113,16 @@ export const themes: ThemeConfig[] = [
     }
   },
   {
-    id: 'dark',
-    name: '深色模式',
-    nameEn: 'Dark',
-    description: '程序员偏爱的深黑主题',
-    descriptionEn: 'Dark theme preferred by developers',
+    id: 'classic-dark',
+    colorScheme: 'dark',
+    name: '经典深色',
+    nameEn: 'Classic Dark',
+    description: '保留旧版布局与深色配色',
+    descriptionEn: 'Original layout and dark palette',
+    layout: 'classic',
     colors: {
       bg: { primary: '#0a0a0a', secondary: '#141414', tertiary: '#1a1a1a', hover: '#1a1a1a' },
-      text: { primary: '#e5e5e5', secondary: '#a3a3a3', tertiary: '#737373', quaternary: '#525252', muted: '#525252' },
+      text: { primary: '#e5e5e5', secondary: '#b3b3b3', tertiary: '#999999', quaternary: '#858585', muted: '#858585' },
       border: { primary: '#262626', secondary: '#333333' },
       accent: { primary: '#00d98a', secondary: '#00c47a', muted: 'rgba(0, 217, 138, 0.1)', text: '#0a0a0a' },
       code: { bg: '#262626', text: '#e5e5e5' },
@@ -91,6 +131,7 @@ export const themes: ThemeConfig[] = [
   },
   {
     id: 'sakura',
+    colorScheme: 'light',
     name: '樱花',
     nameEn: 'Sakura',
     description: '粉色樱花动漫风格',
@@ -106,6 +147,7 @@ export const themes: ThemeConfig[] = [
   },
   {
     id: 'starry-night',
+    colorScheme: 'dark',
     name: '星空夜景',
     nameEn: 'Starry Night',
     description: '夜晚星空动漫风格',
@@ -121,6 +163,7 @@ export const themes: ThemeConfig[] = [
   },
   {
     id: 'forest',
+    colorScheme: 'light',
     name: '森林',
     nameEn: 'Forest',
     description: '清新自然绿色主题',
@@ -136,6 +179,7 @@ export const themes: ThemeConfig[] = [
   },
   {
     id: 'ocean',
+    colorScheme: 'dark',
     name: '海洋',
     nameEn: 'Ocean',
     description: '深邃海洋蓝色主题',
@@ -151,6 +195,7 @@ export const themes: ThemeConfig[] = [
   },
   {
     id: 'sunset',
+    colorScheme: 'light',
     name: '日落',
     nameEn: 'Sunset',
     description: '温暖日落橙色调',
@@ -166,6 +211,7 @@ export const themes: ThemeConfig[] = [
   },
   {
     id: 'lavender',
+    colorScheme: 'light',
     name: '薰衣草',
     nameEn: 'Lavender',
     description: '优雅薰衣草紫色主题',
@@ -187,4 +233,17 @@ export function getThemeById(id: string): ThemeConfig | undefined {
 
 export function getDefaultTheme(): ThemeConfig {
   return themes[0]
+}
+
+/** Layout belongs to the theme; existing color themes use the modern workspace. */
+export function getThemeLayout(theme: ThemeConfig): ThemeLayout {
+  return theme.layout || 'workspace'
+}
+
+export function resolveTheme(mode: string, systemTheme: 'light' | 'dark'): ThemeConfig {
+  return getThemeById(mode === 'system' ? systemTheme : mode) || getDefaultTheme()
+}
+
+export function getThemeClasses(theme: ThemeConfig, mode: string, systemTheme: 'light' | 'dark'): string[] {
+  return [`theme-${theme.id}`, `design-${getThemeLayout(theme)}`, ...(mode === 'system' ? [`system-${systemTheme}`] : [])]
 }

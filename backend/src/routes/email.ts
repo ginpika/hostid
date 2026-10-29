@@ -15,6 +15,7 @@ import fs from 'fs'
 import path from 'path'
 import multer from 'multer'
 import { simpleParser } from 'mailparser'
+import { buildEmailListWhere, getEmailPagination, parseEmailListQuery } from '../lib/mail-list-query'
 
 const router = Router()
 
@@ -77,35 +78,27 @@ function recipientsToEmails(recipients: Recipient[]): string[] {
 }
 
 router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const folder = (req.query.folder as string) || 'INBOX'
-  const page = parseInt(req.query.page as string) || 1
-  const limit = parseInt(req.query.limit as string) || 20
-  const skip = (page - 1) * limit
-  
-  let whereCondition: any = { userId: req.userId }
-  
-  if (folder === 'STARRED') {
-    whereCondition.isStarred = true
-  } else {
-    whereCondition.folder = folder
-  }
-  
-  const [emails, total] = await Promise.all([
-    prisma.email.findMany({
+  const query = parseEmailListQuery(req.query)
+  const whereCondition = buildEmailListWhere(req.userId!, query)
+
+  // Count and read the same snapshot. When a deletion removes the final page,
+  // return the nearest available page rather than an apparently empty mailbox.
+  const { emails, pagination } = await prisma.$transaction(async tx => {
+    const total = await tx.email.count({ where: whereCondition })
+    const pagination = getEmailPagination(query.page, query.limit, total)
+    const emails = await tx.email.findMany({
       where: whereCondition,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       include: { 
         attachments: {
           include: { attachment: true }
         }
       },
-      skip,
-      take: limit
-    }),
-    prisma.email.count({
-      where: whereCondition
+      skip: (pagination.page - 1) * pagination.limit,
+      take: pagination.limit
     })
-  ])
+    return { emails, pagination }
+  })
   
   const emailsWithAttachments = emails.map(email => ({
     ...email,
@@ -114,12 +107,7 @@ router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
   
   res.json({
     emails: emailsWithAttachments,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit)
-    }
+    pagination
   })
 }))
 
@@ -462,6 +450,10 @@ router.post('/import', emlUpload.single('file'), asyncHandler(async (req: AuthRe
 }))
 
 router.delete('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const permanent = req.query.permanent === 'true'
+  if (req.query.permanent !== undefined && req.query.permanent !== 'true' && req.query.permanent !== 'false') {
+    throw new AppError('Invalid deletion mode', 400)
+  }
   const email = await prisma.email.findFirst({
     where: { id: req.params.id, userId: req.userId },
     include: { 
@@ -475,7 +467,13 @@ router.delete('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
     throw new AppError('Email not found', 404)
   }
 
-  if (email.folder === 'TRASH') {
+  if (permanent && email.folder !== 'TRASH') {
+    throw new AppError('Move this email to trash before permanently deleting it', 409)
+  }
+
+  // The caller must explicitly request permanent deletion. Retrying a normal
+  // DELETE after a lost response must never turn a move-to-trash into a purge.
+  if (permanent) {
     for (const ea of email.attachments) {
       const otherReferences = await prisma.emailAttachment.count({
         where: { 
