@@ -1,0 +1,53 @@
+FROM node:26-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797 AS base
+
+WORKDIR /app
+RUN apk add --no-cache openssl
+
+FROM base AS frontend-builder
+
+ARG NODE_OPTIONS=--max-old-space-size=4096
+ENV NODE_OPTIONS=${NODE_OPTIONS}
+
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
+RUN npm ci --workspace=frontend --no-audit --no-fund
+COPY frontend ./frontend
+RUN npm run build --workspace=frontend
+
+FROM base AS backend-builder
+
+COPY backend/package.json backend/package-lock.json ./
+COPY backend/prisma ./prisma/
+RUN npm ci --ignore-scripts --no-audit --no-fund && npm run db:generate
+COPY backend/tsconfig.json ./
+COPY backend/src ./src
+RUN npm run typecheck && npm prune --omit=dev --ignore-scripts --no-audit --no-fund
+
+FROM base AS runner
+
+ENV NODE_ENV=production \
+    PORT=3000 \
+    SMTP_PORT=2525 \
+    DATABASE_URL=file:/app/data/prod.db \
+    HOSTID_WEB_ROOT=/app/public
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs appuser && \
+    mkdir -p /app/data /app/uploads /app/logs /app/avatars && \
+    chown appuser:nodejs /app/data /app/uploads /app/logs /app/avatars
+
+COPY --from=backend-builder /app/node_modules ./node_modules
+COPY --from=backend-builder /app/prisma ./prisma
+COPY --from=backend-builder /app/src ./src
+COPY --from=backend-builder /app/package.json ./
+COPY --from=frontend-builder /app/frontend/dist ./public
+COPY backend/docker-entrypoint.sh backend/reset-admin.cjs backend/promote-admin.cjs ./
+RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
+
+USER appuser
+EXPOSE 3000 2525
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=6 \
+    CMD node -e "Promise.all(['/health', '/login'].map(p => fetch('http://127.0.0.1:' + process.env.PORT + p, {signal: AbortSignal.timeout(2000)}))).then(rs => process.exit(rs.every(r => r.ok) ? 0 : 1)).catch(() => process.exit(1))"
+
+ENTRYPOINT ["./docker-entrypoint.sh"]

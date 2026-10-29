@@ -4,7 +4,8 @@ import { PrismaClient } from '@prisma/client';
 
 assert.notEqual(process.getuid(), 0, 'Backend must run without root');
 assert.equal(process.env.NODE_ENV, 'production');
-const get = (path) => fetch(`http://frontend:3000${path}`, { signal: AbortSignal.timeout(5000) });
+const baseUrl = process.env.SMOKE_BASE_URL || 'http://frontend:3000';
+const get = (path) => fetch(`${baseUrl}${path}`, { signal: AbortSignal.timeout(5000) });
 assert.equal((await (await get('/health')).json()).status, 'ok');
 assert.equal((await (await get('/api/auth/domain')).json()).domain, 'smoke.invalid');
 assert.match((await (await get('/api/auth/public-key')).json()).publicKey, /BEGIN PUBLIC KEY/);
@@ -12,7 +13,24 @@ assert.match(await (await get('/login')).text(), /<div id="root">/);
 const config = await get('/config.js');
 assert.equal(config.headers.get('cache-control'), 'no-store');
 assert.match(await config.text(), /1x00000000000000000000AA/);
-assert.equal((await fetch('http://frontend:3000/sso/login', { redirect: 'manual', signal: AbortSignal.timeout(5000) })).status, 302);
+assert.equal((await fetch(`${baseUrl}/sso/login`, { redirect: 'manual', signal: AbortSignal.timeout(5000) })).status, 302);
+if (process.env.SMOKE_FULL === 'true') {
+  for (const route of ['/api/missing', '/assets/missing.js', '/assets/missing', '/missing.png']) {
+    assert.equal((await get(route)).status, 404, route);
+  }
+  for (const route of ['/admin/oauth', '/oauth/callback?code=smoke', '/index.html']) {
+    const response = await get(route);
+    assert.equal(response.status, 200, route);
+    assert.equal(response.headers.get('cache-control'), 'no-cache');
+    assert.match(await response.text(), /<div id="root">/);
+  }
+  const index = await (await get('/')).text();
+  const script = index.match(/src="(\/assets\/[^"]+\.js)"/);
+  assert.ok(script, 'Frontend entrypoint must reference a built JavaScript asset');
+  const asset = await get(script[1]);
+  assert.equal(asset.status, 200);
+  assert.equal(asset.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+}
 const db = new PrismaClient();
 try {
   assert.equal(await db.user.count({ where: { username: 'root' } }), 1);

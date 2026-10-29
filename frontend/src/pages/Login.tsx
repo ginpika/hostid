@@ -314,9 +314,9 @@ export default function Login() {
               >
                 <div className="text-center mb-8">
                   <div 
-                    className="brand-mark-tile inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
+                    className="inline-flex items-center justify-center mb-4"
                   >
-                    <BrandMark size={40} label="HostID" />
+                    <BrandMark size={100} className="w-[100px] h-[100px]" label="HostID" />
                   </div>
                   <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{t('login')}</h1>
                   <p className="mt-2" style={{ color: 'var(--color-text-tertiary)' }}>{t('loginToAccount')}</p>

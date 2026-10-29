@@ -6,7 +6,6 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import path from 'path'
 import cookieParser from 'cookie-parser'
 import authRoutes from './routes/auth'
 import emailRoutes from './routes/email'
@@ -22,6 +21,7 @@ import { startSMTPServer } from './smtp'
 import { initAdminUsers } from './utils/initAdmin'
 import { initRSAKeys } from './utils/rsa'
 import { migrateOAuthConfig } from './utils/migrateOAuthConfig'
+import { mountWebFrontend } from './web'
 
 dotenv.config()
 
@@ -58,6 +58,10 @@ app.get('/sso/login', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
+
+if (process.env.HOSTID_WEB_ROOT) {
+  mountWebFrontend(app, process.env.HOSTID_WEB_ROOT, process.env.CF_TURNSTILE_SITE_KEY)
+}
 
 app.use(errorHandler)
 

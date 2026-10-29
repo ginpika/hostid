@@ -35,6 +35,8 @@ Use Docker Compose v2.20 or newer. Host ports are configured separately with `FR
 
 You can also run `reset-admin.cjs` inside the container to reset the root account password.
 
+The optional `ghcr.io/ginpika/hostid-full` image (AMD64 / ARM64) serves the frontend, API, and SMTP in one container. Use [the full-image Compose file](docs/docker-compose.full.yaml) with a `hostid.env` containing the backend settings and optional public `CF_TURNSTILE_SITE_KEY`. For a source build, run `docker compose -f docker-compose.full.yaml up -d --build --wait`; it reads `backend/.env`. The separate frontend and backend images remain available. See [Docker deployment](docs/docker.md) for details and migration instructions.
+
 ## .env
 
 See ./backend/.env.example & ./frontend/.env.example for details.

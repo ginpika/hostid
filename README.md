@@ -33,6 +33,8 @@ docker compose up -d --wait
 
 构建、端口配置、升级和 CI 发布说明见 [Docker 部署文档](docs/docker.md)。宿主机端口分别使用 `FRONTEND_PORT` 和 `BACKEND_PORT`，后端 HTTP 默认绑定 `127.0.0.1`；SMTP 对外仍为 25，容器内为 2525。推荐通过 `IMAGE_TAG=sha-<完整提交 SHA>` 固定前后端的一套版本。
 
+另提供全量单镜像 `ghcr.io/ginpika/hostid-full`（AMD64 / ARM64），在一个容器中运行前端、API 和 SMTP。使用 [单容器 Compose](docs/docker-compose.full.yaml)，把后端配置及可选的 `CF_TURNSTILE_SITE_KEY` 写入 `hostid.env`。源码构建使用 `docker compose -f docker-compose.full.yaml up -d --build --wait`，配置读取 `backend/.env`。现有前后端独立镜像继续提供；部署与切换方式见 [全量单镜像说明](docs/docker.md#全量单镜像-hostid-full)。
+
 你也可以直接在容器内执行 reset-admin.cjs 来重置 root 账号的密码
 
 ## .env

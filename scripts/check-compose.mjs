@@ -27,6 +27,7 @@ try {
     'empty.env': '',
     'frontend/.env': 'CF_TURNSTILE_SITE_KEY=compose-check\n',
     'docs/frontend.env': 'CF_TURNSTILE_SITE_KEY=compose-check\n',
+    'docs/hostid.env': 'PORT=4567\nSMTP_PORT=4568\nDATABASE_URL=file:/fixture.db\nNODE_ENV=development\nHOSTID_WEB_ROOT=/fixture\nCF_TURNSTILE_SITE_KEY=compose-check\n',
     // Conflicting values verify the internal ports and database stay fixed.
     'backend/.env': 'PORT=4567\nSMTP_PORT=4568\nDATABASE_URL=file:/fixture.db\nNODE_ENV=development\n',
     'docs/backend.env': 'PORT=4567\nSMTP_PORT=4568\nDATABASE_URL=file:/fixture.db\nNODE_ENV=development\n',
@@ -66,6 +67,43 @@ try {
       assert.ok(configured.services.frontend.image.endsWith(':sha-smoke'));
       assert.ok(configured.services.backend.image.endsWith(':sha-smoke'));
     }
+    console.log(`Compose checks passed: ${file}`);
+  }
+  for (const file of ['docker-compose.full.yaml', 'docs/docker-compose.full.yaml']) {
+    const fixture = path.join(dir, file);
+    copyFileSync(path.join(root, file), fixture);
+    files.push(fixture);
+    const load = (overrides = {}) => JSON.parse(execFileSync('docker', [
+      'compose', '--env-file', emptyEnv, '-f', fixture, 'config', '--format', 'json',
+    ], { env: { ...env, ...overrides }, encoding: 'utf8' }));
+    const check = (config, httpPort, smtpPort) => {
+      assert.deepEqual(Object.keys(config.services), ['hostid-full']);
+      const full = config.services['hostid-full'];
+      assert.equal(full.ports[0].published, httpPort);
+      assert.equal(full.ports[0].target, 3000);
+      assert.equal(full.ports[1].published, smtpPort);
+      assert.equal(full.ports[1].target, 2525);
+      assert.equal(full.environment.PORT, '3000');
+      assert.equal(full.environment.SMTP_PORT, '2525');
+      assert.equal(full.environment.NODE_ENV, 'production');
+      assert.equal(full.environment.DATABASE_URL, 'file:/app/data/prod.db');
+      assert.equal(full.environment.HOSTID_WEB_ROOT, '/app/public');
+      assert.equal(full.init, true);
+      assert.deepEqual(full.cap_drop, ['ALL']);
+      assert.equal(full.volumes.length, 4);
+      for (const [volume, target] of Object.entries({
+        backend_data: '/app/data', backend_uploads: '/app/uploads',
+        backend_logs: '/app/logs', backend_avatars: '/app/avatars',
+      })) {
+        assert.equal(full.volumes.find(v => v.target === target).source, volume);
+        assert.equal(config.volumes[volume].name, `${config.name}_${volume}`);
+      }
+      if (file.startsWith('docs/')) assert.equal(full.environment.CF_TURNSTILE_SITE_KEY, 'compose-check');
+    };
+    check(load(), '3000', '25');
+    const configured = load({ PORT: '8080', FRONTEND_PORT: '8081', SMTP_PORT: '2526', IMAGE_TAG: 'sha-smoke' });
+    check(configured, '8081', '2526');
+    if (file.startsWith('docs/')) assert.equal(configured.services['hostid-full'].image, 'ghcr.io/ginpika/hostid-full:sha-smoke');
     console.log(`Compose checks passed: ${file}`);
   }
 } finally {

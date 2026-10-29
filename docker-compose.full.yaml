@@ -1,0 +1,34 @@
+services:
+  hostid-full:
+    image: hostid-full:local
+    build:
+      context: .
+      dockerfile: Dockerfile.full
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+      - "${SMTP_PORT:-25}:2525"
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      SMTP_PORT: "2525"
+      DATABASE_URL: file:/app/data/prod.db
+      HOSTID_WEB_ROOT: /app/public
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
+    volumes:
+      - backend_data:/app/data
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
+      - backend_avatars:/app/avatars
+    restart: unless-stopped
+
+volumes:
+  backend_data:
+  backend_uploads:
+  backend_logs:
+  backend_avatars:
