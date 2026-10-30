@@ -5,6 +5,7 @@
  */
 import { createContext, useContext, useEffect, useLayoutEffect, useState, ReactNode } from 'react'
 import { themes, ThemeConfig, ThemeLayout, getThemeLayout, resolveTheme, getThemeClasses } from '../themes'
+import { publishHostAppearance } from '../lib/appearance'
 
 type SystemTheme = 'light' | 'dark'
 type ThemeMode = 'system' | string
@@ -110,6 +111,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const oldClasses = Array.from(root.classList).filter(c => c.startsWith('theme-') || c.startsWith('system-') || c.startsWith('design-'))
     root.classList.remove(...oldClasses)
     root.classList.add(...getThemeClasses(currentTheme, mode, resolvedSystemTheme))
+    publishHostAppearance(colors.bg.primary)
   }, [currentTheme, mode, resolvedSystemTheme])
 
   const setMode = (newMode: ThemeMode) => {
