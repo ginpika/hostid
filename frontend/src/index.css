@@ -732,11 +732,12 @@ button:disabled { cursor: not-allowed; }
 .mail-icon-button:hover:not(:disabled), .mail-icon-button.is-active { color: var(--color-accent-primary); background: var(--color-accent-muted); }
 .mail-icon-button:disabled { opacity: .35; }
 .mail-icon-button--danger:hover:not(:disabled) { color: #dc4545; background: #ef444410; }
+.topbar-text-button { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 9px; font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--color-text-tertiary); transition: color 150ms, background 150ms; }
+.topbar-text-button:hover:not(:disabled), .topbar-text-button.is-active { color: var(--color-accent-primary); background: var(--color-accent-muted); }
 .topbar-language-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 50; width: 128px; padding: 4px 0; border: 1px solid var(--color-border-primary); border-radius: 8px; background: var(--color-bg-secondary); box-shadow: 0 8px 16px #00000012; }
 .topbar-language-menu button { width: 100%; padding: 6px 12px; text-align: left; font-size: 14px; color: var(--color-text-secondary); }
 .topbar-language-menu button:hover { background: var(--color-bg-tertiary); }
 .topbar-language-menu button[aria-pressed='true'] { color: var(--color-accent-primary); background: var(--color-bg-tertiary); }
-.topbar-account { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--color-text-tertiary); }
 .workspace-notice { position: fixed; z-index: 100; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: min(600px, calc(100vw - 32px)); padding: 10px 12px 10px 18px; border: 1px solid var(--color-border-primary); border-radius: 14px; background: var(--color-bg-secondary); box-shadow: 0 10px 40px #14284620; font-size: 13px; color: var(--color-text-secondary); animation: mail-notice-in 180ms ease-out; }
 .workspace-notice > svg { flex-shrink: 0; color: var(--color-accent-primary); }
 .workspace-notice--error > svg { color: #dc4545; }

@@ -1,7 +1,7 @@
 /** Shared mailbox workspace for inbox, sent, starred, archive and trash. */
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type PointerEvent } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
-import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft, AlertCircle, Inbox, RotateCcw } from 'lucide-react'
+import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft, AlertCircle, Inbox, RotateCcw, Upload, Loader2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -59,7 +59,9 @@ export default function InboxPage() {
   const [wideScreen, setWideScreen] = useState(() => window.matchMedia('(min-width: 768px)').matches)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [operationError, setOperationError] = useState('')
+  const [importLoading, setImportLoading] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const detailIsModal = showDetail && (layoutMode === 'list' || !wideScreen)
   const scopeKey = `${folder}:${query}:${unreadOnly}`
   const scopeRef = useRef({ key: scopeKey, version: 0 })
@@ -269,11 +271,27 @@ export default function InboxPage() {
     setOperationError('')
   }
 
+  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setImportLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await fetch('/api/emails/import', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, body: formData })
+      if (!response.ok) throw new Error('import-failed')
+      notify(t('importMailSuccess'))
+      refreshMail()
+    } catch { notify(t('importMailFailed'), 'error') }
+    finally { setImportLoading(false); if (fileInputRef.current) fileInputRef.current.value = '' }
+  }
+
   const paginationBar = (
     <div className="mail-list-footer">
             <span className="mail-pagination-count" aria-live="polite" title={`${start}–${end} / ${pagination.total}`} aria-label={classic ? (zh ? `${pagination.total} 封邮件` : `${pagination.total} messages`) : undefined}>{classic ? `${start}–${end} ${t('of')} ${pagination.total}` : <>{start}–{end}<span className="mx-1.5 opacity-40">/</span>{pagination.total}</>}</span>
             <div className="mail-pagination-actions flex items-center gap-1">
               {classic && <>
+                <button className="mail-icon-button" title={t('importMail')} aria-label={t('importMail')} disabled={importLoading} onClick={() => fileInputRef.current?.click()}>{importLoading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}</button>
                 <button className="mail-icon-button classic-toolbar-refresh" title={t('refresh')} aria-label={t('refresh')} disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /></button>
                 <button className={`mail-select-toggle ${isSelectMode ? 'is-active' : ''}`} disabled={busy || (!isSelectMode && (loading || loadingSearch || !emails.length))} aria-pressed={isSelectMode} aria-label={isSelectMode ? t('cancel') : t('select')} title={isSelectMode ? t('cancel') : t('select')} onClick={toggleSelect}><CheckSquare size={15} /><span>{isSelectMode ? t('cancel') : t('select')}</span></button>
               </>}
@@ -294,6 +312,7 @@ export default function InboxPage() {
               <span className="mail-count" aria-label={zh ? `${pagination.total} 封邮件` : `${pagination.total} messages`}>{pagination.total}</span>
             </div>
             <div className="flex items-center gap-1">
+              <button className="mail-icon-button" title={t('importMail')} aria-label={t('importMail')} disabled={importLoading} onClick={() => fileInputRef.current?.click()}>{importLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}</button>
               <button className="mail-icon-button" title={t('refresh')} aria-label={t('refresh')} disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button>
             </div>
           </div>
@@ -340,6 +359,7 @@ export default function InboxPage() {
           </section>
         </>}
       </div>
+      <input ref={fileInputRef} type="file" accept=".eml" onChange={handleImport} className="hidden" aria-label={t('importMail')} />
       {detailIsModal && selectedEmail && <EmailDetail key={`modal-${selectedEmail.id}`} emailId={selectedEmail.id} onClose={() => setShowDetail(false)} onDelete={refreshAfterAction} onRestore={refreshAfterAction} onArchive={refreshAfterAction} onToggleStar={toggleStar} onRead={markRead} onFeedback={notify} onReply={email => composeFrom(email, 'reply')} onReplyAll={email => composeFrom(email, 'replyAll')} onForward={email => composeFrom(email, 'forward')} />}
       <ConfirmDialog open={confirmDelete} title={zh ? `永久删除 ${selectedIds.size} 封邮件？` : `Permanently delete ${selectedIds.size} messages?`} description={zh ? '邮件及不再使用的附件将被永久移除，此操作无法撤销。' : 'These messages and unused attachments will be permanently removed. This cannot be undone.'} confirmLabel={zh ? '永久删除' : 'Delete permanently'} cancelLabel={t('cancel')} onConfirm={() => runBatch('delete')} onCancel={() => setConfirmDelete(false)} busy={busy} />
     </>

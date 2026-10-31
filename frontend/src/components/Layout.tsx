@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Menu, Globe, LogOut, Upload, Loader2, ChevronRight, CheckCircle2, AlertCircle, X, Columns2, List } from 'lucide-react'
+import { Menu, Globe, LogOut, ChevronRight, CheckCircle2, AlertCircle, X, Columns2, List } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import ThemeSelector from './ThemeSelector'
 import Sidebar, { type Folder } from './Sidebar'
-import { notify, refreshMail, type NoticeType } from '../lib/mailEvents'
+import type { NoticeType } from '../lib/mailEvents'
 import { useTheme } from '../contexts/ThemeContext'
 import '../styles/classic-shell.css'
 
 export default function Layout() {
-  const { user, logout } = useAuth()
+  const { logout } = useAuth()
   const { language, setLanguage, t } = useI18n()
   const { pathname } = useLocation()
   const { layout } = useTheme()
@@ -21,11 +21,9 @@ export default function Layout() {
   const [sidebarPinned, setSidebarPinned] = useState(() => localStorage.getItem('sidebar-pinned') !== 'false')
   const [menuOpen, setMenuOpen] = useState(false)
   const [mailLayoutMode, setMailLayoutMode] = useState<'split' | 'list'>(() => localStorage.getItem('inboxLayoutMode') === 'list' ? 'list' : 'split')
-  const [importLoading, setImportLoading] = useState(false)
   const [notice, setNotice] = useState<{ message: string; type: NoticeType } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const folderPaths: Record<string, Folder> = { '/': 'INBOX', '/sent': 'SENT', '/starred': 'STARRED', '/archived': 'ARCHIVED', '/trash': 'TRASH' }
   const folder = folderPaths[pathname]
   const toggleMailLayout = () => {
@@ -58,22 +56,6 @@ export default function Layout() {
     return () => window.clearTimeout(timer)
   }, [notice])
 
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setImportLoading(true)
-    setMenuOpen(false)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const response = await fetch('/api/emails/import', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, body: formData })
-      if (!response.ok) throw new Error('import-failed')
-      notify(t('importMailSuccess'))
-      refreshMail()
-    } catch { notify(t('importMailFailed'), 'error') }
-    finally { setImportLoading(false); if (fileInputRef.current) fileInputRef.current.value = '' }
-  }
-
   return (
     <div className="app-shell">
       <a href="#main-content" className="skip-link">{zh ? '跳到主要内容' : 'Skip to content'}</a>
@@ -87,22 +69,19 @@ export default function Layout() {
             <h1 className="truncate">{pageLabels[pathname] || t('mail')}</h1>
           </div>
           <div className="flex items-center gap-1.5">
-            <button disabled={importLoading} className={classic ? 'classic-header-button' : 'mail-icon-button'} title={t('importMail')} aria-label={t('importMail')} onClick={() => fileInputRef.current?.click()}>{importLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={classic ? 16 : 18} />}{classic && <span className="hidden sm:inline">{t('importMail')}</span>}</button>
             {folder && <button className="mail-icon-button" aria-label={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} title={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} onClick={toggleMailLayout}>{mailLayoutMode === 'split' ? <List size={17} /> : <Columns2 size={17} />}</button>}
             <ThemeSelector />
             <div className="relative" ref={menuRef}>
-              <button ref={menuButtonRef} className={`${classic ? 'classic-header-button' : 'mail-icon-button'}${menuOpen ? ' is-active' : ''}`} aria-label={zh ? '界面语言' : 'Language'} aria-expanded={menuOpen} aria-controls="topbar-languages" onClick={() => setMenuOpen(!menuOpen)}><Globe size={classic ? 16 : 18} />{classic && <span className="hidden sm:inline">{zh ? t('chinese') : t('english')}</span>}</button>
+              <button ref={menuButtonRef} className={`${classic ? 'classic-header-button' : 'topbar-text-button'}${menuOpen ? ' is-active' : ''}`} aria-label={zh ? '界面语言' : 'Language'} aria-expanded={menuOpen} aria-controls="topbar-languages" onClick={() => setMenuOpen(!menuOpen)}><Globe size={classic ? 16 : 17} /><span className="hidden sm:inline">{zh ? t('chinese') : t('english')}</span></button>
               {menuOpen && <div id="topbar-languages" className="topbar-language-menu">
                 {(['zh-CN', 'en-US'] as const).map(value => <button key={value} aria-pressed={language === value} onClick={async () => { await setLanguage(value); setMenuOpen(false) }}>{value === 'zh-CN' ? t('chinese') : t('english')}</button>)}
               </div>}
             </div>
-            {!classic && <span className="topbar-account hidden md:inline" title={user?.email}>{user?.email}</span>}
-            <button className="mail-icon-button" title={t('logout')} aria-label={t('logout')} onClick={logout}><LogOut size={classic ? 20 : 18} /></button>
+            <button className={classic ? 'classic-header-button' : 'topbar-text-button'} title={t('logout')} aria-label={t('logout')} onClick={logout}><LogOut size={classic ? 16 : 17} /><span className="hidden sm:inline">{t('logout')}</span></button>
           </div>
         </header>
         <Outlet context={{ layoutMode: mailLayoutMode }} />
       </main>
-      <input ref={fileInputRef} type="file" accept=".eml" onChange={handleImport} className="hidden" aria-label={t('importMail')} />
       {notice && <div className={`workspace-notice workspace-notice--${notice.type}`} role={notice.type === 'error' ? 'alert' : 'status'}>
         {notice.type === 'error' ? <AlertCircle size={19} /> : <CheckCircle2 size={19} />}<span>{notice.message}</span><button className="mail-icon-button" onClick={() => setNotice(null)} aria-label={t('close')}><X size={16} /></button>
       </div>}
