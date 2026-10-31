@@ -1,7 +1,7 @@
 /** Shared mailbox workspace for inbox, sent, starred, archive and trash. */
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
-import { useLocation } from 'react-router-dom'
-import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRight, Columns2, List, RefreshCw, ArrowLeft, AlertCircle, Inbox, RotateCcw } from 'lucide-react'
+import { useLocation, useOutletContext } from 'react-router-dom'
+import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft, AlertCircle, Inbox, RotateCcw } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -29,7 +29,7 @@ export default function InboxPage() {
   const { layout } = useTheme()
   const classic = layout === 'classic'
   const zh = language === 'zh-CN'
-  const [layoutMode, setLayoutMode] = useState(() => localStorage.getItem('inboxLayoutMode') === 'list' ? 'list' : 'split')
+  const { layoutMode } = useOutletContext<{ layoutMode: 'split' | 'list' }>()
   const [listWidth, setListWidth] = useState(savedWidth)
   const [classicListWidth, setClassicListWidth] = useState<number | null>(() => {
     const value = Number(localStorage.getItem('classic-mail-list-width'))
@@ -96,6 +96,8 @@ export default function InboxPage() {
     dragRef.current = null
     setResizing(false)
   }, [layout, layoutMode])
+
+  useEffect(() => { setShowDetail(false) }, [layoutMode])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -261,12 +263,6 @@ export default function InboxPage() {
   const end = Math.min(pagination.page * pagination.limit, pagination.total)
   const loadingSearch = search.trim() !== query
   const widthBounds = getMailListWidthBounds(workspaceWidth, classic)
-  const toggleLayout = () => {
-    const next = layoutMode === 'split' ? 'list' : 'split'
-    setLayoutMode(next)
-    localStorage.setItem('inboxLayoutMode', next)
-    setShowDetail(false)
-  }
   const toggleSelect = () => {
     setIsSelectMode(!isSelectMode)
     setSelectedIds(new Set())
@@ -279,7 +275,6 @@ export default function InboxPage() {
             <div className="mail-pagination-actions flex items-center gap-1">
               {classic && <>
                 <button className="mail-icon-button classic-toolbar-refresh" title={t('refresh')} aria-label={t('refresh')} disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /></button>
-                <button className="mail-icon-button" aria-label={layoutMode === 'split' ? t('listLayout') : t('splitLayout')} title={layoutMode === 'split' ? t('listLayout') : t('splitLayout')} onClick={toggleLayout}>{layoutMode === 'split' ? <List size={16} /> : <Columns2 size={16} />}</button>
                 <button className={`mail-select-toggle ${isSelectMode ? 'is-active' : ''}`} disabled={busy || (!isSelectMode && (loading || loadingSearch || !emails.length))} aria-pressed={isSelectMode} aria-label={isSelectMode ? t('cancel') : t('select')} title={isSelectMode ? t('cancel') : t('select')} onClick={toggleSelect}><CheckSquare size={15} /><span>{isSelectMode ? t('cancel') : t('select')}</span></button>
               </>}
               <button className="mail-icon-button" disabled={loading || busy || pagination.page <= 1} title={t('previous')} aria-label={t('previous')} onClick={() => { setPage(pagination.page - 1); setSelectedIds(new Set()) }}><ChevronLeft size={16} /></button>
@@ -300,7 +295,6 @@ export default function InboxPage() {
             </div>
             <div className="flex items-center gap-1">
               <button className="mail-icon-button" title={t('refresh')} aria-label={t('refresh')} disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button>
-              <button className="mail-icon-button" aria-label={layoutMode === 'split' ? t('listLayout') : t('splitLayout')} title={layoutMode === 'split' ? t('listLayout') : t('splitLayout')} onClick={toggleLayout}>{layoutMode === 'split' ? <List size={17} /> : <Columns2 size={17} />}</button>
             </div>
           </div>
           <div className="mail-search-tools">
@@ -314,7 +308,7 @@ export default function InboxPage() {
           <div className="mail-list-controls">
             <div className="mail-filter-tabs" aria-label={zh ? '阅读状态筛选' : 'Filter by read status'}>
               <button aria-pressed={!unreadOnly} className={!unreadOnly ? 'is-active' : ''} disabled={busy} onClick={() => { setPage(1); setUnreadOnly(false) }}>{zh ? '全部' : 'All mail'}</button>
-              <button aria-pressed={unreadOnly} className={unreadOnly ? 'is-active' : ''} disabled={busy} onClick={() => { setPage(1); setUnreadOnly(true) }}><span className="mail-unread-dot" />{zh ? '未读' : 'Unread'}</button>
+              <button aria-pressed={unreadOnly} className={unreadOnly ? 'is-active' : ''} disabled={busy} onClick={() => { setPage(1); setUnreadOnly(true) }}>{zh ? '未读' : 'Unread'}</button>
             </div>
             <button className={`mail-select-toggle ${isSelectMode ? 'is-active' : ''}`} disabled={busy || (!isSelectMode && (loading || loadingSearch || !emails.length))} aria-pressed={isSelectMode} aria-label={isSelectMode ? t('cancel') : t('select')} title={isSelectMode ? t('cancel') : t('select')} onClick={toggleSelect}><CheckSquare size={15} />{isSelectMode ? t('cancel') : t('select')}</button>
           </div>

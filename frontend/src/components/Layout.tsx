@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Menu, Globe, LogOut, Upload, Loader2, MoreHorizontal, ChevronRight, Check, CheckCircle2, AlertCircle, X } from 'lucide-react'
+import { Menu, Globe, LogOut, Upload, Loader2, ChevronRight, CheckCircle2, AlertCircle, X, Columns2, List } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import ThemeSelector from './ThemeSelector'
@@ -20,6 +20,7 @@ export default function Layout() {
   const closeSidebar = useCallback(() => setSidebarOpen(false), [])
   const [sidebarPinned, setSidebarPinned] = useState(() => localStorage.getItem('sidebar-pinned') !== 'false')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mailLayoutMode, setMailLayoutMode] = useState<'split' | 'list'>(() => localStorage.getItem('inboxLayoutMode') === 'list' ? 'list' : 'split')
   const [importLoading, setImportLoading] = useState(false)
   const [notice, setNotice] = useState<{ message: string; type: NoticeType } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -27,6 +28,11 @@ export default function Layout() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderPaths: Record<string, Folder> = { '/': 'INBOX', '/sent': 'SENT', '/starred': 'STARRED', '/archived': 'ARCHIVED', '/trash': 'TRASH' }
   const folder = folderPaths[pathname]
+  const toggleMailLayout = () => {
+    const next = mailLayoutMode === 'split' ? 'list' : 'split'
+    setMailLayoutMode(next)
+    localStorage.setItem('inboxLayoutMode', next)
+  }
   const pageLabels: Record<string, string> = { '/': t('inbox'), '/sent': t('sent'), '/starred': t('starred'), '/archived': t('archived'), '/trash': t('trash'), '/profile': t('profile'), '/info': t('about'), '/admin': t('admin'), '/admin/oauth': t('oauthConfig'), '/admin/oauth-apps': t('oauthApps') }
 
   useEffect(() => { setMenuOpen(false) }, [layout])
@@ -81,33 +87,20 @@ export default function Layout() {
             <h1 className="truncate">{pageLabels[pathname] || t('mail')}</h1>
           </div>
           <div className="flex items-center gap-1.5">
-            {classic && <button disabled={importLoading} className="classic-header-button" title={t('importMail')} aria-label={t('importMail')} onClick={() => fileInputRef.current?.click()}>{importLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}<span className="hidden sm:inline">{t('importMail')}</span></button>}
-            {!classic && importLoading && <span className="flex items-center gap-2 text-xs mr-2" style={{ color: 'var(--color-text-tertiary)' }}><Loader2 size={14} className="animate-spin" />{t('importMail')}</span>}
+            <button disabled={importLoading} className={classic ? 'classic-header-button' : 'mail-icon-button'} title={t('importMail')} aria-label={t('importMail')} onClick={() => fileInputRef.current?.click()}>{importLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={classic ? 16 : 18} />}{classic && <span className="hidden sm:inline">{t('importMail')}</span>}</button>
+            {folder && <button className="mail-icon-button" aria-label={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} title={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} onClick={toggleMailLayout}>{mailLayoutMode === 'split' ? <List size={17} /> : <Columns2 size={17} />}</button>}
             <ThemeSelector />
-            {classic ? <>
-              <div className="relative" ref={menuRef}>
-                <button ref={menuButtonRef} className="classic-header-button" aria-label={zh ? '界面语言' : 'Language'} aria-expanded={menuOpen} aria-controls="classic-languages" onClick={() => setMenuOpen(!menuOpen)}><Globe size={16} /><span className="hidden sm:inline">{zh ? t('chinese') : t('english')}</span></button>
-                {menuOpen && <div id="classic-languages" className="classic-language-menu">
-                  {(['zh-CN', 'en-US'] as const).map(value => <button key={value} aria-pressed={language === value} onClick={async () => { await setLanguage(value); setMenuOpen(false) }}>{value === 'zh-CN' ? t('chinese') : t('english')}</button>)}
-                </div>}
-              </div>
-              <button className="mail-icon-button" title={t('logout')} aria-label={t('logout')} onClick={logout}><LogOut size={20} /></button>
-            </> : <div className="relative" ref={menuRef}>
-              <button ref={menuButtonRef} className={`mail-icon-button ${menuOpen ? 'is-active' : ''}`} aria-expanded={menuOpen} aria-controls="workspace-options" aria-label={zh ? '工作空间选项' : 'Workspace options'} title={zh ? '更多选项' : 'More options'} onClick={() => setMenuOpen(!menuOpen)}><MoreHorizontal size={20} /></button>
-              {menuOpen && <div id="workspace-options" className="workspace-menu">
-                <span className="workspace-menu-label">{zh ? '邮件工具' : 'MAIL TOOLS'}</span>
-                <button disabled={importLoading} onClick={() => fileInputRef.current?.click()}><Upload size={16} /><span>{t('importMail')}</span><span className="workspace-menu-meta">.eml</span></button>
-                <div className="workspace-menu-divider" />
-                <span className="workspace-menu-label flex items-center gap-2"><Globe size={12} />{zh ? '界面语言' : 'LANGUAGE'}</span>
-                {(['zh-CN', 'en-US'] as const).map(value => <button key={value} onClick={async () => { await setLanguage(value); setMenuOpen(false) }}><span className="w-4 text-xs">{value === 'zh-CN' ? '中' : 'EN'}</span><span>{value === 'zh-CN' ? '简体中文' : 'English'}</span>{language === value && <Check size={15} className="ml-auto" />}</button>)}
-                <div className="workspace-menu-divider" />
-                <div className="workspace-menu-account">{user?.email}</div>
-                <button onClick={logout}><LogOut size={16} /><span>{t('logout')}</span></button>
+            <div className="relative" ref={menuRef}>
+              <button ref={menuButtonRef} className={`${classic ? 'classic-header-button' : 'mail-icon-button'}${menuOpen ? ' is-active' : ''}`} aria-label={zh ? '界面语言' : 'Language'} aria-expanded={menuOpen} aria-controls="topbar-languages" onClick={() => setMenuOpen(!menuOpen)}><Globe size={classic ? 16 : 18} />{classic && <span className="hidden sm:inline">{zh ? t('chinese') : t('english')}</span>}</button>
+              {menuOpen && <div id="topbar-languages" className="topbar-language-menu">
+                {(['zh-CN', 'en-US'] as const).map(value => <button key={value} aria-pressed={language === value} onClick={async () => { await setLanguage(value); setMenuOpen(false) }}>{value === 'zh-CN' ? t('chinese') : t('english')}</button>)}
               </div>}
-            </div>}
+            </div>
+            {!classic && <span className="topbar-account hidden md:inline" title={user?.email}>{user?.email}</span>}
+            <button className="mail-icon-button" title={t('logout')} aria-label={t('logout')} onClick={logout}><LogOut size={classic ? 20 : 18} /></button>
           </div>
         </header>
-        <Outlet />
+        <Outlet context={{ layoutMode: mailLayoutMode }} />
       </main>
       <input ref={fileInputRef} type="file" accept=".eml" onChange={handleImport} className="hidden" aria-label={t('importMail')} />
       {notice && <div className={`workspace-notice workspace-notice--${notice.type}`} role={notice.type === 'error' ? 'alert' : 'status'}>
