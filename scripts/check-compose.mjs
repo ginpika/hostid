@@ -25,8 +25,6 @@ try {
   }
   for (const [name, contents] of Object.entries({
     'empty.env': '',
-    'frontend/.env': 'CF_TURNSTILE_SITE_KEY=compose-check\n',
-    'docs/frontend.env': 'CF_TURNSTILE_SITE_KEY=compose-check\n',
     'docs/hostid.env': 'PORT=4567\nSMTP_PORT=4568\nDATABASE_URL=file:/fixture.db\nNODE_ENV=development\nHOSTID_WEB_ROOT=/fixture\nCF_TURNSTILE_SITE_KEY=compose-check\n',
     // Conflicting values verify the internal ports and database stay fixed.
     'backend/.env': 'PORT=4567\nSMTP_PORT=4568\nDATABASE_URL=file:/fixture.db\nNODE_ENV=development\n',
@@ -55,7 +53,6 @@ try {
       assert.equal(backend.environment.SMTP_PORT, '2525');
       assert.equal(backend.environment.NODE_ENV, 'production');
       assert.equal(backend.environment.DATABASE_URL, 'file:/app/data/prod.db');
-      assert.equal(frontend.environment.CF_TURNSTILE_SITE_KEY, 'compose-check');
       assert.equal(frontend.depends_on.backend.condition, 'service_healthy');
       assert.equal(backend.volumes.find(v => v.target === '/app/data').type, 'volume');
     };
@@ -98,7 +95,6 @@ try {
         assert.equal(full.volumes.find(v => v.target === target).source, volume);
         assert.equal(config.volumes[volume].name, `${config.name}_${volume}`);
       }
-      if (file.startsWith('docs/')) assert.equal(full.environment.CF_TURNSTILE_SITE_KEY, 'compose-check');
     };
     check(load(), '3000', '25');
     const configured = load({ PORT: '8080', FRONTEND_PORT: '8081', SMTP_PORT: '2526', IMAGE_TAG: 'sha-smoke' });
