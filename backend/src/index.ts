@@ -18,7 +18,7 @@ import oauthAppsRoutes from './routes/oauthApps'
 import fusedMailRoutes from './routes/fusedMail'
 import { errorHandler } from './middleware/error'
 import { startSMTPServer } from './smtp'
-import { initAdminUsers } from './utils/initAdmin'
+import setupRoutes from './routes/setup'
 import { initRSAKeys } from './utils/rsa'
 import { migrateOAuthConfig } from './utils/migrateOAuthConfig'
 import { mountWebFrontend, serveConfigScript } from './web'
@@ -38,6 +38,7 @@ app.use(createCorsMiddleware())
 app.use(express.json())
 app.use(cookieParser())
 
+app.use('/api/setup', setupRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/emails', emailRoutes)
 app.use('/api/attachments', attachmentRoutes)
@@ -77,7 +78,6 @@ const startServer = async () => {
   }
   initRSAKeys()
   await initSettings()
-  await initAdminUsers()
   await migrateOAuthConfig()
 
   app.listen(PORT, () => {
