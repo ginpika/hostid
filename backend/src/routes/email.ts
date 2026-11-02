@@ -17,10 +17,10 @@ import multer from 'multer'
 import { parseEmailFile } from '../lib/parse-email-file'
 import { getParsedEmailBody } from '../lib/parsed-email-body'
 import { buildEmailListWhere, getEmailPagination, parseEmailListQuery } from '../lib/mail-list-query'
+import { getSettings } from '../services/settings'
 
 const router = Router()
 
-const MAIL_DOMAIN = process.env.MAIL_DOMAIN || 'localhost'
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads')
 
 const usernameRegex = /^[a-zA-Z0-9._]+$/
@@ -63,7 +63,7 @@ function parseRecipients(input: string, type: RecipientType = 'to'): Recipient[]
       username = part.split('@')[0]
     } else {
       username = part
-      email = `${part}@${MAIL_DOMAIN}`
+      email = `${part}@${getSettings().mailDomain}`
     }
     
     if (usernameRegex.test(username)) {

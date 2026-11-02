@@ -21,7 +21,8 @@ import { startSMTPServer } from './smtp'
 import { initAdminUsers } from './utils/initAdmin'
 import { initRSAKeys } from './utils/rsa'
 import { migrateOAuthConfig } from './utils/migrateOAuthConfig'
-import { mountWebFrontend } from './web'
+import { mountWebFrontend, serveConfigScript } from './web'
+import { initSettings, getSettings, getSsoLoginPageUrl } from './services/settings'
 import { assertSecurityConfig } from './config/secrets'
 import { createCorsMiddleware, createHelmetMiddleware } from './middleware/security'
 
@@ -30,7 +31,6 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 3001
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '2525')
-const SSO_LOGIN_PAGE_URL = process.env.SSO_LOGIN_PAGE_URL || ''
 
 app.disable('x-powered-by')
 app.use(createHelmetMiddleware())
@@ -51,9 +51,7 @@ app.use('/api/fused-mail', fusedMailRoutes)
 
 app.get('/sso/login', (req, res) => {
   const redirect = req.query.redirect as string || ''
-  const frontendLoginUrl = SSO_LOGIN_PAGE_URL 
-    ? `${SSO_LOGIN_PAGE_URL}${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`
-    : `/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`
+  const frontendLoginUrl = `${getSsoLoginPageUrl()}${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`
   res.redirect(frontendLoginUrl)
 })
 
@@ -61,8 +59,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
+// 前端运行时配置（Turnstile site key 来自系统设置）；分离部署时由 nginx 反代到这里
+serveConfigScript(app, () => getSettings().turnstileSiteKey)
+
 if (process.env.HOSTID_WEB_ROOT) {
-  mountWebFrontend(app, process.env.HOSTID_WEB_ROOT, process.env.CF_TURNSTILE_SITE_KEY)
+  mountWebFrontend(app, process.env.HOSTID_WEB_ROOT, '', { serveConfig: false })
 }
 
 app.use(errorHandler)
@@ -75,6 +76,7 @@ const startServer = async () => {
     process.exit(1)
   }
   initRSAKeys()
+  await initSettings()
   await initAdminUsers()
   await migrateOAuthConfig()
 

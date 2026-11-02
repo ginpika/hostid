@@ -3,27 +3,25 @@
  */
 import cors from 'cors'
 import helmet from 'helmet'
+import { getSettings } from '../services/settings'
 
-/** 允许的跨域来源：FRONTEND_URL 与 CORS_ALLOWED_ORIGINS，均可用逗号分隔 */
+/** 允许的跨域来源：系统设置中的站点地址 + 额外允许来源（逗号分隔），每次请求动态读取 */
 export function getAllowedOrigins(): string[] {
-  return [process.env.FRONTEND_URL, process.env.CORS_ALLOWED_ORIGINS]
+  const settings = getSettings()
+  return [settings.siteUrl, settings.corsAllowedOrigins]
     .filter(Boolean)
-    .flatMap(value => value!.split(','))
+    .flatMap(value => value.split(','))
     .map(origin => origin.trim().replace(/\/$/, ''))
     .filter(Boolean)
 }
 
 export function createCorsMiddleware() {
-  const allowed = new Set(getAllowedOrigins())
-  if (allowed.size === 0) {
-    console.warn('[Security] FRONTEND_URL is not set; cross-origin requests are rejected (same-origin only).')
-  }
   return cors({
     credentials: true,
     origin(origin, callback) {
       // 无 Origin（同源导航、服务端到服务端调用，如 OAuth token 端点）直接放行
       if (!origin) return callback(null, true)
-      callback(null, allowed.has(origin.replace(/\/$/, '')))
+      callback(null, getAllowedOrigins().includes(origin.replace(/\/$/, '')))
     }
   })
 }

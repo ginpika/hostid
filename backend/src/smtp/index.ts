@@ -10,8 +10,8 @@ import { generateSummary } from '../services/ai'
 import { getParsedEmailBody } from '../lib/parsed-email-body'
 import fs from 'fs'
 import path from 'path'
+import { getSettings } from '../services/settings'
 
-const MAIL_DOMAIN = process.env.MAIL_DOMAIN || 'localhost'
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads')
 
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -22,7 +22,7 @@ export function createSMTPServer() {
   const server = new SMTPServer({
     authOptional: true,
     disabledCommands: ['STARTTLS'],
-    banner: `ESMTP ${MAIL_DOMAIN}`,
+    banner: `ESMTP ${getSettings().mailDomain}`,
     
     onRcptTo: async (address, session, callback) => {
       const email = address.address.toLowerCase()

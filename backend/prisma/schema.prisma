@@ -177,3 +177,13 @@ model FusedEmail {
   @@index([accountId, createdAt])
   @@map("fused_emails")
 }
+
+/// 系统设置（管理后台可编辑）；isSecret 的值使用 AES-256-GCM 加密存储
+model SystemSetting {
+  key       String   @id
+  value     String
+  isSecret  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}

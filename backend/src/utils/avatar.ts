@@ -2,8 +2,8 @@
  * 头像 URL 转换工具
  * 统一处理本地存储头像和外部 URL 头像的转换
  */
+import { getSiteUrl } from '../services/settings'
 
-const FRONTEND_URL = process.env.FRONTEND_URL || ''
 
 /**
  * 获取完整的头像 URL
@@ -20,12 +20,13 @@ export function getAvatarUrl(avatar: string | null | undefined): string | null {
     return avatar
   }
 
-  // 本地头像，使用 FRONTEND_URL 构建完整 URL
-  if (FRONTEND_URL) {
-    return `${FRONTEND_URL}/api/auth/avatar/${avatar}`
+  // 本地头像，使用站点地址构建完整 URL
+  const siteUrl = getSiteUrl()
+  if (siteUrl) {
+    return `${siteUrl}/api/auth/avatar/${avatar}`
   }
 
-  // 没有配置 FRONTEND_URL 时返回相对路径
+  // 没有配置站点地址 时返回相对路径
   return `/api/auth/avatar/${avatar}`
 }
 

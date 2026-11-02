@@ -9,8 +9,8 @@ import { simpleParser, type AddressObject, type ParsedMail } from 'mailparser'
 import { prisma } from '../../lib/prisma'
 import { PLATFORMS, isMailPlatform } from './platforms'
 import { ACCOUNT_STATUS, FusedMailAuthError, getValidAccessToken, markAccountReauthRequired, refreshAccountToken } from './tokenStore'
+import { getSettings } from '../settings'
 
-const INITIAL_SYNC_LIMIT = parseInt(process.env.FUSED_MAIL_INITIAL_SYNC_LIMIT || '200', 10)
 const BATCH_LIMIT = 500
 
 export interface SyncResult {
@@ -47,7 +47,7 @@ export function parsedMailToRecord(parsed: ParsedMail, fallbackDate?: Date) {
 }
 
 /** 根据已同步的最后 UID 和邮箱的 uidNext 计算本次需要拉取的 UID 范围 */
-export function computeFetchRange(lastUid: number, uidNext: number | undefined, initialLimit = INITIAL_SYNC_LIMIT): string | null {
+export function computeFetchRange(lastUid: number, uidNext: number | undefined, initialLimit = getSettings().fusedMailInitialSyncLimit): string | null {
   if (uidNext !== undefined && uidNext <= lastUid + 1) return null
   if (lastUid > 0) return `${lastUid + 1}:*`
   const start = uidNext ? Math.max(1, uidNext - initialLimit) : 1

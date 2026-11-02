@@ -3,7 +3,7 @@
  * 提供会话状态查询和登出功能
  * 用于跨应用单点登录集成
  */
-import { Router, Request, Response, NextFunction } from 'express'
+import { Router, Request, Response, NextFunction, type RequestHandler } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { z } from 'zod'
@@ -13,23 +13,28 @@ import { memoryStore } from '../store'
 import { AppError } from '../middleware/error'
 import { getAvatarUrl } from '../utils/avatar'
 import { getJwtSecret } from '../config/secrets'
+import { getSettings, getSessionTtlMs } from '../services/settings'
 
 const router = Router()
 
-const ssoLimiter = rateLimit({
-  windowMs: parseInt(process.env.SSO_RATE_WINDOW_MS || '60000'),
-  max: parseInt(process.env.SSO_RATE_MAX || '180'),
-  message: { error: 'Too many requests, please try again later' },
-  standardHeaders: true,
-  legacyHeaders: false
-})
+// 限流参数来自系统设置：limit 每次请求动态读取；windowMs 变化时重建限流器（计数会重置）
+let limiterWindowMs = 0
+let limiterInstance: RequestHandler | null = null
+const ssoLimiter: RequestHandler = (req, res, next) => {
+  const { ssoRateWindowMs } = getSettings()
+  if (!limiterInstance || limiterWindowMs !== ssoRateWindowMs) {
+    limiterWindowMs = ssoRateWindowMs
+    limiterInstance = rateLimit({
+      windowMs: ssoRateWindowMs,
+      limit: () => getSettings().ssoRateMax,
+      message: { error: 'Too many requests, please try again later' },
+      standardHeaders: true,
+      legacyHeaders: false
+    })
+  }
+  return limiterInstance(req, res, next)
+}
 
-const SSO_COOKIE_NAME = process.env.SSO_COOKIE_NAME || 'sso_token'
-const SSO_COOKIE_DOMAIN = process.env.SSO_COOKIE_DOMAIN || ''
-const SSO_COOKIE_PATH = process.env.SSO_COOKIE_PATH || '/'
-const SSO_COOKIE_SECURE = process.env.SSO_COOKIE_SECURE === 'true'
-const SSO_COOKIE_SAMESITE = (process.env.SSO_COOKIE_SAMESITE || 'lax') as 'strict' | 'lax' | 'none'
-const SESSION_TTL = parseInt(process.env.SESSION_TTL || '604800', 10) * 1000
 
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) => {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -94,12 +99,12 @@ async function createSession(user: JWTUserPayload, req: Request): Promise<string
     role: user.role,
     avatar: dbUser?.avatar || undefined,
     createdAt: Date.now(),
-    expiresAt: Date.now() + SESSION_TTL,
+    expiresAt: Date.now() + getSessionTtlMs(),
     userAgent: req.headers['user-agent'],
     ip: req.ip || req.socket.remoteAddress
   }
   
-  await memoryStore.set(getSessionKey(sessionId), JSON.stringify(session), SESSION_TTL)
+  await memoryStore.set(getSessionKey(sessionId), JSON.stringify(session), getSessionTtlMs())
   return sessionId
 }
 
@@ -121,32 +126,32 @@ async function deleteSession(sessionId: string): Promise<void> {
 function setSSOCookie(res: Response, token: string): void {
   const cookieOptions: any = {
     httpOnly: true,
-    secure: SSO_COOKIE_SECURE,
-    sameSite: SSO_COOKIE_SAMESITE,
-    path: SSO_COOKIE_PATH,
-    maxAge: SESSION_TTL
+    secure: getSettings().ssoCookieSecure,
+    sameSite: (getSettings().ssoCookieSameSite as 'strict' | 'lax' | 'none'),
+    path: getSettings().ssoCookiePath,
+    maxAge: getSessionTtlMs()
   }
   
-  if (SSO_COOKIE_DOMAIN) {
-    cookieOptions.domain = SSO_COOKIE_DOMAIN
+  if (getSettings().ssoCookieDomain) {
+    cookieOptions.domain = getSettings().ssoCookieDomain
   }
   
-  res.cookie(SSO_COOKIE_NAME, token, cookieOptions)
+  res.cookie(getSettings().ssoCookieName, token, cookieOptions)
 }
 
 function clearSSOCookie(res: Response): void {
   const cookieOptions: any = {
     httpOnly: true,
-    secure: SSO_COOKIE_SECURE,
-    sameSite: SSO_COOKIE_SAMESITE,
-    path: SSO_COOKIE_PATH
+    secure: getSettings().ssoCookieSecure,
+    sameSite: (getSettings().ssoCookieSameSite as 'strict' | 'lax' | 'none'),
+    path: getSettings().ssoCookiePath
   }
   
-  if (SSO_COOKIE_DOMAIN) {
-    cookieOptions.domain = SSO_COOKIE_DOMAIN
+  if (getSettings().ssoCookieDomain) {
+    cookieOptions.domain = getSettings().ssoCookieDomain
   }
   
-  res.clearCookie(SSO_COOKIE_NAME, cookieOptions)
+  res.clearCookie(getSettings().ssoCookieName, cookieOptions)
 }
 
 const verifySchema = z.object({
@@ -154,7 +159,7 @@ const verifySchema = z.object({
 })
 
 router.post('/verify', ssoLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const token = req.cookies?.[SSO_COOKIE_NAME] || req.headers.authorization?.replace('Bearer ', '')
+  const token = req.cookies?.[getSettings().ssoCookieName] || req.headers.authorization?.replace('Bearer ', '')
   
   if (!token) {
     res.json({ valid: false, error: 'No token provided' })
@@ -245,7 +250,7 @@ router.post('/login', ssoLimiter, asyncHandler(async (req: Request, res: Respons
 }))
 
 router.post('/logout', ssoLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const token = req.cookies?.[SSO_COOKIE_NAME]
+  const token = req.cookies?.[getSettings().ssoCookieName]
   
   if (token) {
     const decoded = verifySessionToken(token)
@@ -259,7 +264,7 @@ router.post('/logout', ssoLimiter, asyncHandler(async (req: Request, res: Respon
 }))
 
 router.get('/session', ssoLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const token = req.cookies?.[SSO_COOKIE_NAME]
+  const token = req.cookies?.[getSettings().ssoCookieName]
   
   if (!token) {
     res.json({ authenticated: false })

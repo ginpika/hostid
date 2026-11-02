@@ -17,17 +17,10 @@ import { getPublicKey, decryptPassword } from '../utils/rsa'
 import { getAvatarUrl } from '../utils/avatar'
 import fs from 'fs'
 import { getJwtSecret } from '../config/secrets'
+import { getSettings, getSessionTtlMs } from '../services/settings'
 
 const router = Router()
 
-const MAIL_DOMAIN = process.env.MAIL_DOMAIN || 'localhost'
-const CF_TURNSTILE_SECRET_KEY = process.env.CF_TURNSTILE_SECRET_KEY || ''
-const SESSION_TTL = parseInt(process.env.SESSION_TTL || '604800', 10) * 1000
-const SSO_COOKIE_NAME = process.env.SSO_COOKIE_NAME || 'sso_token'
-const SSO_COOKIE_DOMAIN = process.env.SSO_COOKIE_DOMAIN || ''
-const SSO_COOKIE_PATH = process.env.SSO_COOKIE_PATH || '/'
-const SSO_COOKIE_SECURE = process.env.SSO_COOKIE_SECURE === 'true'
-const SSO_COOKIE_SAMESITE = (process.env.SSO_COOKIE_SAMESITE || 'lax') as 'strict' | 'lax' | 'none'
 
 interface TurnstileVerifyResponse {
   success: boolean
@@ -35,10 +28,10 @@ interface TurnstileVerifyResponse {
 }
 
 async function verifyTurnstile(token: string, ip?: string): Promise<boolean> {
-  if (!CF_TURNSTILE_SECRET_KEY) return true
+  if (!getSettings().turnstileSecretKey) return true
   
   const formData = new URLSearchParams()
-  formData.append('secret', CF_TURNSTILE_SECRET_KEY)
+  formData.append('secret', getSettings().turnstileSecretKey)
   formData.append('response', token)
   if (ip) formData.append('remoteip', ip)
 
@@ -105,33 +98,33 @@ async function createSSOSession(user: { id: string; username: string; email: str
     email: user.email,
     role: user.role,
     createdAt: Date.now(),
-    expiresAt: Date.now() + SESSION_TTL
+    expiresAt: Date.now() + getSessionTtlMs()
   }
   
-  await memoryStore.set(getSessionKey(sessionId), JSON.stringify(session), SESSION_TTL)
+  await memoryStore.set(getSessionKey(sessionId), JSON.stringify(session), getSessionTtlMs())
   return sessionId
 }
 
 function setSSOCookie(res: Response, token: string): void {
   const cookieOptions: any = {
     httpOnly: true,
-    secure: SSO_COOKIE_SECURE,
-    sameSite: SSO_COOKIE_SAMESITE,
-    path: SSO_COOKIE_PATH,
-    maxAge: SESSION_TTL
+    secure: getSettings().ssoCookieSecure,
+    sameSite: (getSettings().ssoCookieSameSite as 'strict' | 'lax' | 'none'),
+    path: getSettings().ssoCookiePath,
+    maxAge: getSessionTtlMs()
   }
   
-  if (SSO_COOKIE_DOMAIN) {
-    cookieOptions.domain = SSO_COOKIE_DOMAIN
+  if (getSettings().ssoCookieDomain) {
+    cookieOptions.domain = getSettings().ssoCookieDomain
   }
   
-  res.cookie(SSO_COOKIE_NAME, token, cookieOptions)
+  res.cookie(getSettings().ssoCookieName, token, cookieOptions)
 }
 
 router.post('/register', asyncHandler(async (req: Request, res: Response) => {
   const { username, password, turnstileToken } = registerSchema.parse(req.body)
   
-  if (CF_TURNSTILE_SECRET_KEY) {
+  if (getSettings().turnstileSecretKey) {
     if (!turnstileToken) {
       throw new AppError('Turnstile verification required', 400)
     }
@@ -147,7 +140,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Username already taken', 400)
   }
 
-  const email = `${username}@${MAIL_DOMAIN}`
+  const email = `${username}@${getSettings().mailDomain}`
   const hashedPassword = await bcrypt.hash(password, 12)
   const user = await prisma.user.create({ data: { email, username, password: hashedPassword } })
 
@@ -254,7 +247,7 @@ router.get('/me', auth, asyncHandler(async (req: AuthRequest, res: Response) => 
 }))
 
 router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
-  const token = req.cookies?.[SSO_COOKIE_NAME]
+  const token = req.cookies?.[getSettings().ssoCookieName]
   
   if (token) {
     try {
@@ -269,16 +262,16 @@ router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
   
   const cookieOptions: any = {
     httpOnly: true,
-    secure: SSO_COOKIE_SECURE,
-    sameSite: SSO_COOKIE_SAMESITE,
-    path: SSO_COOKIE_PATH
+    secure: getSettings().ssoCookieSecure,
+    sameSite: (getSettings().ssoCookieSameSite as 'strict' | 'lax' | 'none'),
+    path: getSettings().ssoCookiePath
   }
   
-  if (SSO_COOKIE_DOMAIN) {
-    cookieOptions.domain = SSO_COOKIE_DOMAIN
+  if (getSettings().ssoCookieDomain) {
+    cookieOptions.domain = getSettings().ssoCookieDomain
   }
   
-  res.clearCookie(SSO_COOKIE_NAME, cookieOptions)
+  res.clearCookie(getSettings().ssoCookieName, cookieOptions)
   res.json({ success: true })
 }))
 
@@ -326,7 +319,7 @@ router.patch('/language', auth, asyncHandler(async (req: AuthRequest, res: Respo
 }))
 
 router.get('/domain', (req: Request, res: Response) => {
-  res.json({ domain: MAIL_DOMAIN })
+  res.json({ domain: getSettings().mailDomain })
 })
 
 router.post('/avatar', auth, avatarUpload.single('avatar'), asyncHandler(async (req: AuthRequest, res: Response) => {

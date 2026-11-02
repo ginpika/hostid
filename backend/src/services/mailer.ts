@@ -6,12 +6,8 @@
 import nodemailer from 'nodemailer'
 import fs from 'fs'
 import path from 'path'
+import { getSettings } from './settings'
 
-const MAIL_DOMAIN = process.env.MAIL_DOMAIN || 'localhost'
-const SMTP_HOST = process.env.SMTP_HOST
-const SMTP_PORT = parseInt(process.env.SMTP_OUT_PORT || '25')
-const SMTP_USER = process.env.SMTP_USER
-const SMTP_PASS = process.env.SMTP_PASS
 
 interface SendEmailOptions {
   from: string
@@ -74,19 +70,19 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendResult[]
       continue
     }
 
-    const isLocalDomain = domain === MAIL_DOMAIN.toLowerCase()
+    const isLocalDomain = domain === getSettings().mailDomain.toLowerCase()
     
     try {
       let transporter: nodemailer.Transporter
       
-      if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+      if (getSettings().smtpRelayHost && getSettings().smtpRelayUser && getSettings().smtpRelayPass) {
         transporter = nodemailer.createTransport({
-          host: SMTP_HOST,
-          port: SMTP_PORT,
-          secure: SMTP_PORT === 465,
+          host: getSettings().smtpRelayHost,
+          port: getSettings().smtpRelayPort,
+          secure: getSettings().smtpRelayPort === 465,
           auth: {
-            user: SMTP_USER,
-            pass: SMTP_PASS
+            user: getSettings().smtpRelayUser,
+            pass: getSettings().smtpRelayPass
           }
         })
       } else if (isLocalDomain) {
@@ -165,24 +161,24 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendResult[]
 }
 
 export async function verifySmtpConnection(): Promise<boolean> {
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+  if (!getSettings().smtpRelayHost || !getSettings().smtpRelayUser || !getSettings().smtpRelayPass) {
     console.log('[MAIL] No SMTP relay configured, will use direct delivery')
     return false
   }
 
   try {
     const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_PORT === 465,
+      host: getSettings().smtpRelayHost,
+      port: getSettings().smtpRelayPort,
+      secure: getSettings().smtpRelayPort === 465,
       auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS
+        user: getSettings().smtpRelayUser,
+        pass: getSettings().smtpRelayPass
       }
     })
 
     await transporter.verify()
-    console.log(`[MAIL] SMTP relay connected: ${SMTP_HOST}:${SMTP_PORT}`)
+    console.log(`[MAIL] SMTP relay connected: ${getSettings().smtpRelayHost}:${getSettings().smtpRelayPort}`)
     return true
   } catch (error) {
     console.error('[MAIL] SMTP relay connection failed:', error)

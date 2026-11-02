@@ -14,17 +14,10 @@ import { memoryStore } from '../store'
 import { decrypt } from '../services/encryption'
 import { getAvatarUrl } from '../utils/avatar'
 import { getJwtSecret } from '../config/secrets'
+import { getSettings, getSiteUrl, getSessionTtlMs } from '../services/settings'
 
 const router = Router()
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
-const SESSION_TTL = parseInt(process.env.SESSION_TTL || '604800', 10) * 1000
-const SSO_COOKIE_NAME = process.env.SSO_COOKIE_NAME || 'sso_token'
-const SSO_COOKIE_DOMAIN = process.env.SSO_COOKIE_DOMAIN || ''
-const SSO_COOKIE_PATH = process.env.SSO_COOKIE_PATH || '/'
-const SSO_COOKIE_SECURE = process.env.SSO_COOKIE_SECURE === 'true'
-const SSO_COOKIE_SAMESITE = (process.env.SSO_COOKIE_SAMESITE || 'lax') as 'strict' | 'lax' | 'none'
-const MAIL_DOMAIN = process.env.MAIL_DOMAIN || 'localhost'
 
 interface ProviderConfig {
   clientId: string
@@ -151,27 +144,27 @@ async function createSSOSession(user: { id: string; username: string; email: str
     email: user.email,
     role: user.role,
     createdAt: Date.now(),
-    expiresAt: Date.now() + SESSION_TTL
+    expiresAt: Date.now() + getSessionTtlMs()
   }
   
-  await memoryStore.set(getSessionKey(sessionId), JSON.stringify(session), SESSION_TTL)
+  await memoryStore.set(getSessionKey(sessionId), JSON.stringify(session), getSessionTtlMs())
   return sessionId
 }
 
 function setSSOCookie(res: Response, token: string): void {
   const cookieOptions: any = {
     httpOnly: true,
-    secure: SSO_COOKIE_SECURE,
-    sameSite: SSO_COOKIE_SAMESITE,
-    path: SSO_COOKIE_PATH,
-    maxAge: SESSION_TTL
+    secure: getSettings().ssoCookieSecure,
+    sameSite: (getSettings().ssoCookieSameSite as 'strict' | 'lax' | 'none'),
+    path: getSettings().ssoCookiePath,
+    maxAge: getSessionTtlMs()
   }
   
-  if (SSO_COOKIE_DOMAIN) {
-    cookieOptions.domain = SSO_COOKIE_DOMAIN
+  if (getSettings().ssoCookieDomain) {
+    cookieOptions.domain = getSettings().ssoCookieDomain
   }
   
-  res.cookie(SSO_COOKIE_NAME, token, cookieOptions)
+  res.cookie(getSettings().ssoCookieName, token, cookieOptions)
 }
 
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) => {
@@ -300,7 +293,7 @@ router.get('/:provider/callback', asyncHandler(async (req: Request, res: Respons
     const ssoToken = jwt.sign({ sessionId }, getJwtSecret(), { expiresIn: '7d' })
     setSSOCookie(res, ssoToken)
 
-    const frontendCallback = `${FRONTEND_URL}/oauth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({
+    const frontendCallback = `${getSiteUrl()}/oauth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({
       id: existingUser.id,
       email: existingUser.email,
       username: existingUser.username,
@@ -327,7 +320,7 @@ router.get('/:provider/callback', asyncHandler(async (req: Request, res: Respons
 
   await memoryStore.set(getPendingOAuthKey(oauthToken), JSON.stringify(pendingUser), 10 * 60 * 1000)
 
-  const registerUrl = `${FRONTEND_URL}/oauth/register?token=${oauthToken}&redirect=${encodeURIComponent(stateData.redirect)}&githubLogin=${oauthUser.login}&name=${encodeURIComponent(oauthUser.name || '')}&avatar=${encodeURIComponent(oauthUser.avatar_url)}`
+  const registerUrl = `${getSiteUrl()}/oauth/register?token=${oauthToken}&redirect=${encodeURIComponent(stateData.redirect)}&githubLogin=${oauthUser.login}&name=${encodeURIComponent(oauthUser.name || '')}&avatar=${encodeURIComponent(oauthUser.avatar_url)}`
 
   res.redirect(registerUrl)
 }))
@@ -357,7 +350,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Username already taken', 400)
   }
 
-  const email = `${username}@${MAIL_DOMAIN}`
+  const email = `${username}@${getSettings().mailDomain}`
   
   const user = await prisma.user.create({
     data: {

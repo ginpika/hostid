@@ -18,13 +18,14 @@ import { PLATFORMS, buildAuthorizationUrl, emailFromIdToken, isMailPlatform } fr
 import { FusedMailAuthError, getFusedMailCallbackUrl, postTokenRequest, saveAuthorizedAccount } from '../services/fusedMail/tokenStore'
 import { AUTO_SYNC_COOLDOWN_MS, syncAccountOnce, syncAccounts } from '../services/fusedMail/sync'
 import { sendViaFusedAccount } from '../services/fusedMail/smtp'
+import { getSettings, getSiteUrl } from '../services/settings'
 
 const router = Router()
 
 const STATE_TTL = 10 * 60 * 1000
 const STATE_COOKIE = 'fused_mail_oauth'
 const stateKey = (state: string) => `fusedmail:state:${state}`
-const frontendUrl = () => (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
+const frontendUrl = () => getSiteUrl()
 
 interface FusedOAuthState {
   userId: string
@@ -152,7 +153,7 @@ router.post('/oauth/start', asyncHandler(async (req: AuthRequest, res: Response)
   const payload: FusedOAuthState = { userId: req.userId!, providerId, accountId, codeVerifier, browserNonce, createdAt: Date.now() }
   await memoryStore.set(stateKey(state), JSON.stringify(payload), STATE_TTL)
   res.cookie(STATE_COOKIE, browserNonce, {
-    httpOnly: true, sameSite: 'lax', secure: process.env.SSO_COOKIE_SECURE === 'true', path: '/api/fused-mail/oauth', maxAge: STATE_TTL
+    httpOnly: true, sameSite: 'lax', secure: getSettings().ssoCookieSecure, path: '/api/fused-mail/oauth', maxAge: STATE_TTL
   })
   const url = buildAuthorizationUrl({
     platform: provider.mailPlatform,

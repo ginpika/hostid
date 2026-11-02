@@ -8,6 +8,7 @@
 import { prisma } from '../../lib/prisma'
 import { encrypt, decrypt } from '../encryption'
 import { PLATFORMS, isMailPlatform, normalizeEmail, type MailPlatform } from './platforms'
+import { getSettings, getSiteUrl } from '../settings'
 
 export const ACCOUNT_STATUS = {
   ACTIVE: 'active',
@@ -72,8 +73,9 @@ export async function getProviderSecrets(providerId: string | null): Promise<Pro
 
 export function getFusedMailCallbackUrl(configured?: string | null): string {
   if (configured) return configured
-  if (process.env.FUSED_MAIL_CALLBACK_URL) return process.env.FUSED_MAIL_CALLBACK_URL
-  const base = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')
+  const settings = getSettings()
+  if (settings.fusedMailCallbackUrl) return settings.fusedMailCallbackUrl
+  const base = getSiteUrl() || 'http://localhost:5173'
   return `${base}/api/fused-mail/oauth/callback`
 }
 

@@ -25,7 +25,6 @@ import { getAvatarUrl } from '../utils/avatar'
 
 const router = Router()
 
-const SSO_COOKIE_NAME = process.env.SSO_COOKIE_NAME || 'sso_token'
 
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) => {
   return (req: Request, res: Response, next: NextFunction) => {
