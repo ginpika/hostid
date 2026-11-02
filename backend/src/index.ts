@@ -4,7 +4,6 @@
  * 包含管理员初始化、RSA 密钥生成和 OAuth 配置迁移
  */
 import express from 'express'
-import cors from 'cors'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
 import authRoutes from './routes/auth'
@@ -24,6 +23,7 @@ import { initRSAKeys } from './utils/rsa'
 import { migrateOAuthConfig } from './utils/migrateOAuthConfig'
 import { mountWebFrontend } from './web'
 import { assertSecurityConfig } from './config/secrets'
+import { createCorsMiddleware, createHelmetMiddleware } from './middleware/security'
 
 dotenv.config()
 
@@ -32,10 +32,9 @@ const PORT = process.env.PORT || 3001
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '2525')
 const SSO_LOGIN_PAGE_URL = process.env.SSO_LOGIN_PAGE_URL || ''
 
-app.use(cors({
-  origin: true,
-  credentials: true
-}))
+app.disable('x-powered-by')
+app.use(createHelmetMiddleware())
+app.use(createCorsMiddleware())
 app.use(express.json())
 app.use(cookieParser())
 
