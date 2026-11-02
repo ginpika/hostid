@@ -7,7 +7,7 @@ import { test, after, before } from 'node:test'
 const directory = await mkdtemp(join(tmpdir(), 'hostid-fused-mail-'))
 const previousUrl = process.env.DATABASE_URL
 const previousSecret = process.env.JWT_SECRET
-process.env.DATABASE_URL = `file:${join(directory, 'test.db')}`
+process.env.DATABASE_URL = `file:${join(directory, 'test.db')}?connection_limit=1`
 process.env.JWT_SECRET = 'fused-mail-test-secret-at-least-32-characters'
 
 const { prisma } = await import('../src/lib/prisma')
