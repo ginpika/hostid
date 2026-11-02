@@ -1,6 +1,6 @@
 /**
  * 系统设置页面（管理员）
- * 站点 / 邮件 / SMTP 中继 / 人机验证 / SSO / 融合邮件
+ * 站点 / 邮件 / SMTP 中继 / 人机验证 / SSO
  * 敏感值只写：服务端仅返回打码值，留空表示保持不变
  */
 import { useEffect, useMemo, useState } from 'react'
@@ -9,7 +9,7 @@ import { useI18n } from '../i18n/I18nContext'
 import { translations } from '../i18n/translations'
 
 type TKey = keyof typeof translations['zh-CN']
-type Group = 'site' | 'mail' | 'smtp' | 'turnstile' | 'sso' | 'fusedMail'
+type Group = 'site' | 'mail' | 'smtp' | 'turnstile' | 'sso'
 
 interface SettingView {
   key: string
@@ -28,8 +28,7 @@ const GROUPS: { id: Group; label: TKey }[] = [
   { id: 'mail', label: 'settingsGroupMail' },
   { id: 'smtp', label: 'settingsGroupSmtp' },
   { id: 'turnstile', label: 'settingsGroupTurnstile' },
-  { id: 'sso', label: 'settingsGroupSso' },
-  { id: 'fusedMail', label: 'settingsGroupFusedMail' }
+  { id: 'sso', label: 'settingsGroupSso' }
 ]
 
 const labelKey = (key: string) => `setting${key[0].toUpperCase()}${key.slice(1)}` as TKey
@@ -41,8 +40,9 @@ const inputStyle = {
   color: 'var(--color-text-primary)'
 }
 
-export default function SystemSettingsPage() {
+export default function SystemSettingsPage({ embedded = false }: { embedded?: boolean }) {
   const { t, language } = useI18n()
+  const Heading = embedded ? 'h3' : 'h2'
   const [settings, setSettings] = useState<SettingView[]>([])
   const [form, setForm] = useState<Record<string, string | number | boolean | null>>({})
   const [loading, setLoading] = useState(true)
@@ -173,19 +173,19 @@ export default function SystemSettingsPage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-      <form className="max-w-3xl mx-auto p-8" onSubmit={save} lang={language}>
-        <div className="flex items-center justify-between mb-8 gap-4">
+    <div className={embedded ? 'admin-panel' : 'flex-1 overflow-y-auto'} style={embedded ? undefined : { backgroundColor: 'var(--color-bg-primary)' }}>
+      <form className={embedded ? 'admin-panel-content' : 'max-w-3xl mx-auto p-8'} onSubmit={save} lang={language}>
+        <div className={embedded ? 'admin-panel-header' : 'flex items-center justify-between mb-8 gap-4'}>
           <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--color-text-primary)' }}>
-              <Settings className="w-7 h-7" style={{ color: 'var(--color-accent-primary)' }} />
+            <Heading className={embedded ? 'admin-panel-title' : 'text-2xl font-bold flex items-center gap-2'} style={{ color: 'var(--color-text-primary)' }}>
+              {!embedded && <Settings className="w-7 h-7" style={{ color: 'var(--color-accent-primary)' }} />}
               {t('systemSettings')}
-            </h2>
-            <p className="mt-1" style={{ color: 'var(--color-text-tertiary)' }}>{t('systemSettingsDescription')}</p>
+            </Heading>
+            <p className={embedded ? 'admin-panel-description' : 'mt-1'} style={{ color: 'var(--color-text-tertiary)' }}>{t('systemSettingsDescription')}</p>
           </div>
           <button type="submit" disabled={saving || loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium disabled:opacity-60"
-            style={{ backgroundColor: 'var(--color-accent-primary)', color: '#fff' }}>
+            className={embedded ? 'admin-panel-primary-action' : 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium disabled:opacity-60'}
+            style={{ backgroundColor: 'var(--color-accent-primary)', color: 'var(--color-accent-text)' }}>
             <Save className="w-4 h-4" />
             {t('settingsSave')}
           </button>
@@ -199,9 +199,9 @@ export default function SystemSettingsPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className={embedded ? 'admin-panel-settings-grid' : 'space-y-6'}>
             {grouped.filter(g => g.items.length > 0).map(g => (
-              <fieldset key={g.id} className="rounded-lg border p-6 space-y-4"
+              <fieldset key={g.id} className={embedded ? 'admin-panel-settings-group rounded-lg border p-6 space-y-4' : 'rounded-lg border p-6 space-y-4'}
                 style={{ borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-secondary)' }}>
                 <legend className="px-2 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>{t(g.label)}</legend>
                 {g.items.map(renderField)}

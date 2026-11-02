@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, PenLine, X, UserCircle, Archive, Shield, KeyRound, AppWindow, Star, PanelLeftClose, PanelLeftOpen, ChevronRight, Pin, PinOff, Combine, Mails, Settings, type LucideIcon } from 'lucide-react'
+import { Inbox, Send, Trash2, PenLine, X, UserCircle, Archive, Star, PanelLeftClose, PanelLeftOpen, ChevronRight, Pin, PinOff, Settings, type LucideIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
@@ -92,15 +92,8 @@ export default function Sidebar({ isOpen, onClose, currentFolder, pinned, onTogg
       { path: '/archived', label: t('archived'), icon: Archive, folder: 'ARCHIVED' },
       { path: '/trash', label: t('trash'), icon: Trash2, folder: 'TRASH' }
     ] },
-    { label: t('fusedMailGroup'), items: [
-      { path: '/fused-mail', label: t('fusedMail'), icon: Combine },
-      { path: '/fused-inbox', label: t('fusedInbox'), icon: Mails }
-    ] },
     ...(user?.role === 'admin' ? [{ label: t('adminGroup'), items: [
-      { path: '/admin', label: t('admin'), icon: Shield },
-      { path: '/admin/oauth', label: t('oauthConfig'), icon: KeyRound },
-      { path: '/admin/oauth-apps', label: t('oauthApps'), icon: AppWindow },
-      { path: '/admin/settings', label: t('systemSettings'), icon: Settings }
+      { path: '/admin/settings', label: t('settings'), icon: Settings }
     ] }] : [])
   ]
   return <>

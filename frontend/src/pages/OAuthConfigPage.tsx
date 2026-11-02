@@ -18,10 +18,6 @@ interface OAuthProvider {
   tokenUrl?: string
   userinfoUrl?: string
   isActive: boolean
-  useForLogin?: boolean
-  useForFusedMail?: boolean
-  mailPlatform?: string | null
-  fusedMailCallbackUrl?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -35,14 +31,11 @@ interface ProviderFormData {
   authorizationUrl: string
   tokenUrl: string
   userinfoUrl: string
-  useForLogin: boolean
-  useForFusedMail: boolean
-  mailPlatform: string
-  fusedMailCallbackUrl: string
 }
 
-export default function OAuthConfigPage() {
+export default function OAuthConfigPage({ embedded = false }: { embedded?: boolean }) {
   const { t, language } = useI18n()
+  const Heading = embedded ? 'h3' : 'h2'
   const [providers, setProviders] = useState<OAuthProvider[]>([])
   const [activeCount, setActiveCount] = useState(0)
   const [maxActiveProviders, setMaxActiveProviders] = useState(3)
@@ -60,11 +53,7 @@ export default function OAuthConfigPage() {
     callbackUrl: '',
     authorizationUrl: '',
     tokenUrl: '',
-    userinfoUrl: '',
-    useForLogin: true,
-    useForFusedMail: false,
-    mailPlatform: '',
-    fusedMailCallbackUrl: ''
+    userinfoUrl: ''
   })
   const [saving, setSaving] = useState(false)
 
@@ -105,11 +94,7 @@ export default function OAuthConfigPage() {
       callbackUrl: '',
       authorizationUrl: '',
       tokenUrl: '',
-      userinfoUrl: '',
-      useForLogin: true,
-      useForFusedMail: false,
-      mailPlatform: '',
-      fusedMailCallbackUrl: ''
+      userinfoUrl: ''
     })
     setShowModal(true)
   }
@@ -124,11 +109,7 @@ export default function OAuthConfigPage() {
       callbackUrl: provider.callbackUrl,
       authorizationUrl: provider.authorizationUrl || '',
       tokenUrl: provider.tokenUrl || '',
-      userinfoUrl: provider.userinfoUrl || '',
-      useForLogin: provider.useForLogin ?? true,
-      useForFusedMail: provider.useForFusedMail ?? false,
-      mailPlatform: provider.mailPlatform || '',
-      fusedMailCallbackUrl: provider.fusedMailCallbackUrl || ''
+      userinfoUrl: provider.userinfoUrl || ''
     })
     setShowModal(true)
   }
@@ -157,22 +138,7 @@ export default function OAuthConfigPage() {
         callbackUrl: formData.callbackUrl,
         authorizationUrl: formData.authorizationUrl,
         tokenUrl: formData.tokenUrl,
-        userinfoUrl: formData.userinfoUrl,
-        useForLogin: formData.useForLogin,
-        useForFusedMail: formData.useForFusedMail,
-        mailPlatform: formData.mailPlatform || null,
-        fusedMailCallbackUrl: formData.fusedMailCallbackUrl || null
-      }
-
-      if (!formData.useForLogin && !formData.useForFusedMail) {
-        setError(language === 'zh-CN' ? '至少勾选一种用途' : 'Select at least one usage')
-        setSaving(false)
-        return
-      }
-      if (formData.useForFusedMail && !formData.mailPlatform) {
-        setError(language === 'zh-CN' ? '用于融合邮件时必须选择邮箱平台' : 'Choose a mail platform for fused mail')
-        setSaving(false)
-        return
+        userinfoUrl: formData.userinfoUrl
       }
 
       if (formData.clientSecret) {
@@ -282,15 +248,15 @@ export default function OAuthConfigPage() {
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <div className="max-w-4xl mx-auto p-8">
-          <div className="flex items-center justify-between mb-8">
+      <div className={embedded ? 'admin-panel' : 'flex-1 overflow-y-auto'} style={embedded ? undefined : { backgroundColor: 'var(--color-bg-primary)' }}>
+        <div className={embedded ? 'admin-panel-content' : 'max-w-4xl mx-auto p-8'}>
+          <div className={embedded ? 'admin-panel-header' : 'flex items-center justify-between mb-8'}>
             <div>
-              <h2 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--color-text-primary)' }}>
-                <Key className="w-7 h-7" style={{ color: 'var(--color-accent-primary)' }} />
+              <Heading className={embedded ? 'admin-panel-title' : 'text-2xl font-bold flex items-center gap-2'} style={{ color: 'var(--color-text-primary)' }}>
+                {!embedded && <Key className="w-7 h-7" style={{ color: 'var(--color-accent-primary)' }} />}
                 {t('oauthConfig')}
-              </h2>
-              <p className="mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
+              </Heading>
+              <p className={embedded ? 'admin-panel-description' : 'mt-1'} style={{ color: 'var(--color-text-tertiary)' }}>
                 {t('oauthConfigDescription')}
                 <span className="ml-2 px-2 py-0.5 rounded text-xs" style={{ 
                   backgroundColor: activeCount >= maxActiveProviders ? 'rgba(239, 68, 68, 0.1)' : 'var(--color-bg-tertiary)',
@@ -304,7 +270,7 @@ export default function OAuthConfigPage() {
             </div>
             <button
               onClick={openAddModal}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors"
+              className={embedded ? 'admin-panel-primary-action' : 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors'}
               style={{ backgroundColor: 'var(--color-accent-primary)', color: 'var(--color-accent-text)' }}
             >
               <Plus className="w-4 h-4" />
@@ -400,15 +366,15 @@ export default function OAuthConfigPage() {
                       opacity: provider.isActive ? 1 : 0.7
                     }}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-4">
+                    <div className={embedded ? 'admin-panel-item-header flex flex-wrap items-start justify-between gap-3' : 'flex items-start justify-between'}>
+                      <div className={embedded ? 'admin-panel-item-identity flex min-w-0 flex-1 flex-wrap items-center gap-3' : 'flex items-center gap-4'}>
                         <div
-                          className="w-12 h-12 rounded-full flex items-center justify-center"
+                          className="w-12 h-12 shrink-0 rounded-full flex items-center justify-center"
                           style={{ backgroundColor: 'var(--color-accent-muted)' }}
                         >
                           {getProviderLogo()}
                         </div>
-                        <div>
+                        <div className={embedded ? 'min-w-0 flex-1 basis-28 break-words [overflow-wrap:anywhere]' : undefined}>
                           <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                             {provider.displayName}
                           </h3>
@@ -417,18 +383,16 @@ export default function OAuthConfigPage() {
                           </p>
                         </div>
                         <span
-                          className="px-2 py-1 rounded text-xs font-medium"
+                          className="shrink-0 px-2 py-1 rounded text-xs font-medium"
                           style={{
                             backgroundColor: provider.isActive ? 'rgba(34, 197, 94, 0.1)' : 'var(--color-bg-tertiary)',
                             color: provider.isActive ? '#22c55e' : 'var(--color-text-muted)'
                           }}
                         >
                           {provider.isActive ? t('providerActive') : t('providerInactive')}
-                          {provider.useForLogin !== false ? ` · ${t('fusedUseForLogin')}` : ''}
-                          {provider.useForFusedMail ? ` · ${t('fusedUseForFusedMail')}${provider.mailPlatform ? ` (${provider.mailPlatform})` : ''}` : ''}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className={embedded ? 'admin-panel-item-actions flex w-full shrink-0 items-center justify-end gap-2 lg:w-auto' : 'flex items-center gap-2'}>
                         <button
                           onClick={() => handleToggle(provider)}
                           className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
@@ -724,27 +688,6 @@ export default function OAuthConfigPage() {
                   placeholder={language === 'zh-CN' ? '如: https://api.github.com/user' : 'e.g.: https://api.github.com/user'}
                   required
                 />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.useForLogin} onChange={e => setFormData({ ...formData, useForLogin: e.target.checked })} />{t('fusedUseForLogin')}</label>
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.useForFusedMail} onChange={e => setFormData({ ...formData, useForFusedMail: e.target.checked })} />{t('fusedUseForFusedMail')}</label>
-                </div>
-                {formData.useForFusedMail && <>
-                  <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>{t('fusedMailPlatform')} *</label>
-                    <select value={formData.mailPlatform} onChange={e => setFormData({ ...formData, mailPlatform: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ backgroundColor: 'var(--color-bg-primary)', borderColor: 'var(--color-border-primary)', color: 'var(--color-text-primary)' }}>
-                      <option value="">—</option>
-                      <option value="gmail">Gmail (Google)</option>
-                      <option value="outlook">Outlook / Hotmail (Microsoft)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>{t('fusedCallbackUrl')}</label>
-                    <input type="url" value={formData.fusedMailCallbackUrl} onChange={e => setFormData({ ...formData, fusedMailCallbackUrl: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm font-mono" style={{ backgroundColor: 'var(--color-bg-primary)', borderColor: 'var(--color-border-primary)', color: 'var(--color-text-primary)' }} placeholder="https://your-domain/api/fused-mail/oauth/callback" />
-                  </div>
-                </>}
               </div>
 
               <div

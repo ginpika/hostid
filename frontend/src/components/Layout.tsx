@@ -31,7 +31,7 @@ export default function Layout() {
     setMailLayoutMode(next)
     localStorage.setItem('inboxLayoutMode', next)
   }
-  const pageLabels: Record<string, string> = { '/': t('inbox'), '/sent': t('sent'), '/starred': t('starred'), '/archived': t('archived'), '/trash': t('trash'), '/fused-mail': t('fusedMail'), '/fused-inbox': t('fusedInbox'), '/profile': t('profile'), '/info': t('about'), '/admin': t('admin'), '/admin/oauth': t('oauthConfig'), '/admin/oauth-apps': t('oauthApps') }
+  const pageLabels: Record<string, string> = { '/': t('inbox'), '/sent': t('sent'), '/starred': t('starred'), '/archived': t('archived'), '/trash': t('trash'), '/profile': t('profile'), '/info': t('about'), '/admin/settings': t('settings') }
 
   useEffect(() => { setMenuOpen(false) }, [layout])
 
@@ -69,7 +69,7 @@ export default function Layout() {
             <h1 className="truncate">{pageLabels[pathname] || t('mail')}</h1>
           </div>
           <div className="flex items-center gap-1.5">
-            {(folder || pathname === '/fused-inbox') && <button className="mail-icon-button" aria-label={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} title={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} onClick={toggleMailLayout}>{mailLayoutMode === 'split' ? <List size={17} /> : <Columns2 size={17} />}</button>}
+            {folder && <button className="mail-icon-button" aria-label={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} title={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} onClick={toggleMailLayout}>{mailLayoutMode === 'split' ? <List size={17} /> : <Columns2 size={17} />}</button>}
             <ThemeSelector />
             <div className="relative" ref={menuRef}>
               <button ref={menuButtonRef} className={`${classic ? 'classic-header-button' : 'topbar-text-button'}${menuOpen ? ' is-active' : ''}`} aria-label={zh ? '界面语言' : 'Language'} aria-expanded={menuOpen} aria-controls="topbar-languages" onClick={() => setMenuOpen(!menuOpen)}><Globe size={classic ? 16 : 17} /><span className="hidden sm:inline">{zh ? t('chinese') : t('english')}</span></button>

@@ -20,7 +20,7 @@ interface SettingDef {
   min?: number
   max?: number
   /** 环境变量值转换（如 SESSION_TTL 单位） */
-  group: 'site' | 'mail' | 'smtp' | 'turnstile' | 'sso' | 'fusedMail'
+  group: 'site' | 'mail' | 'smtp' | 'turnstile' | 'sso'
 }
 
 export const SETTING_DEFS = {
@@ -42,9 +42,7 @@ export const SETTING_DEFS = {
   /** 会话有效期（秒） */
   sessionTtl: { type: 'number', env: 'SESSION_TTL', default: 604800, min: 300, max: 31536000, group: 'sso' },
   ssoRateMax: { type: 'number', env: 'SSO_RATE_MAX', default: 180, min: 1, max: 100000, group: 'sso' },
-  ssoRateWindowMs: { type: 'number', env: 'SSO_RATE_WINDOW_MS', default: 60000, min: 1000, max: 86400000, group: 'sso' },
-  fusedMailCallbackUrl: { type: 'string', env: 'FUSED_MAIL_CALLBACK_URL', default: '', group: 'fusedMail' },
-  fusedMailInitialSyncLimit: { type: 'number', env: 'FUSED_MAIL_INITIAL_SYNC_LIMIT', default: 200, min: 1, max: 5000, group: 'fusedMail' }
+  ssoRateWindowMs: { type: 'number', env: 'SSO_RATE_WINDOW_MS', default: 60000, min: 1000, max: 86400000, group: 'sso' }
 } as const satisfies Record<string, SettingDef>
 
 export type SettingKey = keyof typeof SETTING_DEFS
@@ -87,7 +85,7 @@ function parseValue(key: SettingKey, raw: unknown): string | number | boolean {
 
 function validateString(key: SettingKey, value: string): void {
   if (!value) return
-  const urlKeys: SettingKey[] = ['siteUrl', 'ssoLoginPageUrl', 'fusedMailCallbackUrl']
+  const urlKeys: SettingKey[] = ['siteUrl', 'ssoLoginPageUrl']
   if (urlKeys.includes(key)) {
     let url: URL
     try { url = new URL(value) } catch { throw new Error(`${key} must be an absolute http(s) URL`) }

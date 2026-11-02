@@ -26,9 +26,9 @@ wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docke
 docker compose up -d --wait
 ```
 
-No configuration file is required. Open the site and the first-run wizard at `/setup` asks for the site URL and mail domain and creates the first administrator (password of at least 12 characters). Everything else — SMTP relay, Cloudflare Turnstile, SSO cookies, fused mail — lives in Admin → System Settings and applies immediately.
+No configuration file is required. Open the site and the first-run wizard at `/setup` asks for the site URL and mail domain and creates the first administrator (password of at least 12 characters). Everything else — SMTP relay, Cloudflare Turnstile, SSO cookies — lives in Admin → System Settings and applies immediately.
 
-`JWT_SECRET` and `DATA_ENCRYPTION_KEY` are generated on first start and stored in `secrets.json` (mode 0600) in the data volume. **Always back up the whole data volume (database + secrets.json).** Without secrets.json, encrypted data (OAuth client secrets, fused-mail tokens, SMTP/Turnstile secrets) cannot be decrypted and all sessions are invalidated.
+`JWT_SECRET` and `DATA_ENCRYPTION_KEY` are generated on first start and stored in `secrets.json` (mode 0600) in the data volume. **Always back up the whole data volume (database + secrets.json).** Without secrets.json, encrypted data (OAuth client secrets, SMTP/Turnstile secrets) cannot be decrypted and all sessions are invalidated.
 
 Use Docker Compose v2.24 or newer. Host ports are configured separately with `FRONTEND_PORT` and `BACKEND_PORT`; backend HTTP binds to `127.0.0.1` by default. SMTP still publishes host port 25, mapped to unprivileged container port 2525. Set `IMAGE_TAG=sha-<full-commit-sha>` in the Compose `.env` file to deploy a matching frontend/backend pair from a successful workflow. Turnstile is configured in the admin System Settings page; no build secret is needed. See the [Docker deployment guide](docs/docker.md) for build, upgrade, and CI details.
 
@@ -99,10 +99,6 @@ HostID can serve as an SSO provider for other applications. See the integration 
    ```javascript
    window.location.href = `https://mail.yourdomain.com/sso/login?redirect=${encodeURIComponent(currentUrl)}`
    ```
-
-## Fused Mail
-
-Link several Gmail / Outlook (Hotmail) mailboxes via OAuth2, sync them over IMAP and read everything in the Fused inbox. The callback URL is `https://<your-domain>/api/fused-mail/oauth/callback`. See [docs/fused-mail.md](docs/fused-mail.md) (Chinese) for Google Cloud / Azure registration and why the Google app must be published (refresh tokens of apps in "Testing" expire after 7 days).
 
 ## DNS Configuration
 

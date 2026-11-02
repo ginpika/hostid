@@ -23,8 +23,9 @@ interface TableData {
   }
 }
 
-export default function AdminPage() {
+export default function AdminPage({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n()
+  const Heading = embedded ? 'h3' : 'h2'
   const [tables, setTables] = useState<TableInfo[]>([])
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const [tableData, setTableData] = useState<TableData | null>(null)
@@ -256,11 +257,13 @@ export default function AdminPage() {
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <div className="max-w-7xl mx-auto p-8">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{t('adminPanel')}</h2>
-            <p className="mt-1" style={{ color: 'var(--color-text-tertiary)' }}>{t('adminDescription')}</p>
+      <div className={embedded ? 'admin-panel' : 'flex-1 overflow-y-auto'} style={embedded ? undefined : { backgroundColor: 'var(--color-bg-primary)' }}>
+        <div className={embedded ? 'admin-panel-content' : 'max-w-7xl mx-auto p-8'}>
+          <div className={embedded ? 'admin-panel-header' : 'mb-8'}>
+            <div>
+              <Heading className={embedded ? 'admin-panel-title' : 'text-2xl font-bold'} style={{ color: 'var(--color-text-primary)' }}>{t(embedded ? 'admin' : 'adminPanel')}</Heading>
+              <p className={embedded ? 'admin-panel-description' : 'mt-1'} style={{ color: 'var(--color-text-tertiary)' }}>{t('adminDescription')}</p>
+            </div>
           </div>
 
           {/* 数据表水平排列在上方 */}

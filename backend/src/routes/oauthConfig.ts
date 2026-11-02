@@ -60,11 +60,7 @@ const createProviderSchema = z.object({
   callbackUrl: z.string().url(),
   authorizationUrl: z.string().url(),
   tokenUrl: z.string().url(),
-  userinfoUrl: z.string().url(),
-  useForLogin: z.boolean().default(true),
-  useForFusedMail: z.boolean().default(false),
-  mailPlatform: z.enum(['gmail', 'outlook']).nullable().optional(),
-  fusedMailCallbackUrl: z.string().url().nullable().optional().or(z.literal(''))
+  userinfoUrl: z.string().url()
 })
 
 const updateProviderSchema = z.object({
@@ -74,19 +70,8 @@ const updateProviderSchema = z.object({
   callbackUrl: z.string().url().optional(),
   authorizationUrl: z.string().url().optional(),
   tokenUrl: z.string().url().optional(),
-  userinfoUrl: z.string().url().optional(),
-  useForLogin: z.boolean().optional(),
-  useForFusedMail: z.boolean().optional(),
-  mailPlatform: z.enum(['gmail', 'outlook']).nullable().optional(),
-  fusedMailCallbackUrl: z.string().url().nullable().optional().or(z.literal(''))
+  userinfoUrl: z.string().url().optional()
 })
-
-/** 用途校验：至少勾选一个；勾选融合邮件时必须指定平台 */
-export function validateProviderUsage(data: { useForLogin: boolean; useForFusedMail: boolean; mailPlatform?: string | null }): string | null {
-  if (!data.useForLogin && !data.useForFusedMail) return 'Select at least one usage (login or fused mail)'
-  if (data.useForFusedMail && data.mailPlatform !== 'gmail' && data.mailPlatform !== 'outlook') return 'Fused mail requires a mail platform (gmail or outlook)'
-  return null
-}
 
 const transformProvider = (provider: any) => ({
   id: provider.id,
@@ -99,10 +84,6 @@ const transformProvider = (provider: any) => ({
   tokenUrl: provider.tokenUrl,
   userinfoUrl: provider.userinfoUrl,
   isActive: provider.isActive,
-  useForLogin: provider.useForLogin,
-  useForFusedMail: provider.useForFusedMail,
-  mailPlatform: provider.mailPlatform,
-  fusedMailCallbackUrl: provider.fusedMailCallbackUrl,
   createdAt: provider.createdAt,
   updatedAt: provider.updatedAt
 })
@@ -113,8 +94,8 @@ router.get('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest, 
     orderBy: { createdAt: 'asc' }
   })
 
-  // 上限只针对登录按钮（登录页最多展示 3 个）
-  const activeCount = providers.filter(p => p.isActive && p.useForLogin).length
+  // 登录页最多展示 3 个启用的提供商
+  const activeCount = providers.filter(p => p.isActive).length
 
   res.json({
     providers: providers.map(transformProvider),
@@ -151,9 +132,6 @@ router.post('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest,
     return res.status(400).json({ error: 'Provider already exists' })
   }
 
-  const usageError = validateProviderUsage(data)
-  if (usageError) return res.status(400).json({ error: usageError })
-
   const provider = await prisma.oAuthProvider.create({
     data: {
       provider: data.provider,
@@ -163,11 +141,7 @@ router.post('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest,
       callbackUrl: data.callbackUrl,
       authorizationUrl: data.authorizationUrl,
       tokenUrl: data.tokenUrl,
-      userinfoUrl: data.userinfoUrl,
-      useForLogin: data.useForLogin,
-      useForFusedMail: data.useForFusedMail,
-      mailPlatform: data.mailPlatform || null,
-      fusedMailCallbackUrl: data.fusedMailCallbackUrl || null
+      userinfoUrl: data.userinfoUrl
     }
   })
 
@@ -198,18 +172,6 @@ router.put('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthReque
   if (data.authorizationUrl) updateData.authorizationUrl = data.authorizationUrl
   if (data.tokenUrl) updateData.tokenUrl = data.tokenUrl
   if (data.userinfoUrl) updateData.userinfoUrl = data.userinfoUrl
-  if (data.useForLogin !== undefined) updateData.useForLogin = data.useForLogin
-  if (data.useForFusedMail !== undefined) updateData.useForFusedMail = data.useForFusedMail
-  if (data.mailPlatform !== undefined) updateData.mailPlatform = data.mailPlatform || null
-  if (data.fusedMailCallbackUrl !== undefined) updateData.fusedMailCallbackUrl = data.fusedMailCallbackUrl || null
-
-  const usageError = validateProviderUsage({
-    useForLogin: updateData.useForLogin ?? existing.useForLogin,
-    useForFusedMail: updateData.useForFusedMail ?? existing.useForFusedMail,
-    mailPlatform: updateData.mailPlatform !== undefined ? updateData.mailPlatform : existing.mailPlatform
-  })
-  if (usageError) return res.status(400).json({ error: usageError })
-
   const provider = await prisma.oAuthProvider.update({
     where: { id },
     data: updateData
@@ -253,9 +215,9 @@ router.patch('/providers/:id/toggle', auth, adminOnly, asyncHandler(async (req: 
     return res.status(404).json({ error: 'Provider not found' })
   }
 
-  if (!existing.isActive && existing.useForLogin) {
+  if (!existing.isActive) {
     const activeCount = await prisma.oAuthProvider.count({
-      where: { isActive: true, useForLogin: true }
+      where: { isActive: true }
     })
 
     if (activeCount >= 3) {

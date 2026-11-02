@@ -15,14 +15,10 @@ import { ConfigProvider } from './contexts/ConfigContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Inbox from './pages/Inbox'
-import FusedMailPage from './pages/FusedMailPage'
 import ArchivePage from './pages/ArchivePage'
 import InfoPage from './pages/InfoPage'
 import ProfilePage from './pages/ProfilePage'
-import AdminPage from './pages/AdminPage'
-import OAuthConfigPage from './pages/OAuthConfigPage'
-import OAuthAppsPage from './pages/OAuthAppsPage'
-import SystemSettingsPage from './pages/SystemSettingsPage'
+import AdminSettingsPage from './pages/AdminSettingsPage'
 import SetupPage from './pages/SetupPage'
 import OAuthAuthorizePage from './pages/OAuthAuthorizePage'
 import TosPage from './pages/TosPage'
@@ -147,15 +143,13 @@ function AppRoutes() {
             <Route path="sent" element={<Inbox />} />
             <Route path="starred" element={<Inbox />} />
             <Route path="trash" element={<Inbox />} />
-            <Route path="fused-mail" element={<FusedMailPage />} />
-            <Route path="fused-inbox" element={<Inbox />} />
             <Route path="archived" element={<ArchivePage />} />
             <Route path="info" element={<InfoPage />} />
             <Route path="profile" element={<ProfilePage />} />
-            <Route path="admin" element={<AdminPage />} />
-            <Route path="admin/oauth" element={<OAuthConfigPage />} />
-            <Route path="admin/oauth-apps" element={<OAuthAppsPage />} />
-            <Route path="admin/settings" element={<SystemSettingsPage />} />
+            <Route path="admin" element={<Navigate to="/admin/settings?tab=database" replace />} />
+            <Route path="admin/oauth" element={<Navigate to="/admin/settings?tab=providers" replace />} />
+            <Route path="admin/oauth-apps" element={<Navigate to="/admin/settings?tab=apps" replace />} />
+            <Route path="admin/settings" element={<AdminSettingsPage />} />
           </Route>
           
           <Route path="/oauth2/authorize" element={<PrivateRoute><OAuthAuthorizePage /></PrivateRoute>} />

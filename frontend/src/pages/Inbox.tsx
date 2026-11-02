@@ -1,7 +1,7 @@
 /** Shared mailbox workspace for inbox, sent, starred, archive and trash. */
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type PointerEvent } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
-import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft, AlertCircle, Inbox, RotateCcw, Upload, Loader2, Download } from 'lucide-react'
+import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft, AlertCircle, Inbox, RotateCcw, Upload, Loader2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -10,12 +10,10 @@ import EmailList, { type Email } from '../components/EmailList'
 import EmailDetail from '../components/EmailDetail'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { notify, refreshMail } from '../lib/mailEvents'
-import { claimAutoSync } from '../lib/fusedMail'
 import { clampMailListWidth, getMailListWidthBounds } from '../lib/mailLayout'
 
 type Folder = 'INBOX' | 'SENT' | 'STARRED' | 'ARCHIVED' | 'TRASH'
 type MailRecord = Email
-interface FusedAccountOption { id: string; email: string; platform: string; status: string }
 interface Pagination { page: number; limit: number; total: number; totalPages: number }
 const folderPaths: Record<string, Folder> = { '/': 'INBOX', '/sent': 'SENT', '/starred': 'STARRED', '/archived': 'ARCHIVED', '/trash': 'TRASH' }
 const savedWidth = () => {
@@ -25,12 +23,7 @@ const savedWidth = () => {
 
 export default function InboxPage() {
   const { pathname } = useLocation()
-  const fused = pathname === '/fused-inbox'
-  const folder = fused ? 'INBOX' : folderPaths[pathname] || 'INBOX'
-  const apiBase = fused ? '/api/fused-mail/emails' : '/api/emails'
-  const [accountFilter, setAccountFilter] = useState('')
-  const [fusedAccounts, setFusedAccounts] = useState<FusedAccountOption[]>([])
-  const [syncing, setSyncing] = useState(false)
+  const folder = folderPaths[pathname] || 'INBOX'
   const { t, language } = useI18n()
   const { openCompose } = useCompose()
   const { layout } = useTheme()
@@ -70,10 +63,10 @@ export default function InboxPage() {
   const searchRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const detailIsModal = showDetail && (layoutMode === 'list' || !wideScreen)
-  const scopeKey = `${apiBase}:${folder}:${accountFilter}:${query}:${unreadOnly}`
+  const scopeKey = `${folder}:${query}:${unreadOnly}`
   const scopeRef = useRef({ key: scopeKey, version: 0 })
   if (scopeRef.current.key !== scopeKey) scopeRef.current = { key: scopeKey, version: scopeRef.current.version + 1 }
-  const folderLabel = fused ? t('fusedInbox') : t(({ INBOX: 'inbox', SENT: 'sent', STARRED: 'starred', ARCHIVED: 'archived', TRASH: 'trash' } as const)[folder])
+  const folderLabel = t(({ INBOX: 'inbox', SENT: 'sent', STARRED: 'starred', ARCHIVED: 'archived', TRASH: 'trash' } as const)[folder])
 
   useEffect(() => {
     const breakpoint = window.matchMedia('(min-width: 768px)')
@@ -92,14 +85,14 @@ export default function InboxPage() {
     setConfirmDelete(false)
     setOperationError('')
     setPage(1)
-  }, [apiBase, folder, accountFilter, query, unreadOnly])
+  }, [folder, query, unreadOnly])
 
   useEffect(() => {
     setSelectedEmail(null)
     setShowDetail(false)
     setSelectedIds(new Set())
     if (listScrollRef.current) listScrollRef.current.scrollTop = 0
-  }, [page, apiBase, folder, accountFilter, query, unreadOnly])
+  }, [page, folder, query, unreadOnly])
 
   useEffect(() => {
     dragRef.current = null
@@ -115,8 +108,7 @@ export default function InboxPage() {
     const params = new URLSearchParams({ folder, page: String(page), limit: '20' })
     if (query) params.set('q', query)
     if (unreadOnly) params.set('read', 'unread')
-    if (fused && accountFilter) params.set('accountId', accountFilter)
-    fetch(`${apiBase}?${params}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, signal: controller.signal })
+    fetch(`/api/emails?${params}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, signal: controller.signal })
       .then(async res => {
         if (!res.ok) throw new Error('mail-list-failed')
         const data = await res.json()
@@ -129,44 +121,7 @@ export default function InboxPage() {
       .catch(() => { if (!controller.signal.aborted) setLoadError(true) })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [apiBase, fused, accountFilter, folder, page, query, unreadOnly, revision])
-
-  useEffect(() => {
-    if (!fused) return
-    const controller = new AbortController()
-    fetch('/api/fused-mail/accounts', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, signal: controller.signal })
-      .then(res => res.ok ? res.json() : Promise.reject(new Error('accounts-failed')))
-      .then(data => { if (!controller.signal.aborted) setFusedAccounts(Array.isArray(data.accounts) ? data.accounts : []) })
-      .catch(() => { if (!controller.signal.aborted) setFusedAccounts([]) })
-    return () => controller.abort()
-  }, [fused, revision])
-
-  const syncingRef = useRef(false)
-  // auto=true：进入融合收件箱时的后台自动同步（不阻塞列表加载，静默成功）；false：手动「立即同步」
-  const syncFused = async (auto = false) => {
-    if (syncingRef.current) return
-    syncingRef.current = true
-    setSyncing(true)
-    try {
-      const res = await fetch('/api/fused-mail/sync', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ auto }) })
-      if (!res.ok) throw new Error('sync-failed')
-      if (!auto) notify(t('fusedSyncDone'), 'success')
-    } catch {
-      notify(t('fusedSyncFailed'), 'error')
-    } finally {
-      syncingRef.current = false
-      setSyncing(false)
-      setRevision(value => value + 1)
-    }
-  }
-
-  // 每次登录会话只在首次进入融合收件箱时自动同步一次
-  useEffect(() => {
-    if (!fused) return
-    if (!claimAutoSync(sessionStorage, localStorage.getItem('token'))) return
-    void syncFused(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fused])
+  }, [folder, page, query, unreadOnly, revision])
 
   useEffect(() => {
     const refresh = () => setRevision(value => value + 1)
@@ -271,7 +226,7 @@ export default function InboxPage() {
     const makeRead = !emails.filter(email => selectedIds.has(email.id)).every(email => email.isRead)
     const results = await Promise.allSettled(ids.map(async id => {
       const path = action === 'delete' ? folder === 'TRASH' ? '?permanent=true' : '' : action === 'read' ? '/read' : '/restore'
-      const res = await fetch(`${apiBase}/${id}${path}`, {
+      const res = await fetch(`/api/emails/${id}${path}`, {
         method: action === 'delete' ? 'DELETE' : action === 'read' ? 'PATCH' : 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
         ...(action === 'read' ? { body: JSON.stringify({ isRead: makeRead }) } : {})
@@ -357,8 +312,7 @@ export default function InboxPage() {
               <span className="mail-count" aria-label={zh ? `${pagination.total} 封邮件` : `${pagination.total} messages`}>{pagination.total}</span>
             </div>
             <div className="flex items-center gap-1">
-              {fused ? <button className="mail-icon-button" title={t('fusedSyncNow')} aria-label={t('fusedSyncNow')} disabled={syncing} onClick={() => void syncFused()}>{syncing ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}</button>
-                : <button className="mail-icon-button" title={t('importMail')} aria-label={t('importMail')} disabled={importLoading} onClick={() => fileInputRef.current?.click()}>{importLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}</button>}
+              <button className="mail-icon-button" title={t('importMail')} aria-label={t('importMail')} disabled={importLoading} onClick={() => fileInputRef.current?.click()}>{importLoading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}</button>
               <button className="mail-icon-button" title={t('refresh')} aria-label={t('refresh')} disabled={loading || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button>
             </div>
           </div>
@@ -370,12 +324,6 @@ export default function InboxPage() {
               {search ? <button onClick={() => setSearch('')} className="mail-search-clear" aria-label={zh ? '清除搜索' : 'Clear search'}><X size={15} /></button> : <kbd>⌘ K</kbd>}
             </div>
           </div>
-          {fused && <div className="mail-list-controls">
-            <select className="input-field text-xs py-1.5 w-full" value={accountFilter} disabled={busy} aria-label={t('fusedFilterAccount')} onChange={event => { setPage(1); setAccountFilter(event.target.value) }}>
-              <option value="">{t('fusedAllAccounts')}</option>
-              {fusedAccounts.map(account => <option key={account.id} value={account.id}>{account.email}{account.status !== 'active' ? ` (${t('fusedNeedsReauth')})` : ''}</option>)}
-            </select>
-          </div>}
           <div className="mail-list-controls">
             <div className="mail-filter-tabs" aria-label={zh ? '阅读状态筛选' : 'Filter by read status'}>
               <button aria-pressed={!unreadOnly} className={!unreadOnly ? 'is-active' : ''} disabled={busy} onClick={() => { setPage(1); setUnreadOnly(false) }}>{zh ? '全部' : 'All mail'}</button>
@@ -401,7 +349,7 @@ export default function InboxPage() {
         {layoutMode === 'split' && <>
           <div className="mail-resizer" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={zh ? '调整邮件列表宽度' : 'Resize message list'} aria-valuemin={widthBounds.min} aria-valuemax={widthBounds.max} aria-valuenow={measuredListWidth} onPointerDown={startResize} onPointerMove={event => { if (dragRef.current) updateWidth(dragRef.current.width + event.clientX - dragRef.current.x) }} onPointerUp={endResize} onPointerCancel={endResize} onLostPointerCapture={endResize} onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { event.preventDefault(); updateWidth(event.key === 'Home' ? widthBounds.min : event.key === 'End' ? widthBounds.max : measuredListWidth + (event.key === 'ArrowLeft' ? -20 : 20)) } }}><span /></div>
           <section className="mail-reading-panel" aria-label={zh ? '邮件阅读区' : 'Message reader'}>
-            {selectedEmail && wideScreen ? <EmailDetail key={selectedEmail.id} embedded emailId={selectedEmail.id} apiBase={apiBase} onClose={() => setSelectedEmail(null)} onDelete={refreshAfterAction} onRestore={refreshAfterAction} onArchive={refreshAfterAction} onToggleStar={toggleStar} onRead={markRead} onFeedback={notify} onReply={fused ? undefined : email => composeFrom(email, 'reply')} onReplyAll={fused ? undefined : email => composeFrom(email, 'replyAll')} onForward={fused ? undefined : email => composeFrom(email, 'forward')} /> : classic ? <div className="classic-reader-empty"><Mail className="w-16 h-16 mb-4" /><p>{t('selectEmailToView')}</p></div> : <div className="mail-reader-empty">
+            {selectedEmail && wideScreen ? <EmailDetail key={selectedEmail.id} embedded emailId={selectedEmail.id} onClose={() => setSelectedEmail(null)} onDelete={refreshAfterAction} onRestore={refreshAfterAction} onArchive={refreshAfterAction} onToggleStar={toggleStar} onRead={markRead} onFeedback={notify} onReply={email => composeFrom(email, 'reply')} onReplyAll={email => composeFrom(email, 'replyAll')} onForward={email => composeFrom(email, 'forward')} /> : classic ? <div className="classic-reader-empty"><Mail className="w-16 h-16 mb-4" /><p>{t('selectEmailToView')}</p></div> : <div className="mail-reader-empty">
               <div className="mail-reader-art" aria-hidden="true"><div className="mail-reader-art-paper"><i /><i /><i /></div><Mail size={42} strokeWidth={1.25} /></div>
               <span className="mail-eyebrow">{zh ? '留一点空间，给重要的消息' : 'A little space for what matters'}</span>
               <h2>{zh ? '每一封信，都值得专注' : 'A calmer place for your mail'}</h2>
@@ -412,7 +360,7 @@ export default function InboxPage() {
         </>}
       </div>
       <input ref={fileInputRef} type="file" accept=".eml" onChange={handleImport} className="hidden" aria-label={t('importMail')} />
-      {detailIsModal && selectedEmail && <EmailDetail key={`modal-${selectedEmail.id}`} emailId={selectedEmail.id} apiBase={apiBase} onClose={() => setShowDetail(false)} onDelete={refreshAfterAction} onRestore={refreshAfterAction} onArchive={refreshAfterAction} onToggleStar={toggleStar} onRead={markRead} onFeedback={notify} onReply={fused ? undefined : email => composeFrom(email, 'reply')} onReplyAll={fused ? undefined : email => composeFrom(email, 'replyAll')} onForward={fused ? undefined : email => composeFrom(email, 'forward')} />}
+      {detailIsModal && selectedEmail && <EmailDetail key={`modal-${selectedEmail.id}`} emailId={selectedEmail.id} onClose={() => setShowDetail(false)} onDelete={refreshAfterAction} onRestore={refreshAfterAction} onArchive={refreshAfterAction} onToggleStar={toggleStar} onRead={markRead} onFeedback={notify} onReply={email => composeFrom(email, 'reply')} onReplyAll={email => composeFrom(email, 'replyAll')} onForward={email => composeFrom(email, 'forward')} />}
       <ConfirmDialog open={confirmDelete} title={zh ? `永久删除 ${selectedIds.size} 封邮件？` : `Permanently delete ${selectedIds.size} messages?`} description={zh ? '邮件及不再使用的附件将被永久移除，此操作无法撤销。' : 'These messages and unused attachments will be permanently removed. This cannot be undone.'} confirmLabel={zh ? '永久删除' : 'Delete permanently'} cancelLabel={t('cancel')} onConfirm={() => runBatch('delete')} onCancel={() => setConfirmDelete(false)} busy={busy} />
     </>
   )

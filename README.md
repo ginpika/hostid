@@ -26,9 +26,9 @@ wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docke
 docker compose up -d --wait
 ```
 
-无需任何配置文件。启动后打开站点，首次访问会进入 `/setup` 初始化向导：填写站点地址、邮件域名，并创建第一个管理员（密码至少 12 位）。其余配置（SMTP 中继、Cloudflare Turnstile、SSO Cookie、融合邮件等）在「管理 → 系统设置」中修改，保存后立即生效。
+无需任何配置文件。启动后打开站点，首次访问会进入 `/setup` 初始化向导：填写站点地址、邮件域名，并创建第一个管理员（密码至少 12 位）。其余配置（SMTP 中继、Cloudflare Turnstile、SSO Cookie 等）在「管理 → 系统设置」中修改，保存后立即生效。
 
-`JWT_SECRET` 和 `DATA_ENCRYPTION_KEY` 会在首次启动时自动生成，保存在数据卷的 `secrets.json`（权限 0600）。**备份时务必同时备份整个数据卷（数据库 + secrets.json）**，丢失 secrets.json 会导致已加密数据（OAuth 密钥、融合邮件令牌、SMTP/Turnstile 密钥）无法解密、所有会话失效。
+`JWT_SECRET` 和 `DATA_ENCRYPTION_KEY` 会在首次启动时自动生成，保存在数据卷的 `secrets.json`（权限 0600）。**备份时务必同时备份整个数据卷（数据库 + secrets.json）**，丢失 secrets.json 会导致已加密数据（OAuth 密钥、SMTP/Turnstile 密钥）无法解密、所有会话失效。
 
 构建、端口配置、升级和 CI 发布说明见 [Docker 部署文档](docs/docker.md)。宿主机端口分别使用 `FRONTEND_PORT` 和 `BACKEND_PORT`，后端 HTTP 默认绑定 `127.0.0.1`；SMTP 对外仍为 25，容器内为 2525。推荐通过 `IMAGE_TAG=sha-<完整提交 SHA>` 固定前后端的一套版本。
 
@@ -99,10 +99,6 @@ HostID 可以作为其他应用的 SSO 提供商。请参阅集成指南：
    ```javascript
    window.location.href = `https://mail.yourdomain.com/sso/login?redirect=${encodeURIComponent(currentUrl)}`
    ```
-
-## 融合邮件
-
-通过 OAuth2 关联多个 Gmail / Outlook（Hotmail）邮箱，用 IMAP 增量收信，在「融合收件箱」统一查看。回调地址为 `https://<你的域名>/api/fused-mail/oauth/callback`。Google Cloud / Azure 注册步骤、发布 Google 应用（测试状态下 refresh token 7 天过期）等说明见 [docs/fused-mail.md](docs/fused-mail.md)。
 
 ## DNS 配置
 
