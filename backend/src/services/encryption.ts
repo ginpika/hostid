@@ -4,7 +4,7 @@
  * 提供加密、解密和密钥掩码功能
  */
 import crypto from 'crypto'
-import { getDataEncryptionKeySecret } from '../config/secrets'
+import { getDataEncryptionKeySecret, getLegacyEncryptionSecret } from '../config/secrets'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 16
@@ -13,28 +13,26 @@ const LEGACY_SALT = 'hostid-oauth-encryption-salt'
 const DATA_KEY_SALT = 'hostid-data-encryption-key-v1'
 
 let primaryKey: Buffer | null = null
-let legacyKey: Buffer | null | undefined
+let legacyKey: Buffer | null = null
 
-/** 旧密钥：由 JWT_SECRET 派生（兼容已有密文） */
-function getLegacyKey(): Buffer | null {
-  if (legacyKey !== undefined) return legacyKey
-  const secret = process.env.JWT_SECRET
-  legacyKey = secret ? crypto.scryptSync(secret, LEGACY_SALT, 32) : null
+/** 旧密钥：由 JWT_SECRET 派生（兼容升级前写入的密文） */
+function getLegacyKey(): Buffer {
+  if (legacyKey) return legacyKey
+  legacyKey = crypto.scryptSync(getLegacyEncryptionSecret(), LEGACY_SALT, 32)
   return legacyKey
 }
 
-/** 当前加密密钥：优先 DATA_ENCRYPTION_KEY，未配置时回退到旧密钥 */
+/** 当前加密密钥：由 DATA_ENCRYPTION_KEY（环境变量或自动生成）派生 */
 function getEncryptionKey(): Buffer {
   if (primaryKey) return primaryKey
-  const dataKey = getDataEncryptionKeySecret()
-  if (dataKey) {
-    primaryKey = crypto.scryptSync(dataKey, DATA_KEY_SALT, 32)
-  } else {
-    const legacy = getLegacyKey()
-    if (!legacy) throw new Error('Neither DATA_ENCRYPTION_KEY nor JWT_SECRET is configured')
-    primaryKey = legacy
-  }
+  primaryKey = crypto.scryptSync(getDataEncryptionKeySecret(), DATA_KEY_SALT, 32)
   return primaryKey
+}
+
+/** 仅供测试：清除派生密钥缓存 */
+export function resetEncryptionKeyCache(): void {
+  primaryKey = null
+  legacyKey = null
 }
 
 function decryptWithKey(key: Buffer, iv: Buffer, authTag: Buffer, encrypted: string): string {
@@ -91,7 +89,7 @@ export function decrypt(encryptedText: string): string {
   } catch (error) {
     // 已切换到 DATA_ENCRYPTION_KEY 时，旧数据仍是用 JWT_SECRET 派生密钥加密的
     const legacy = getLegacyKey()
-    if (legacy && !legacy.equals(key)) return decryptWithKey(legacy, iv, authTag, encrypted)
+    if (!legacy.equals(key)) return decryptWithKey(legacy, iv, authTag, encrypted)
     throw error
   }
 }

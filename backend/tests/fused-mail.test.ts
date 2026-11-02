@@ -8,7 +8,7 @@ const directory = await mkdtemp(join(tmpdir(), 'hostid-fused-mail-'))
 const previousUrl = process.env.DATABASE_URL
 const previousSecret = process.env.JWT_SECRET
 process.env.DATABASE_URL = `file:${join(directory, 'test.db')}`
-process.env.JWT_SECRET = 'fused-mail-test-secret'
+process.env.JWT_SECRET = 'fused-mail-test-secret-at-least-32-characters'
 
 const { prisma } = await import('../src/lib/prisma')
 const migrationsDir = new URL('../prisma/migrations/', import.meta.url)

@@ -40,3 +40,7 @@ desktop/node_modules/
 
 # private
 email-sample/
+
+# auto-generated secrets
+secrets.json
+data/
