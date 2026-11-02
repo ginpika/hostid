@@ -8,6 +8,7 @@ import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
 import { asyncHandler } from '../middleware/error'
 import { getJwtSecret } from '../config/secrets'
+import { getSettingsView, updateSettings } from '../services/settings'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -208,6 +209,31 @@ router.delete('/tables/:tableName/:id', auth, adminOnly, asyncHandler(async (req
   }
 
   res.json({ success: true })
+}))
+
+/**
+ * 系统设置：读取（敏感值打码）
+ */
+router.get('/settings', auth, adminOnly, asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.set('Cache-Control', 'no-store')
+  res.json({ settings: getSettingsView() })
+}))
+
+/**
+ * 系统设置：更新。敏感值只写；空字符串/未提供表示保持不变，null 表示清空
+ */
+router.put('/settings', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const body = req.body?.settings ?? req.body
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return res.status(400).json({ error: 'Invalid settings payload' })
+  }
+  try {
+    await updateSettings(body)
+  } catch (error) {
+    return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid settings' })
+  }
+  res.set('Cache-Control', 'no-store')
+  res.json({ settings: getSettingsView() })
 }))
 
 export default router

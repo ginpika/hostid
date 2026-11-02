@@ -22,6 +22,7 @@ import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
 import OAuthConfigPage from './pages/OAuthConfigPage'
 import OAuthAppsPage from './pages/OAuthAppsPage'
+import SystemSettingsPage from './pages/SystemSettingsPage'
 import OAuthAuthorizePage from './pages/OAuthAuthorizePage'
 import TosPage from './pages/TosPage'
 import SSOInfoPage from './pages/SSOInfoPage'
@@ -127,6 +128,7 @@ function AppRoutes() {
             <Route path="admin" element={<AdminPage />} />
             <Route path="admin/oauth" element={<OAuthConfigPage />} />
             <Route path="admin/oauth-apps" element={<OAuthAppsPage />} />
+            <Route path="admin/settings" element={<SystemSettingsPage />} />
           </Route>
           
           <Route path="/oauth2/authorize" element={<PrivateRoute><OAuthAuthorizePage /></PrivateRoute>} />
