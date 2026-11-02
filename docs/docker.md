@@ -7,7 +7,7 @@
 ```sh
 cp frontend/.env.example frontend/.env
 cp backend/.env.example backend/.env
-# 编辑配置，尤其是 JWT_SECRET 和 MAIL_DOMAIN。
+# 编辑配置，尤其是 JWT_SECRET（至少 32 字符）、DATA_ENCRYPTION_KEY 和 MAIL_DOMAIN。
 docker compose up -d --build --wait
 ```
 
@@ -69,7 +69,7 @@ docker compose -f docker-compose.full.yaml logs hostid-full
 ```sh
 wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.full.yaml
 wget -O hostid.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
-# 编辑 hostid.env，配置 JWT_SECRET、MAIL_DOMAIN、FRONTEND_URL 等。
+# 编辑 hostid.env，配置 JWT_SECRET（至少 32 字符）、DATA_ENCRYPTION_KEY、MAIL_DOMAIN、FRONTEND_URL（CORS 白名单，可逗号分隔）等。
 # 可选：在同目录的 .env 设置 IMAGE_TAG=sha-<完整提交 SHA>。
 docker compose -f docker-compose.full.yaml pull
 docker compose -f docker-compose.full.yaml up -d --wait

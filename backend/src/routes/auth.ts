@@ -16,12 +16,12 @@ import { avatarUpload, getAvatarPath } from '../middleware/avatarUpload'
 import { getPublicKey, decryptPassword } from '../utils/rsa'
 import { getAvatarUrl } from '../utils/avatar'
 import fs from 'fs'
+import { getJwtSecret } from '../config/secrets'
 
 const router = Router()
 
 const MAIL_DOMAIN = process.env.MAIL_DOMAIN || 'localhost'
 const CF_TURNSTILE_SECRET_KEY = process.env.CF_TURNSTILE_SECRET_KEY || ''
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const SESSION_TTL = parseInt(process.env.SESSION_TTL || '604800', 10) * 1000
 const SSO_COOKIE_NAME = process.env.SSO_COOKIE_NAME || 'sso_token'
 const SSO_COOKIE_DOMAIN = process.env.SSO_COOKIE_DOMAIN || ''
@@ -151,7 +151,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
   const hashedPassword = await bcrypt.hash(password, 12)
   const user = await prisma.user.create({ data: { email, username, password: hashedPassword } })
 
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' })
+  const token = jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: '7d' })
   
   const sessionId = await createSSOSession({
     id: user.id,
@@ -159,7 +159,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     email: user.email,
     role: user.role
   }, req)
-  const ssoToken = jwt.sign({ sessionId }, JWT_SECRET, { expiresIn: '7d' })
+  const ssoToken = jwt.sign({ sessionId }, getJwtSecret(), { expiresIn: '7d' })
   setSSOCookie(res, ssoToken)
 
   res.status(201).json({
@@ -197,7 +197,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Invalid credentials', 401)
   }
 
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' })
+  const token = jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: '7d' })
   
   const sessionId = await createSSOSession({
     id: user.id,
@@ -205,7 +205,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     email: user.email,
     role: user.role
   }, req)
-  const ssoToken = jwt.sign({ sessionId }, JWT_SECRET, { expiresIn: '7d' })
+  const ssoToken = jwt.sign({ sessionId }, getJwtSecret(), { expiresIn: '7d' })
   setSSOCookie(res, ssoToken)
 
   res.json({
@@ -258,7 +258,7 @@ router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
   
   if (token) {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { sessionId: string }
+      const decoded = jwt.verify(token, getJwtSecret()) as { sessionId: string }
       if (decoded?.sessionId) {
         await memoryStore.delete(getSessionKey(decoded.sessionId))
       }

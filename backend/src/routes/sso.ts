@@ -12,6 +12,7 @@ import { prisma } from '../lib/prisma'
 import { memoryStore } from '../store'
 import { AppError } from '../middleware/error'
 import { getAvatarUrl } from '../utils/avatar'
+import { getJwtSecret } from '../config/secrets'
 
 const router = Router()
 
@@ -28,7 +29,6 @@ const SSO_COOKIE_DOMAIN = process.env.SSO_COOKIE_DOMAIN || ''
 const SSO_COOKIE_PATH = process.env.SSO_COOKIE_PATH || '/'
 const SSO_COOKIE_SECURE = process.env.SSO_COOKIE_SECURE === 'true'
 const SSO_COOKIE_SAMESITE = (process.env.SSO_COOKIE_SAMESITE || 'lax') as 'strict' | 'lax' | 'none'
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const SESSION_TTL = parseInt(process.env.SESSION_TTL || '604800', 10) * 1000
 
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) => {
@@ -66,12 +66,12 @@ function getSessionKey(sessionId: string): string {
 }
 
 function createSessionToken(sessionId: string): string {
-  return jwt.sign({ sessionId }, JWT_SECRET, { expiresIn: '7d' })
+  return jwt.sign({ sessionId }, getJwtSecret(), { expiresIn: '7d' })
 }
 
 function verifySessionToken(token: string): { sessionId: string } | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { sessionId: string }
+    const decoded = jwt.verify(token, getJwtSecret()) as { sessionId: string }
     return decoded
   } catch {
     return null

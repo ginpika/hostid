@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { asyncHandler } from '../middleware/error'
 import { maskSecret } from '../services/encryption'
+import { getJwtSecret } from '../config/secrets'
 import {
   generateClientId,
   generateClientSecret,
@@ -22,7 +23,6 @@ interface AuthRequest extends Request {
   userId?: string
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 const auth = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -31,7 +31,7 @@ const auth = async (req: AuthRequest, res: Response, next: NextFunction) => {
       return res.status(401).json({ error: 'No token provided' })
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
+    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string }
     req.userId = decoded.userId
     next()
   } catch (error) {

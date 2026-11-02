@@ -23,6 +23,7 @@ import { initAdminUsers } from './utils/initAdmin'
 import { initRSAKeys } from './utils/rsa'
 import { migrateOAuthConfig } from './utils/migrateOAuthConfig'
 import { mountWebFrontend } from './web'
+import { assertSecurityConfig } from './config/secrets'
 
 dotenv.config()
 
@@ -68,6 +69,12 @@ if (process.env.HOSTID_WEB_ROOT) {
 app.use(errorHandler)
 
 const startServer = async () => {
+  try {
+    assertSecurityConfig()
+  } catch (error) {
+    console.error('[Security]', error instanceof Error ? error.message : error)
+    process.exit(1)
+  }
   initRSAKeys()
   await initAdminUsers()
   await migrateOAuthConfig()

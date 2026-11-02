@@ -13,11 +13,11 @@ import { AppError } from '../middleware/error'
 import { memoryStore } from '../store'
 import { decrypt } from '../services/encryption'
 import { getAvatarUrl } from '../utils/avatar'
+import { getJwtSecret } from '../config/secrets'
 
 const router = Router()
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const SESSION_TTL = parseInt(process.env.SESSION_TTL || '604800', 10) * 1000
 const SSO_COOKIE_NAME = process.env.SSO_COOKIE_NAME || 'sso_token'
 const SSO_COOKIE_DOMAIN = process.env.SSO_COOKIE_DOMAIN || ''
@@ -289,7 +289,7 @@ router.get('/:provider/callback', asyncHandler(async (req: Request, res: Respons
   })
 
   if (existingUser) {
-    const token = jwt.sign({ userId: existingUser.id }, JWT_SECRET, { expiresIn: '7d' })
+    const token = jwt.sign({ userId: existingUser.id }, getJwtSecret(), { expiresIn: '7d' })
 
     const sessionId = await createSSOSession({
       id: existingUser.id,
@@ -297,7 +297,7 @@ router.get('/:provider/callback', asyncHandler(async (req: Request, res: Respons
       email: existingUser.email,
       role: existingUser.role
     })
-    const ssoToken = jwt.sign({ sessionId }, JWT_SECRET, { expiresIn: '7d' })
+    const ssoToken = jwt.sign({ sessionId }, getJwtSecret(), { expiresIn: '7d' })
     setSSOCookie(res, ssoToken)
 
     const frontendCallback = `${FRONTEND_URL}/oauth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify({
@@ -370,7 +370,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     }
   })
 
-  const jwtToken = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' })
+  const jwtToken = jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: '7d' })
   
   const sessionId = await createSSOSession({
     id: user.id,
@@ -378,7 +378,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     email: user.email,
     role: user.role
   })
-  const ssoToken = jwt.sign({ sessionId }, JWT_SECRET, { expiresIn: '7d' })
+  const ssoToken = jwt.sign({ sessionId }, getJwtSecret(), { expiresIn: '7d' })
   setSSOCookie(res, ssoToken)
 
   res.json({
@@ -428,7 +428,7 @@ router.post('/bind', asyncHandler(async (req: Request, res: Response) => {
   let userId: string
 
   try {
-    const decoded = jwt.verify(jwtToken, JWT_SECRET) as { userId: string }
+    const decoded = jwt.verify(jwtToken, getJwtSecret()) as { userId: string }
     userId = decoded.userId
   } catch {
     throw new AppError('Invalid token', 401)

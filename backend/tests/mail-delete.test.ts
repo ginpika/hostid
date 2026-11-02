@@ -14,7 +14,7 @@ test('soft deletion is retry-safe and only explicit trash deletion removes mail 
   const previousUrl = process.env.DATABASE_URL
   const previousSecret = process.env.JWT_SECRET
   process.env.DATABASE_URL = `file:${join(directory, 'test.db')}`
-  process.env.JWT_SECRET = 'mail-deletion-test-secret'
+  process.env.JWT_SECRET = 'mail-deletion-test-secret-at-least-32-chars'
   // The upload middleware initializes a directory at import; isolate that too.
   process.chdir(directory)
   const { prisma } = await import('../src/lib/prisma')

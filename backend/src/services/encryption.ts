@@ -4,24 +4,47 @@
  * 提供加密、解密和密钥掩码功能
  */
 import crypto from 'crypto'
+import { getDataEncryptionKeySecret } from '../config/secrets'
 
 const ALGORITHM = 'aes-256-gcm'
 const IV_LENGTH = 16
 const AUTH_TAG_LENGTH = 16
-const SALT = 'hostid-oauth-encryption-salt'
+const LEGACY_SALT = 'hostid-oauth-encryption-salt'
+const DATA_KEY_SALT = 'hostid-data-encryption-key-v1'
 
-let encryptionKey: Buffer | null = null
+let primaryKey: Buffer | null = null
+let legacyKey: Buffer | null | undefined
 
-function getEncryptionKey(): Buffer {
-  if (encryptionKey) return encryptionKey
-
+/** 旧密钥：由 JWT_SECRET 派生（兼容已有密文） */
+function getLegacyKey(): Buffer | null {
+  if (legacyKey !== undefined) return legacyKey
   const secret = process.env.JWT_SECRET
-  if (!secret) {
-    throw new Error('JWT_SECRET is not configured')
-  }
+  legacyKey = secret ? crypto.scryptSync(secret, LEGACY_SALT, 32) : null
+  return legacyKey
+}
 
-  encryptionKey = crypto.scryptSync(secret, SALT, 32)
-  return encryptionKey
+/** 当前加密密钥：优先 DATA_ENCRYPTION_KEY，未配置时回退到旧密钥 */
+function getEncryptionKey(): Buffer {
+  if (primaryKey) return primaryKey
+  const dataKey = getDataEncryptionKeySecret()
+  if (dataKey) {
+    primaryKey = crypto.scryptSync(dataKey, DATA_KEY_SALT, 32)
+  } else {
+    const legacy = getLegacyKey()
+    if (!legacy) throw new Error('Neither DATA_ENCRYPTION_KEY nor JWT_SECRET is configured')
+    primaryKey = legacy
+  }
+  return primaryKey
+}
+
+function decryptWithKey(key: Buffer, iv: Buffer, authTag: Buffer, encrypted: string): string {
+  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
+  decipher.setAuthTag(authTag)
+
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
+  decrypted += decipher.final('utf8')
+
+  return decrypted
 }
 
 /**
@@ -63,13 +86,14 @@ export function decrypt(encryptedText: string): string {
   const iv = Buffer.from(ivHex, 'hex')
   const authTag = Buffer.from(authTagHex, 'hex')
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
-  decipher.setAuthTag(authTag)
-
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
-  decrypted += decipher.final('utf8')
-
-  return decrypted
+  try {
+    return decryptWithKey(key, iv, authTag, encrypted)
+  } catch (error) {
+    // 已切换到 DATA_ENCRYPTION_KEY 时，旧数据仍是用 JWT_SECRET 派生密钥加密的
+    const legacy = getLegacyKey()
+    if (legacy && !legacy.equals(key)) return decryptWithKey(legacy, iv, authTag, encrypted)
+    throw error
+  }
 }
 
 /**

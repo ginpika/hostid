@@ -8,7 +8,7 @@
 - **同步时机（无后台定时轮询，节省流量）**：① 登录后首次进入「融合收件箱」时自动在后台同步该用户所有正常账号一次（前端按登录会话去重，后端对 2 分钟内同步过的账号跳过、同一账号正在同步时复用同一任务），不阻塞页面，完成后刷新列表；② 融合收件箱的「立即同步」按钮与融合邮件卡片上的单账号「立即同步」（不受冷却限制）；③ 新账号授权 / 重新授权成功后自动同步一次。单个账号失败只记录在该账号上，不影响其他账号。
 - **本地操作**：已读 / 星标 / 归档 / 删除只作用于本地副本，**不会**回写到原邮箱。
 - **发信**：提供实验性的 `POST /api/fused-mail/accounts/:id/send`（nodemailer + OAuth2）。Gmail 的 `https://mail.google.com/` scope 已覆盖 SMTP；Outlook 需要额外申请 `https://outlook.office.com/SMTP.Send`（当前默认未申请），前端暂未接入。
-- **令牌**：access / refresh token 使用现有 AES-256-GCM（密钥由 `JWT_SECRET` 派生）加密存储。**更换 `JWT_SECRET` 会让已保存令牌失效，所有账号都需要重新授权。** 刷新时对每个账号加进程内锁，轮换的新 refresh token 立即写回；刷新被拒（4xx）只把该账号标记为「需重新授权」。
+- **令牌**：access / refresh token 使用 AES-256-GCM 加密存储，密钥由独立的 `DATA_ENCRYPTION_KEY` 派生（未配置时回退到旧的 `JWT_SECRET` 派生密钥并在启动时告警）。设置 `DATA_ENCRYPTION_KEY` 后，旧密文仍会用 `JWT_SECRET` 派生密钥解密，新写入的令牌使用新密钥。**在旧数据全部被重新加密前不要更换 `JWT_SECRET`，否则旧令牌无法解密、需要重新授权。** 刷新时对每个账号加进程内锁，轮换的新 refresh token 立即写回；刷新被拒（4xx）只把该账号标记为「需重新授权」。
 - **多账号**：账号以 `用户 + 平台 + 邮箱` 唯一。回调根据 id_token 中的邮箱判断是新增还是重新授权；对指定账号重新授权时若选了别的邮箱会被拒绝。
 - **安全**：OAuth `state` 绑定当前登录用户，同时下发 `fused_mail_oauth` HttpOnly cookie（浏览器 nonce）防 CSRF，并使用 PKCE；state 10 分钟过期且只能使用一次。
 

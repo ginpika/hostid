@@ -11,6 +11,7 @@ import { upload, getAttachmentPath } from '../middleware/upload'
 import fs from 'fs'
 import path from 'path'
 import jwt from 'jsonwebtoken'
+import { getJwtSecret } from '../config/secrets'
 
 const router = Router()
 
@@ -25,7 +26,7 @@ const getUserIdFromRequest = (req: Request): string | null => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7)
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
+      const decoded = jwt.verify(token, getJwtSecret()) as { userId: string }
       return decoded.userId
     } catch {
       return null
@@ -35,7 +36,7 @@ const getUserIdFromRequest = (req: Request): string | null => {
   const tokenFromQuery = req.query.token as string
   if (tokenFromQuery) {
     try {
-      const decoded = jwt.verify(tokenFromQuery, process.env.JWT_SECRET!) as { userId: string }
+      const decoded = jwt.verify(tokenFromQuery, getJwtSecret()) as { userId: string }
       return decoded.userId
     } catch {
       return null
