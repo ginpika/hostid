@@ -227,7 +227,11 @@ router.post('/', upload.array('files', 10), asyncHandler(async (req: AuthRequest
   }
   
   const referencedAttachments = await prisma.attachment.findMany({
-    where: { id: { in: referencedAttachmentIds } }
+    // 只允许引用当前用户自己邮件中的附件，防止越权获取他人附件
+    where: {
+      id: { in: referencedAttachmentIds.filter((id): id is string => typeof id === 'string') },
+      emails: { some: { email: { userId: req.userId } } }
+    }
   })
   
   const allRecipients: Recipient[] = []

@@ -14,13 +14,23 @@ if (!fs.existsSync(AVATAR_DIR)) {
   fs.mkdirSync(AVATAR_DIR, { recursive: true })
 }
 
+const MIME_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp'
+}
+
+const AVATAR_FILENAME_RE = /^[A-Za-z0-9_-]{1,128}\.(png|jpe?g|gif|webp)$/i
+
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, AVATAR_DIR)
   },
   filename: (req, file, cb) => {
     const userId = (req as any).userId
-    const ext = path.extname(file.originalname)
+    // 扩展名由 MIME 类型决定，不信任客户端文件名
+    const ext = MIME_EXT[file.mimetype] || ''
     cb(null, `${userId}${ext}`)
   }
 })
@@ -50,8 +60,17 @@ export const avatarUpload = multer({
   }
 })
 
-export const getAvatarPath = (filename: string): string => {
-  return path.join(AVATAR_DIR, filename)
+/**
+ * 安全地解析头像文件路径；文件名非法或越出头像目录时返回 null（防路径穿越）
+ */
+export const getAvatarPath = (filename: string): string | null => {
+  if (typeof filename !== 'string') return null
+  const base = path.basename(filename)
+  if (base !== filename || !AVATAR_FILENAME_RE.test(base)) return null
+  const root = path.resolve(AVATAR_DIR)
+  const resolved = path.resolve(root, base)
+  if (!resolved.startsWith(root + path.sep)) return null
+  return resolved
 }
 
 export const getAvatarDir = (): string => {
