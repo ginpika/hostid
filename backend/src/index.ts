@@ -13,7 +13,7 @@ import adminRoutes from './routes/admin'
 import ssoRoutes from './routes/sso'
 import oauthClientRoutes from './routes/oauthClient'
 import oauthConfigRoutes from './routes/oauthConfig'
-import oauthServerRoutes from './routes/oauthServer'
+import oauthServerRoutes, { authorizationServerMetadata } from './routes/oauthServer'
 import oauthAppsRoutes from './routes/oauthApps'
 import fusedMailRoutes from './routes/fusedMail'
 import { errorHandler } from './middleware/error'
@@ -46,6 +46,7 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/sso', ssoRoutes)
 app.use('/api/oauth', oauthClientRoutes)
 app.use('/api/admin/oauth', oauthConfigRoutes)
+app.get('/.well-known/oauth-authorization-server', authorizationServerMetadata)
 app.use('/api/oauth2', oauthServerRoutes)
 app.use('/api/admin/oauth-apps', oauthAppsRoutes)
 app.use('/api/fused-mail', fusedMailRoutes)

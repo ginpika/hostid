@@ -42,7 +42,7 @@ export default function OAuthAuthorizePage() {
   const clientId = searchParams.get('client_id')
   const redirectUri = searchParams.get('redirect_uri')
   const responseType = searchParams.get('response_type')
-  const scope = 'openid profile email'
+  const scope = searchParams.get('scope') || ''
   const state = searchParams.get('state')
   const codeChallenge = searchParams.get('code_challenge')
   const codeChallengeMethod = searchParams.get('code_challenge_method') || 'S256'
@@ -54,7 +54,7 @@ export default function OAuthAuthorizePage() {
       return
     }
 
-    if (!clientId || !redirectUri || responseType !== 'code') {
+    if (!clientId) {
       setError(language === 'zh-CN' ? '无效的授权请求' : 'Invalid authorization request')
       setLoading(false)
       return
@@ -68,13 +68,13 @@ export default function OAuthAuthorizePage() {
     try {
       const token = localStorage.getItem('token')
       const params = new URLSearchParams({
-        response_type: 'code',
+        response_type: responseType || '',
         client_id: clientId!,
-        redirect_uri: redirectUri!,
-        scope,
+        ...(redirectUri && { redirect_uri: redirectUri }),
+        ...(scope && { scope }),
         ...(state && { state }),
         ...(codeChallenge && { code_challenge: codeChallenge }),
-        ...(codeChallengeMethod && { code_challenge_method: codeChallengeMethod })
+        ...(codeChallengeMethod && { code_challenge_method: codeChallengeMethod! })
       })
 
       const res = await fetch(`/api/oauth2/authorize?${params}`, {
@@ -86,7 +86,12 @@ export default function OAuthAuthorizePage() {
         setData(result)
       } else {
         const result = await res.json()
-        setError(result.error || (language === 'zh-CN' ? '获取授权信息失败' : 'Failed to fetch authorization info'))
+        // 可重定向的 OAuth 错误（RFC 6749 4.1.2.1）交回客户端
+        if (result.redirectUrl) {
+          window.location.href = result.redirectUrl
+          return
+        }
+        setError(result.error_description || result.error || (language === 'zh-CN' ? '获取授权信息失败' : 'Failed to fetch authorization info'))
       }
     } catch (err) {
       console.error('Failed to fetch authorize data:', err)
@@ -110,7 +115,9 @@ export default function OAuthAuthorizePage() {
         },
         body: JSON.stringify({
           client_id: data.clientId,
-          redirect_uri: data.redirectUri,
+          // 原样传回 authorize 请求中的 redirect_uri / scope（RFC 6749 4.1.3）
+          ...(redirectUri && { redirect_uri: redirectUri }),
+          ...(scope && { scope }),
           state: data.state,
           code_challenge: data.codeChallenge,
           code_challenge_method: data.codeChallengeMethod,

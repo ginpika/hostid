@@ -25,6 +25,7 @@ model User {
   oauthApps         OAuthApp[]
   refreshTokens     RefreshToken[]
   fusedMailAccounts FusedMailAccount[]
+  identities        UserIdentity[]
 }
 
 model Email {
@@ -118,6 +119,7 @@ model RefreshToken {
   clientId  String
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope     String   @default("openid profile email")
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -186,4 +188,18 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+/// 外部 OAuth 登录身份（provider + subject 唯一）
+model UserIdentity {
+  id        String   @id @default(cuid())
+  provider  String
+  subject   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([provider, subject])
+  @@index([userId])
+  @@map("user_identities")
 }

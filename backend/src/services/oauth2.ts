@@ -11,6 +11,22 @@ import { encrypt, decrypt } from './encryption'
 // Token 有效期配置
 const AUTHORIZATION_CODE_TTL = 10 * 60 * 1000 // 10 分钟
 const ACCESS_TOKEN_TTL = 60 * 60 * 1000 // 1 小时
+export const ACCESS_TOKEN_TTL_SECONDS = ACCESS_TOKEN_TTL / 1000
+
+export const SUPPORTED_SCOPES = ['openid', 'profile', 'email'] as const
+export const DEFAULT_SCOPE = SUPPORTED_SCOPES.join(' ')
+
+/**
+ * 规范化请求的 scope：未提供时使用默认值；忽略不支持的 scope（RFC 6749 3.3 允许服务器缩小范围）；
+ * 结果为空时返回 null（invalid_scope）
+ */
+export function normalizeScope(raw: unknown): string | null {
+  if (raw === undefined || raw === null || raw === '') return DEFAULT_SCOPE
+  if (typeof raw !== 'string') return null
+  const requested = new Set(raw.split(/\s+/).filter(Boolean))
+  const granted = SUPPORTED_SCOPES.filter(s => requested.has(s))
+  return granted.length ? granted.join(' ') : null
+}
 const REFRESH_TOKEN_TTL_DAYS = 30 // 30 天
 
 // 存储键前缀
@@ -21,10 +37,12 @@ interface AuthorizationCode {
   code: string
   clientId: string
   redirectUri: string
+  /** authorize 请求是否显式带了 redirect_uri（RFC 6749 4.1.3） */
+  redirectUriProvided?: boolean
   userId: string
   scope: string
   codeChallenge?: string
-  codeChallengeMethod?: 'S256' | 'plain'
+  codeChallengeMethod?: 'S256'
 }
 
 interface AccessToken {
@@ -148,7 +166,8 @@ export async function revokeAccessToken(token: string): Promise<void> {
 export async function saveRefreshToken(
   token: string,
   clientId: string,
-  userId: string
+  userId: string,
+  scope: string = DEFAULT_SCOPE
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000)
 
@@ -157,6 +176,7 @@ export async function saveRefreshToken(
       token,
       clientId,
       userId,
+      scope,
       expiresAt
     }
   })
@@ -189,6 +209,20 @@ export async function verifyRefreshToken(token: string): Promise<{
 }
 
 /**
+ * 原子消费 Refresh Token（轮换）：只有成功删除记录的请求才能换取新令牌
+ */
+export async function consumeRefreshToken(token: string, clientId: string): Promise<{
+  userId: string
+  scope: string
+} | null> {
+  const record = await prisma.refreshToken.findUnique({ where: { token } })
+  if (!record || record.clientId !== clientId) return null
+  const { count } = await prisma.refreshToken.deleteMany({ where: { token, clientId } })
+  if (count !== 1 || record.expiresAt < new Date()) return null
+  return { userId: record.userId, scope: record.scope }
+}
+
+/**
  * 撤销 Refresh Token
  */
 export async function revokeRefreshToken(token: string): Promise<void> {
@@ -200,22 +234,11 @@ export async function revokeRefreshToken(token: string): Promise<void> {
 /**
  * 验证 PKCE code_verifier
  */
-export function verifyPKCE(
-  codeVerifier: string,
-  codeChallenge: string,
-  method: 'S256' | 'plain' = 'S256'
-): boolean {
-  if (method === 'plain') {
-    return codeVerifier === codeChallenge
-  }
-
-  // S256 方法
-  const hash = crypto
-    .createHash('sha256')
-    .update(codeVerifier)
-    .digest('base64url')
-
-  return hash === codeChallenge
+export function verifyPKCE(codeVerifier: string, codeChallenge: string): boolean {
+  // 只支持 S256（RFC 7636 4.2；不接受 plain）
+  const hash = crypto.createHash('sha256').update(codeVerifier).digest()
+  const expected = Buffer.from(codeChallenge, 'base64url')
+  return expected.length === hash.length && crypto.timingSafeEqual(hash, expected)
 }
 
 /**
