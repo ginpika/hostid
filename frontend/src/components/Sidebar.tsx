@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Inbox, Send, Trash2, PenLine, X, UserCircle, Archive, Shield, KeyRound, AppWindow, Star, PanelLeftClose, PanelLeftOpen, ChevronRight, Pin, PinOff, type LucideIcon } from 'lucide-react'
+import { Inbox, Send, Trash2, PenLine, X, UserCircle, Archive, Shield, KeyRound, AppWindow, Star, PanelLeftClose, PanelLeftOpen, ChevronRight, Pin, PinOff, Combine, Mails, type LucideIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
@@ -91,6 +91,10 @@ export default function Sidebar({ isOpen, onClose, currentFolder, pinned, onTogg
       { path: '/starred', label: t('starred'), icon: Star, folder: 'STARRED' },
       { path: '/archived', label: t('archived'), icon: Archive, folder: 'ARCHIVED' },
       { path: '/trash', label: t('trash'), icon: Trash2, folder: 'TRASH' }
+    ] },
+    { label: t('fusedMailGroup'), items: [
+      { path: '/fused-mail', label: t('fusedMail'), icon: Combine },
+      { path: '/fused-inbox', label: t('fusedInbox'), icon: Mails }
     ] },
     { label: t('general'), items: [{ path: '/profile', label: t('profile'), icon: UserCircle }] },
     ...(user?.role === 'admin' ? [{ label: t('adminGroup'), items: [

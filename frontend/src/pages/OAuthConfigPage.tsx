@@ -18,6 +18,10 @@ interface OAuthProvider {
   tokenUrl?: string
   userinfoUrl?: string
   isActive: boolean
+  useForLogin?: boolean
+  useForFusedMail?: boolean
+  mailPlatform?: string | null
+  fusedMailCallbackUrl?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -31,6 +35,10 @@ interface ProviderFormData {
   authorizationUrl: string
   tokenUrl: string
   userinfoUrl: string
+  useForLogin: boolean
+  useForFusedMail: boolean
+  mailPlatform: string
+  fusedMailCallbackUrl: string
 }
 
 export default function OAuthConfigPage() {
@@ -52,7 +60,11 @@ export default function OAuthConfigPage() {
     callbackUrl: '',
     authorizationUrl: '',
     tokenUrl: '',
-    userinfoUrl: ''
+    userinfoUrl: '',
+    useForLogin: true,
+    useForFusedMail: false,
+    mailPlatform: '',
+    fusedMailCallbackUrl: ''
   })
   const [saving, setSaving] = useState(false)
 
@@ -93,7 +105,11 @@ export default function OAuthConfigPage() {
       callbackUrl: '',
       authorizationUrl: '',
       tokenUrl: '',
-      userinfoUrl: ''
+      userinfoUrl: '',
+      useForLogin: true,
+      useForFusedMail: false,
+      mailPlatform: '',
+      fusedMailCallbackUrl: ''
     })
     setShowModal(true)
   }
@@ -108,7 +124,11 @@ export default function OAuthConfigPage() {
       callbackUrl: provider.callbackUrl,
       authorizationUrl: provider.authorizationUrl || '',
       tokenUrl: provider.tokenUrl || '',
-      userinfoUrl: provider.userinfoUrl || ''
+      userinfoUrl: provider.userinfoUrl || '',
+      useForLogin: provider.useForLogin ?? true,
+      useForFusedMail: provider.useForFusedMail ?? false,
+      mailPlatform: provider.mailPlatform || '',
+      fusedMailCallbackUrl: provider.fusedMailCallbackUrl || ''
     })
     setShowModal(true)
   }
@@ -137,7 +157,22 @@ export default function OAuthConfigPage() {
         callbackUrl: formData.callbackUrl,
         authorizationUrl: formData.authorizationUrl,
         tokenUrl: formData.tokenUrl,
-        userinfoUrl: formData.userinfoUrl
+        userinfoUrl: formData.userinfoUrl,
+        useForLogin: formData.useForLogin,
+        useForFusedMail: formData.useForFusedMail,
+        mailPlatform: formData.mailPlatform || null,
+        fusedMailCallbackUrl: formData.fusedMailCallbackUrl || null
+      }
+
+      if (!formData.useForLogin && !formData.useForFusedMail) {
+        setError(language === 'zh-CN' ? '至少勾选一种用途' : 'Select at least one usage')
+        setSaving(false)
+        return
+      }
+      if (formData.useForFusedMail && !formData.mailPlatform) {
+        setError(language === 'zh-CN' ? '用于融合邮件时必须选择邮箱平台' : 'Choose a mail platform for fused mail')
+        setSaving(false)
+        return
       }
 
       if (formData.clientSecret) {
@@ -389,6 +424,8 @@ export default function OAuthConfigPage() {
                           }}
                         >
                           {provider.isActive ? t('providerActive') : t('providerInactive')}
+                          {provider.useForLogin !== false ? ` · ${t('fusedUseForLogin')}` : ''}
+                          {provider.useForFusedMail ? ` · ${t('fusedUseForFusedMail')}${provider.mailPlatform ? ` (${provider.mailPlatform})` : ''}` : ''}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -687,6 +724,27 @@ export default function OAuthConfigPage() {
                   placeholder={language === 'zh-CN' ? '如: https://api.github.com/user' : 'e.g.: https://api.github.com/user'}
                   required
                 />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.useForLogin} onChange={e => setFormData({ ...formData, useForLogin: e.target.checked })} />{t('fusedUseForLogin')}</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={formData.useForFusedMail} onChange={e => setFormData({ ...formData, useForFusedMail: e.target.checked })} />{t('fusedUseForFusedMail')}</label>
+                </div>
+                {formData.useForFusedMail && <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>{t('fusedMailPlatform')} *</label>
+                    <select value={formData.mailPlatform} onChange={e => setFormData({ ...formData, mailPlatform: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ backgroundColor: 'var(--color-bg-primary)', borderColor: 'var(--color-border-primary)', color: 'var(--color-text-primary)' }}>
+                      <option value="">—</option>
+                      <option value="gmail">Gmail (Google)</option>
+                      <option value="outlook">Outlook / Hotmail (Microsoft)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>{t('fusedCallbackUrl')}</label>
+                    <input type="url" value={formData.fusedMailCallbackUrl} onChange={e => setFormData({ ...formData, fusedMailCallbackUrl: e.target.value })} className="w-full px-3 py-2 rounded-lg border text-sm font-mono" style={{ backgroundColor: 'var(--color-bg-primary)', borderColor: 'var(--color-border-primary)', color: 'var(--color-text-primary)' }} placeholder="https://your-domain/api/fused-mail/oauth/callback" />
+                  </div>
+                </>}
               </div>
 
               <div

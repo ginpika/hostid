@@ -24,6 +24,8 @@ export interface Email {
   isRead: boolean
   isStarred?: boolean
   createdAt: string
+  /** 融合收件箱：邮件来自哪个融合账号 */
+  account?: { id: string; email: string; platform: string }
   attachments?: { id: string; filename: string; originalName: string; mimeType: string; size: number }[]
 }
 
@@ -94,6 +96,7 @@ export default function EmailList({ folder, emails, onSelectEmail, selectedEmail
       {emails.map((email, index) => {
         const selected = isSelectMode ? selectedEmailIds.has(email.id) : selectedEmailId === email.id
         const sender = folder === 'SENT' ? `${zh ? '收件人' : 'To'}: ${email.to}` : email.fromName || email.from
+        const accountBadge = email.account ? <span className="mail-account-badge shrink-0 max-w-[11rem] truncate rounded px-1.5 py-0.5 text-[10px] font-medium" title={`${zh ? '来自账号' : 'From account'}: ${email.account.email}`} style={{ background: 'var(--color-accent-muted)', color: 'var(--color-accent-primary)' }}>{email.account.email}</span> : null
         const summary = email.summary?.trim() || ''
         const summaryHasMetadata = /^(?:---|\+\+\+)(?:\s|$)|^(?:title|date|description)\s*[:=]/i.test(summary)
         const preview = mailPreview(summaryHasMetadata ? email.body || '' : summary || email.body || '')
@@ -114,10 +117,11 @@ export default function EmailList({ folder, emails, onSelectEmail, selectedEmail
                 {email.isStarred && <Star className="classic-mail-star text-yellow-500 fill-current" size={14} aria-label={t('star')} />}
                 <span className="classic-mail-sender" style={{ color: email.isRead ? 'var(--color-text-secondary)' : 'var(--color-text-primary)', fontWeight: email.isRead ? 400 : 600 }} title={sender}>{sender}</span>
                 <span className="classic-mail-subject" style={{ color: email.isRead ? 'var(--color-text-secondary)' : 'var(--color-text-primary)', fontWeight: email.isRead ? 400 : 600 }}>{email.subject || (zh ? '无主题' : 'No subject')}</span>
+                {accountBadge}
                 <span className="classic-mail-preview">{preview}</span>
                 <span className="classic-mail-meta">{!!email.attachments?.length && <Paperclip size={12} aria-label={t('attachments')} />}<time dateTime={email.createdAt} title={new Date(email.createdAt).toLocaleString(language)}>{formatDate(email.createdAt)}</time></span>
               </> : <span className="classic-mail-copy">
-                <span className="classic-mail-first-line"><span className="classic-mail-identity">{email.isStarred && <Star className="classic-mail-star text-yellow-500 fill-current" size={14} aria-label={t('star')} />}<span className="classic-mail-sender" style={{ color: email.isRead ? 'var(--color-text-secondary)' : 'var(--color-text-primary)', fontWeight: email.isRead ? 400 : 600 }} title={sender}>{sender}</span></span><span className="classic-mail-meta">{!!email.attachments?.length && <Paperclip size={12} aria-label={t('attachments')} />}<time dateTime={email.createdAt} title={new Date(email.createdAt).toLocaleString(language)}>{formatDate(email.createdAt)}</time></span></span>
+                <span className="classic-mail-first-line"><span className="classic-mail-identity">{email.isStarred && <Star className="classic-mail-star text-yellow-500 fill-current" size={14} aria-label={t('star')} />}<span className="classic-mail-sender" style={{ color: email.isRead ? 'var(--color-text-secondary)' : 'var(--color-text-primary)', fontWeight: email.isRead ? 400 : 600 }} title={sender}>{sender}</span>{accountBadge}</span><span className="classic-mail-meta">{!!email.attachments?.length && <Paperclip size={12} aria-label={t('attachments')} />}<time dateTime={email.createdAt} title={new Date(email.createdAt).toLocaleString(language)}>{formatDate(email.createdAt)}</time></span></span>
                 <span className="classic-mail-subject" style={{ color: email.isRead ? 'var(--color-text-secondary)' : 'var(--color-text-primary)', fontWeight: email.isRead ? 400 : 600 }}>{email.subject || (zh ? '无主题' : 'No subject')}</span>
               </span>}
             </span> : <span className={`flex min-w-0 gap-3 ${compact ? 'items-center h-full' : 'items-start'}`}>
@@ -130,6 +134,7 @@ export default function EmailList({ folder, emails, onSelectEmail, selectedEmail
                 </span>
                 <span className={`flex min-w-0 items-center gap-2 ${compact ? 'flex-1' : ''}`}>
                   <span className={`block truncate text-[13px] ${compact ? 'sm:max-w-[55%]' : ''}`} style={{ color: 'var(--color-text-primary)', fontWeight: email.isRead ? 500 : 650 }}>{email.subject || (zh ? '无主题' : 'No subject')}</span>
+                  {accountBadge}
                   {email.isStarred && <Star className="w-3 h-3 shrink-0 text-amber-500 fill-current" aria-label={t('star')} />}
                   {!!email.attachments?.length && <Paperclip className="w-3 h-3 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} aria-label={t('attachments')} />}
                   {compact && <span className="hidden sm:block min-w-0 flex-1 truncate text-xs" style={{ color: 'var(--color-text-tertiary)' }}>— {preview}</span>}

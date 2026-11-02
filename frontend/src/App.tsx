@@ -15,6 +15,7 @@ import { ConfigProvider } from './contexts/ConfigContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Inbox from './pages/Inbox'
+import FusedMailPage from './pages/FusedMailPage'
 import ArchivePage from './pages/ArchivePage'
 import InfoPage from './pages/InfoPage'
 import ProfilePage from './pages/ProfilePage'
@@ -118,6 +119,8 @@ function AppRoutes() {
             <Route path="sent" element={<Inbox />} />
             <Route path="starred" element={<Inbox />} />
             <Route path="trash" element={<Inbox />} />
+            <Route path="fused-mail" element={<FusedMailPage />} />
+            <Route path="fused-inbox" element={<Inbox />} />
             <Route path="archived" element={<ArchivePage />} />
             <Route path="info" element={<InfoPage />} />
             <Route path="profile" element={<ProfilePage />} />

@@ -101,6 +101,10 @@ HostID 可以作为其他应用的 SSO 提供商。请参阅集成指南：
    window.location.href = `https://mail.yourdomain.com/sso/login?redirect=${encodeURIComponent(currentUrl)}`
    ```
 
+## 融合邮件
+
+通过 OAuth2 关联多个 Gmail / Outlook（Hotmail）邮箱，用 IMAP 增量收信，在「融合收件箱」统一查看。回调地址为 `https://<你的域名>/api/fused-mail/oauth/callback`。Google Cloud / Azure 注册步骤、发布 Google 应用（测试状态下 refresh token 7 天过期）等说明见 [docs/fused-mail.md](docs/fused-mail.md)。
+
 ## DNS 配置
 
 为确保邮件服务器正常工作，请配置以下 DNS 记录：

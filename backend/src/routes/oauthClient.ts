@@ -35,6 +35,9 @@ interface ProviderConfig {
   userinfoUrl: string
 }
 
+/** 登录流程只使用启用且勾选了「登录」用途的 provider */
+export const loginProviderWhere = { isActive: true, useForLogin: true } as const
+
 const providerCache = new Map<string, { config: ProviderConfig; expiresAt: number }>()
 const CACHE_TTL = 5 * 60 * 1000
 
@@ -45,7 +48,7 @@ async function getProviderConfig(provider: string): Promise<ProviderConfig | nul
   }
 
   const dbConfig = await prisma.oAuthProvider.findUnique({
-    where: { provider, isActive: true }
+    where: { provider, isActive: true, useForLogin: true }
   })
 
   if (!dbConfig) {
@@ -179,7 +182,7 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
 
 router.get('/status', asyncHandler(async (req: Request, res: Response) => {
   const providers = await prisma.oAuthProvider.findMany({
-    where: { isActive: true },
+    where: loginProviderWhere,
     select: { provider: true, displayName: true }
   })
 
