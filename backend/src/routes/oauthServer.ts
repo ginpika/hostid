@@ -32,7 +32,30 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   }
 }
 
-router.get('/authorize', auth, asyncHandler(async (req: AuthRequest, res: Response) => {
+// Browser navigation from an OAuth client (no bearer token): hand off to the
+// frontend consent page, which logs the user in and then calls this API.
+const redirectBrowserToConsentPage = (req: Request, res: Response, next: NextFunction) => {
+  if (req.headers.authorization) return next()
+  const query = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : ''
+  res.redirect(302, `/oauth2/authorize${query}`)
+}
+
+// Support client_secret_basic (RFC 6749 2.3.1) in addition to client_secret_post.
+const readBasicClientAuth = (req: Request, _res: Response, next: NextFunction) => {
+  const header = req.headers.authorization
+  if (header?.startsWith('Basic ')) {
+    const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8')
+    const idx = decoded.indexOf(':')
+    if (idx > 0) {
+      req.body = req.body || {}
+      req.body.client_id ??= decodeURIComponent(decoded.slice(0, idx))
+      req.body.client_secret ??= decodeURIComponent(decoded.slice(idx + 1))
+    }
+  }
+  next()
+}
+
+router.get('/authorize', redirectBrowserToConsentPage, auth, asyncHandler(async (req: AuthRequest, res: Response) => {
   const {
     response_type,
     client_id,
@@ -162,7 +185,7 @@ router.post('/authorize', auth, asyncHandler(async (req: AuthRequest, res: Respo
   res.json({ redirectUrl: redirectUrl.toString() })
 }))
 
-router.post('/token', asyncHandler(async (req: Request, res: Response) => {
+router.post('/token', readBasicClientAuth, asyncHandler(async (req: Request, res: Response) => {
   const {
     grant_type,
     code,
