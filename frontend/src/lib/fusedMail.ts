@@ -41,3 +41,26 @@ export function describeFusedError(result: FusedResult, zh: boolean): string {
   }
   return base
 }
+
+const AUTO_SYNC_KEY = 'fused-mail-auto-synced'
+type SessionLike = Pick<Storage, 'getItem' | 'setItem'>
+
+/** 登录会话指纹：token 变化（重新登录）即视为新会话 */
+const sessionFingerprint = (token: string) => {
+  let hash = 0
+  for (let i = 0; i < token.length; i++) hash = (hash * 31 + token.charCodeAt(i)) | 0
+  return `${token.length}:${hash}`
+}
+
+/**
+ * 进入融合收件箱时是否应自动同步：同一登录会话只返回一次 true（并记下），未登录返回 false
+ */
+export function claimAutoSync(storage: SessionLike, token: string | null): boolean {
+  if (!token) return false
+  const fingerprint = sessionFingerprint(token)
+  try {
+    if (storage.getItem(AUTO_SYNC_KEY) === fingerprint) return false
+    storage.setItem(AUTO_SYNC_KEY, fingerprint)
+  } catch { /* 存储不可用时仍同步一次，后端有冷却兜底 */ }
+  return true
+}

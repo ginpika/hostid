@@ -17,7 +17,6 @@ import oauthConfigRoutes from './routes/oauthConfig'
 import oauthServerRoutes from './routes/oauthServer'
 import oauthAppsRoutes from './routes/oauthApps'
 import fusedMailRoutes from './routes/fusedMail'
-import { startFusedMailScheduler } from './services/fusedMail/sync'
 import { errorHandler } from './middleware/error'
 import { startSMTPServer } from './smtp'
 import { initAdminUsers } from './utils/initAdmin'
@@ -78,7 +77,6 @@ const startServer = async () => {
   })
 
   startSMTPServer(SMTP_PORT)
-  startFusedMailScheduler()
 }
 
 startServer()

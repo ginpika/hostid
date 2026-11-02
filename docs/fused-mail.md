@@ -5,7 +5,7 @@
 ## 工作方式
 
 - **收信**：`imapflow` 以 XOAUTH2 登录 IMAP，读取 `INBOX`，按 `UIDVALIDITY + UID` 增量同步，`mailparser` 解析后写入独立的 `fused_emails` 表（不影响默认收件箱）。UIDVALIDITY 变化时会清掉该账号本地副本并重新同步。首次同步最多拉取 `FUSED_MAIL_INITIAL_SYNC_LIMIT` 封（默认 200），之后每轮最多 500 封。
-- **轮询**：后端启动后每 `FUSED_MAIL_SYNC_INTERVAL_MINUTES` 分钟（默认 5）逐个同步所有正常账号；单个账号失败只记录在该账号上，不影响其他账号。
+- **同步时机（无后台定时轮询，节省流量）**：① 登录后首次进入「融合收件箱」时自动在后台同步该用户所有正常账号一次（前端按登录会话去重，后端对 2 分钟内同步过的账号跳过、同一账号正在同步时复用同一任务），不阻塞页面，完成后刷新列表；② 融合收件箱的「立即同步」按钮与融合邮件卡片上的单账号「立即同步」（不受冷却限制）；③ 新账号授权 / 重新授权成功后自动同步一次。单个账号失败只记录在该账号上，不影响其他账号。
 - **本地操作**：已读 / 星标 / 归档 / 删除只作用于本地副本，**不会**回写到原邮箱。
 - **发信**：提供实验性的 `POST /api/fused-mail/accounts/:id/send`（nodemailer + OAuth2）。Gmail 的 `https://mail.google.com/` scope 已覆盖 SMTP；Outlook 需要额外申请 `https://outlook.office.com/SMTP.Send`（当前默认未申请），前端暂未接入。
 - **令牌**：access / refresh token 使用现有 AES-256-GCM（密钥由 `JWT_SECRET` 派生）加密存储。**更换 `JWT_SECRET` 会让已保存令牌失效，所有账号都需要重新授权。** 刷新时对每个账号加进程内锁，轮换的新 refresh token 立即写回；刷新被拒（4xx）只把该账号标记为「需重新授权」。
@@ -57,7 +57,6 @@ https://<你的域名>/api/fused-mail/oauth/callback
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
 | `FUSED_MAIL_CALLBACK_URL` | `FRONTEND_URL/api/fused-mail/oauth/callback` | 融合邮件 OAuth 回调 |
-| `FUSED_MAIL_SYNC_INTERVAL_MINUTES` | `5` | 后台轮询间隔 |
 | `FUSED_MAIL_INITIAL_SYNC_LIMIT` | `200` | 首次同步拉取的最近邮件数 |
 
 ## 限制

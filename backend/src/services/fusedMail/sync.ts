@@ -18,6 +18,8 @@ export interface SyncResult {
   ok: boolean
   added: number
   error?: string
+  /** 冷却期内被跳过 */
+  skipped?: boolean
 }
 
 function addressList(value: AddressObject | AddressObject[] | undefined): string[] {
@@ -153,27 +155,26 @@ export function syncAccountOnce(accountId: string): Promise<SyncResult> {
   return task
 }
 
-export async function syncAccounts(where: { userId?: string } = {}): Promise<SyncResult[]> {
+/** 自动同步（进入融合收件箱时）的冷却时间：最近同步过的账号直接跳过 */
+export const AUTO_SYNC_COOLDOWN_MS = 2 * 60 * 1000
+
+/**
+ * 同步某用户所有正常状态的账号（串行，单个失败不影响其他账号）。
+ * 不再有后台定时轮询，只在进入融合收件箱、手动点击同步、新账号授权成功时触发。
+ */
+export async function syncAccounts(where: { userId?: string } = {}, options: { cooldownMs?: number; now?: Date } = {}): Promise<SyncResult[]> {
   const accounts = await prisma.fusedMailAccount.findMany({
     where: { ...where, status: { not: ACCOUNT_STATUS.REAUTH_REQUIRED } },
-    select: { id: true }
+    select: { id: true, lastSyncedAt: true }
   })
+  const now = (options.now || new Date()).getTime()
   const results: SyncResult[] = []
   for (const account of accounts) {
-    // 串行执行，单个失败已在 syncAccount 内部捕获
+    if (options.cooldownMs && !syncing.has(account.id) && account.lastSyncedAt && now - account.lastSyncedAt.getTime() < options.cooldownMs) {
+      results.push({ accountId: account.id, ok: true, added: 0, skipped: true })
+      continue
+    }
     results.push(await syncAccountOnce(account.id))
   }
   return results
-}
-
-let timer: NodeJS.Timeout | null = null
-
-export function startFusedMailScheduler() {
-  const minutes = parseFloat(process.env.FUSED_MAIL_SYNC_INTERVAL_MINUTES || '5')
-  if (!Number.isFinite(minutes) || minutes <= 0 || timer) return
-  timer = setInterval(() => {
-    syncAccounts().catch(error => console.error('[FusedMail] scheduled sync failed:', error))
-  }, minutes * 60 * 1000)
-  timer.unref()
-  console.log(`[FusedMail] polling every ${minutes} minute(s)`)
 }

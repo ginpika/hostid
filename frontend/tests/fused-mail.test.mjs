@@ -27,3 +27,12 @@ test('platform labels and status helpers', () => {
   assert.equal(api.needsReauth('reauth_required'), true)
   assert.equal(api.needsReauth('active'), false)
 })
+
+test('auto sync is claimed once per login session', () => {
+  const data = new Map()
+  const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) }
+  assert.equal(api.claimAutoSync(storage, null), false)
+  assert.equal(api.claimAutoSync(storage, 'token-a'), true)
+  assert.equal(api.claimAutoSync(storage, 'token-a'), false)
+  assert.equal(api.claimAutoSync(storage, 'token-b'), true)
+})

@@ -10,6 +10,7 @@ import EmailList, { type Email } from '../components/EmailList'
 import EmailDetail from '../components/EmailDetail'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { notify, refreshMail } from '../lib/mailEvents'
+import { claimAutoSync } from '../lib/fusedMail'
 import { clampMailListWidth, getMailListWidthBounds } from '../lib/mailLayout'
 
 type Folder = 'INBOX' | 'SENT' | 'STARRED' | 'ARCHIVED' | 'TRASH'
@@ -140,20 +141,32 @@ export default function InboxPage() {
     return () => controller.abort()
   }, [fused, revision])
 
-  const syncFused = async () => {
-    if (syncing) return
+  const syncingRef = useRef(false)
+  // auto=true：进入融合收件箱时的后台自动同步（不阻塞列表加载，静默成功）；false：手动「立即同步」
+  const syncFused = async (auto = false) => {
+    if (syncingRef.current) return
+    syncingRef.current = true
     setSyncing(true)
     try {
-      const res = await fetch('/api/fused-mail/sync', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      const res = await fetch('/api/fused-mail/sync', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ auto }) })
       if (!res.ok) throw new Error('sync-failed')
-      notify(t('fusedSyncDone'), 'success')
+      if (!auto) notify(t('fusedSyncDone'), 'success')
     } catch {
       notify(t('fusedSyncFailed'), 'error')
     } finally {
+      syncingRef.current = false
       setSyncing(false)
       setRevision(value => value + 1)
     }
   }
+
+  // 每次登录会话只在首次进入融合收件箱时自动同步一次
+  useEffect(() => {
+    if (!fused) return
+    if (!claimAutoSync(sessionStorage, localStorage.getItem('token'))) return
+    void syncFused(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fused])
 
   useEffect(() => {
     const refresh = () => setRevision(value => value + 1)

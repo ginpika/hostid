@@ -16,7 +16,7 @@ import { getEmailPagination } from '../lib/mail-list-query'
 import { buildFusedListWhere, parseFusedListQuery } from '../lib/fused-mail-query'
 import { PLATFORMS, buildAuthorizationUrl, emailFromIdToken, isMailPlatform } from '../services/fusedMail/platforms'
 import { FusedMailAuthError, getFusedMailCallbackUrl, postTokenRequest, saveAuthorizedAccount } from '../services/fusedMail/tokenStore'
-import { syncAccountOnce, syncAccounts } from '../services/fusedMail/sync'
+import { AUTO_SYNC_COOLDOWN_MS, syncAccountOnce, syncAccounts } from '../services/fusedMail/sync'
 import { sendViaFusedAccount } from '../services/fusedMail/smtp'
 
 const router = Router()
@@ -181,7 +181,9 @@ router.post('/accounts/:id/sync', asyncHandler(async (req: AuthRequest, res: Res
 }))
 
 router.post('/sync', asyncHandler(async (req: AuthRequest, res: Response) => {
-  res.json({ results: await syncAccounts({ userId: req.userId! }) })
+  // body.auto=true：进入融合收件箱时的自动同步，带冷却；手动同步不带冷却。同一账号正在同步时复用同一任务
+  const auto = req.body?.auto === true
+  res.json({ results: await syncAccounts({ userId: req.userId! }, auto ? { cooldownMs: AUTO_SYNC_COOLDOWN_MS } : {}) })
 }))
 
 const sendSchema = z.object({ to: z.array(z.string().email()).min(1), cc: z.array(z.string().email()).optional(), subject: z.string(), html: z.string() })
