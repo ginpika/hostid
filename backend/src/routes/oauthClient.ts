@@ -83,27 +83,47 @@ interface SSOSession {
   expiresAt: number
 }
 
-interface GitHubUser {
-  id: number
-  login: string
-  email: string | null
-  name: string | null
-  avatar_url: string
-}
-
-interface GitHubEmail {
-  email: string
-  primary: boolean
-  verified: boolean
-}
-
 interface OAuthState {
   redirect: string
+  provider: string
+  codeVerifier: string
   createdAt: number
 }
 
+/** 从 userinfo 响应提取标准化身份：兼容 OIDC（sub/preferred_username/picture）、GitHub 和 hostid */
+interface ExternalProfile {
+  subject: string
+  login: string
+  email: string | null
+  name: string | null
+  avatarUrl: string
+}
+
+function mapUserinfo(raw: Record<string, unknown>): ExternalProfile | null {
+  const pick = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = raw[k]
+      if ((typeof v === 'string' && v) || typeof v === 'number') return String(v)
+    }
+    return null
+  }
+  const subject = pick('sub', 'id')
+  if (!subject) return null
+  const email = pick('email')
+  return {
+    subject,
+    login: pick('preferred_username', 'username', 'login', 'nickname') || (email ? email.split('@')[0] : subject),
+    email,
+    name: pick('name', 'nickname'),
+    avatarUrl: pick('picture', 'avatar_url', 'avatar') || ''
+  }
+}
+
+const OAUTH_STATE_COOKIE = 'hostid_oauth_state'
+
 interface PendingOAuthUser {
-  githubId: number
+  provider: string
+  subject: string
   githubLogin: string
   email: string | null
   name: string | null
@@ -199,87 +219,133 @@ router.get('/:provider', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError(`${provider} OAuth is not configured`, 500)
   }
 
-  const redirect = req.query.redirect as string || '/'
+  const rawRedirect = typeof req.query.redirect === 'string' ? req.query.redirect : '/'
+  // 只允许站内相对路径，防止开放重定向
+  const redirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/'
   const state = generateState()
+  const codeVerifier = crypto.randomBytes(32).toString('base64url')
+  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url')
 
-  await memoryStore.set(getStateKey(state), JSON.stringify({ redirect, provider, createdAt: Date.now() }), 5 * 60 * 1000)
+  const stateData: OAuthState = { redirect, provider, codeVerifier, createdAt: Date.now() }
+  await memoryStore.set(getStateKey(state), JSON.stringify(stateData), 10 * 60 * 1000)
+  // state 绑定到发起登录的浏览器（RFC 6749 10.12）
+  res.cookie(OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: req.secure || getSettings().ssoCookieSecure,
+    path: '/api/oauth',
+    maxAge: 10 * 60 * 1000
+  })
 
   const authUrl = new URL(config.authorizationUrl)
+  authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('client_id', config.clientId)
   authUrl.searchParams.set('redirect_uri', config.callbackUrl)
   authUrl.searchParams.set('scope', 'openid profile email')
   authUrl.searchParams.set('state', state)
+  authUrl.searchParams.set('code_challenge', codeChallenge)
+  authUrl.searchParams.set('code_challenge_method', 'S256')
 
   res.redirect(authUrl.toString())
 }))
 
 router.get('/:provider/callback', asyncHandler(async (req: Request, res: Response) => {
-  const { provider } = req.params
-  const { code, state } = req.query
+  const { code, state, error, error_description: errorDescription } = req.query
 
-  if (!code || !state) {
-    throw new AppError('Invalid OAuth callback', 400)
-  }
+  const cookieState = req.cookies?.[OAUTH_STATE_COOKIE]
+  res.clearCookie(OAUTH_STATE_COOKIE, { path: '/api/oauth' })
 
-  const stateDataStr = await memoryStore.get(getStateKey(state as string))
-  if (!stateDataStr) {
+  if (typeof state !== 'string' || !state || state !== cookieState) {
     throw new AppError('Invalid or expired OAuth state', 400)
   }
 
-  await memoryStore.delete(getStateKey(state as string))
+  const stateDataStr = await memoryStore.get(getStateKey(state))
+  if (!stateDataStr) {
+    throw new AppError('Invalid or expired OAuth state', 400)
+  }
+  await memoryStore.delete(getStateKey(state))
+  const stateData: OAuthState = JSON.parse(stateDataStr)
 
-  const stateData: OAuthState & { provider: string } = JSON.parse(stateDataStr)
+  if (stateData.provider !== req.params.provider) {
+    throw new AppError('OAuth state does not match provider', 400)
+  }
+
+  // 授权服务器返回的错误（RFC 6749 4.1.2.1），例如用户拒绝
+  if (typeof error === 'string' && error) {
+    const msg = typeof errorDescription === 'string' && errorDescription ? errorDescription : error
+    res.redirect(`${getSiteUrl()}/login?oauth_error=${encodeURIComponent(msg)}`)
+    return
+  }
+
+  if (typeof code !== 'string' || !code) {
+    throw new AppError('Invalid OAuth callback', 400)
+  }
 
   const config = await getProviderConfig(stateData.provider)
   if (!config) {
     throw new AppError(`${stateData.provider} OAuth is not configured`, 500)
   }
 
+  // RFC 6749 4.1.3：application/x-www-form-urlencoded，client_secret_post
   const tokenResponse = await fetch(config.tokenUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
       'Accept': 'application/json'
     },
-    body: JSON.stringify({
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
       code,
       redirect_uri: config.callbackUrl,
-      state
-    })
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      code_verifier: stateData.codeVerifier
+    }).toString(),
+    signal: AbortSignal.timeout(15000)
   })
 
-  const tokenData = await tokenResponse.json() as { access_token?: string; error?: string; error_description?: string }
+  const tokenText = await tokenResponse.text()
+  let tokenData: { access_token?: string; token_type?: string; error?: string; error_description?: string } = {}
+  try {
+    tokenData = JSON.parse(tokenText)
+  } catch {
+    tokenData = Object.fromEntries(new URLSearchParams(tokenText))
+  }
 
-  if (tokenData.error || !tokenData.access_token) {
-    console.error('OAuth token error:', tokenData)
-    throw new AppError(`OAuth error: ${tokenData.error_description || tokenData.error}`, 400)
+  if (!tokenResponse.ok || tokenData.error || !tokenData.access_token) {
+    console.error('OAuth token error:', tokenResponse.status, tokenData.error, tokenData.error_description)
+    throw new AppError(`OAuth error: ${tokenData.error_description || tokenData.error || `HTTP ${tokenResponse.status}`}`, 400)
+  }
+  if (tokenData.token_type && tokenData.token_type.toLowerCase() !== 'bearer') {
+    throw new AppError(`Unsupported token_type: ${tokenData.token_type}`, 400)
   }
 
   const userResponse = await fetch(config.userinfoUrl, {
     headers: {
       'Authorization': `Bearer ${tokenData.access_token}`,
       'Accept': 'application/json'
-    }
+    },
+    signal: AbortSignal.timeout(15000)
   })
 
   if (!userResponse.ok) {
     throw new AppError('Failed to fetch user info', 400)
   }
 
-  const oauthUser = await userResponse.json() as GitHubUser
+  const profile = mapUserinfo(await userResponse.json() as Record<string, unknown>)
+  if (!profile) {
+    throw new AppError('User info response has no subject identifier (sub / id)', 400)
+  }
 
-  let primaryEmail = oauthUser.email
-
-  const existingUser = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { githubId: oauthUser.id },
-        ...(primaryEmail ? [{ email: primaryEmail }] : [])
-      ]
-    }
+  const identity = await prisma.userIdentity.findUnique({
+    where: { provider_subject: { provider: stateData.provider, subject: profile.subject } },
+    include: { user: true }
   })
+  // 兼容旧数据：GitHub 账号曾以 githubId 绑定
+  const legacyGithubId = stateData.provider === 'github' && /^\d+$/.test(profile.subject) ? Number(profile.subject) : null
+  // 不按 email 自动关联已有账号：外部 provider 断言的邮箱不可信，可能导致账号接管；需登录后绑定
+  const existingUser = identity?.user
+    ?? (legacyGithubId !== null ? await prisma.user.findUnique({ where: { githubId: legacyGithubId } }) : null)
 
   if (existingUser) {
     const token = jwt.sign({ userId: existingUser.id }, getJwtSecret(), { expiresIn: '7d' })
@@ -310,17 +376,18 @@ router.get('/:provider/callback', asyncHandler(async (req: Request, res: Respons
 
   const oauthToken = generateOAuthToken()
   const pendingUser: PendingOAuthUser = {
-    githubId: oauthUser.id,
-    githubLogin: oauthUser.login,
-    email: primaryEmail,
-    name: oauthUser.name,
-    avatarUrl: oauthUser.avatar_url,
+    provider: stateData.provider,
+    subject: profile.subject,
+    githubLogin: profile.login,
+    email: profile.email,
+    name: profile.name,
+    avatarUrl: profile.avatarUrl,
     createdAt: Date.now()
   }
 
   await memoryStore.set(getPendingOAuthKey(oauthToken), JSON.stringify(pendingUser), 10 * 60 * 1000)
 
-  const registerUrl = `${getSiteUrl()}/oauth/register?token=${oauthToken}&redirect=${encodeURIComponent(stateData.redirect)}&githubLogin=${oauthUser.login}&name=${encodeURIComponent(oauthUser.name || '')}&avatar=${encodeURIComponent(oauthUser.avatar_url)}`
+  const registerUrl = `${getSiteUrl()}/oauth/register?token=${oauthToken}&redirect=${encodeURIComponent(stateData.redirect)}&githubLogin=${encodeURIComponent(profile.login)}&name=${encodeURIComponent(profile.name || '')}&avatar=${encodeURIComponent(profile.avatarUrl)}`
 
   res.redirect(registerUrl)
 }))
@@ -358,8 +425,8 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
       email,
       password: '',
       nickname: pendingUser.name || pendingUser.githubLogin,
-      githubId: pendingUser.githubId,
-      avatar: pendingUser.avatarUrl
+      avatar: pendingUser.avatarUrl || null,
+      identities: { create: { provider: pendingUser.provider, subject: pendingUser.subject } }
     }
   })
 
@@ -438,21 +505,21 @@ router.post('/bind', asyncHandler(async (req: Request, res: Response) => {
 
   const pendingUser: PendingOAuthUser = JSON.parse(pendingUserStr)
 
-  const existingGitHubUser = await prisma.user.findFirst({
-    where: {
-      githubId: pendingUser.githubId,
-      NOT: { id: userId }
-    }
+  const existingIdentity = await prisma.userIdentity.findUnique({
+    where: { provider_subject: { provider: pendingUser.provider, subject: pendingUser.subject } }
   })
 
-  if (existingGitHubUser) {
+  if (existingIdentity && existingIdentity.userId !== userId) {
     throw new AppError('This GitHub account is already bound to another user', 400)
   }
 
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: { githubId: pendingUser.githubId }
-  })
+  if (!existingIdentity) {
+    await prisma.userIdentity.create({
+      data: { provider: pendingUser.provider, subject: pendingUser.subject, userId }
+    })
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
 
   res.json({
     success: true,
