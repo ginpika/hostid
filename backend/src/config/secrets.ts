@@ -15,6 +15,8 @@ const SECRETS_FILENAME = 'secrets.json'
 
 interface SecretsFile {
   jwtSecret?: string
+  /** 升级前使用的过短 JWT_SECRET，仅用于解密旧密文 */
+  legacyJwtSecret?: string
   dataEncryptionKey?: string
   createdAt?: string
 }
@@ -76,13 +78,24 @@ function writeSecretsFile(file: string, data: SecretsFile): void {
 
 export function loadSecrets(): ResolvedSecrets {
   if (cached) return cached
-  const envJwt = readEnvSecret('JWT_SECRET')
+  // 兼容升级：旧部署的 JWT_SECRET 可能不足 32 位。不再拒绝启动，
+  // 只把它当作旧密文的解密密钥，签发 token 改用自动生成的强密钥。
+  const rawEnvJwt = process.env.JWT_SECRET || null
+  const weakEnvJwt = rawEnvJwt && rawEnvJwt.length < MIN_SECRET_LENGTH ? rawEnvJwt : null
+  if (weakEnvJwt) {
+    console.warn(`[Security] JWT_SECRET is shorter than ${MIN_SECRET_LENGTH} characters; it is now used only to decrypt legacy data. A strong signing secret is used instead (existing sessions must log in again). You can remove JWT_SECRET from the environment.`)
+  }
+  const envJwt = weakEnvJwt ? null : readEnvSecret('JWT_SECRET')
   const envDataKey = readEnvSecret('DATA_ENCRYPTION_KEY')
   const file = getSecretsFilePath()
   const stored = readSecretsFile(file)
   const next: SecretsFile = { ...stored }
   let changed = false
 
+  if (weakEnvJwt && !next.legacyJwtSecret) {
+    next.legacyJwtSecret = weakEnvJwt
+    changed = true
+  }
   if (!next.jwtSecret) {
     next.jwtSecret = envJwt || generateSecret()
     changed = true
@@ -100,7 +113,7 @@ export function loadSecrets(): ResolvedSecrets {
   cached = {
     jwtSecret: envJwt || next.jwtSecret!,
     dataEncryptionKey: envDataKey || next.dataEncryptionKey!,
-    legacyJwtSecret: envJwt || next.jwtSecret!
+    legacyJwtSecret: next.legacyJwtSecret || envJwt || next.jwtSecret!
   }
   return cached
 }
