@@ -48,23 +48,18 @@ docker run -d --platform "$platform" --name "$backend" --init \
   --network "$name" --network-alias backend --cap-drop ALL \
   --mount "type=volume,source=$name-data,target=/app/data" \
   --security-opt no-new-privileges:true \
-  -e JWT_SECRET=container-smoke-test-only-do-not-use-in-production \
-  -e MAIL_DOMAIN=smoke.invalid \
+  -e CF_TURNSTILE_SITE_KEY=1x00000000000000000000AA \
   "$backend_image" >/dev/null
 wait_healthy "$backend"
 
 docker run -d --platform "$platform" --name "$frontend" --init \
   --network "$name" --network-alias frontend --cap-drop ALL \
   --security-opt no-new-privileges:true \
-  -e CF_TURNSTILE_SITE_KEY=1x00000000000000000000AA \
   "$frontend_image" >/dev/null
 wait_healthy "$frontend"
 test "$(docker exec "$frontend" id -u)" != 0
 docker exec -i -e SMOKE_RESTART=false "$backend" node --input-type=module < "$script_dir/smoke-checks.mjs"
 
-# Verify empty configuration and regeneration from the original template.
-docker exec -e CF_TURNSTILE_SITE_KEY= "$frontend" /usr/local/bin/hostid-frontend true >/dev/null
-docker exec "$backend" node -e "fetch('http://frontend:3000/config.js').then(r=>r.text()).then(t=>{if(!t.includes('CF_TURNSTILE_SITE_KEY: \"\"'))process.exit(1)})"
 docker restart "$frontend" >/dev/null
 wait_healthy "$frontend"
 

@@ -1,58 +1,41 @@
+/**
+ * Reset an administrator's password from inside the container:
+ *   node reset-admin.cjs <username>
+ * A random password is printed once to this terminal only; it is not written to any log file.
+ */
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const fs = require('fs');
-const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-const generatePassword = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+const generatePassword = (length = 24) => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   let password = '';
-  for (let i = 0; i < 16; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  for (let i = 0; i < length; i++) password += chars[crypto.randomInt(chars.length)];
   return password;
 };
 
-const logAdminCredentials = (username, password) => {
-  const logDir = path.join(__dirname, 'logs');
-  const logFile = path.join(logDir, 'admin-credentials.log');
-  
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-  }
-  
-  const timestamp = new Date().toISOString();
-  const logEntry = `[${timestamp}] ${username}: ${password}\n`;
-  
-  fs.appendFileSync(logFile, logEntry, { mode: 0o600 });
-};
-
 async function main() {
-  console.log('Resetting admin passwords...\n');
-  
-  const users = [
-    { username: 'root', role: 'admin' }
-  ];
-  
-  for (const user of users) {
-    const password = generatePassword();
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    await prisma.user.update({
-      where: { username: user.username },
-      data: { password: hashedPassword }
-    });
-    
-    logAdminCredentials(user.username, password);
-    console.log(`${user.username}: ${password}`);
+  const username = process.argv[2];
+  if (!username) {
+    const admins = await prisma.user.findMany({ where: { role: 'admin' }, select: { username: true } });
+    console.log('Usage: node reset-admin.cjs <username>');
+    console.log(`Admins: ${admins.map(a => a.username).join(', ') || '(none — open the site to run first-time setup)'}`);
+    process.exit(1);
   }
-  
-  console.log('\nPasswords have been reset and logged to logs/admin-credentials.log');
-  await prisma.$disconnect();
+
+  const user = await prisma.user.findUnique({ where: { username } });
+  if (!user || user.role !== 'admin') {
+    console.error(`Error: admin user "${username}" not found`);
+    process.exit(1);
+  }
+
+  const password = generatePassword();
+  await prisma.user.update({ where: { username }, data: { password: await bcrypt.hash(password, 12) } });
+  console.log(`New password for ${username} (shown once, store it in your password manager):\n${password}`);
 }
 
-main().catch(e => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .catch(e => { console.error(e); process.exitCode = 1; })
+  .finally(() => prisma.$disconnect());

@@ -23,23 +23,22 @@ HostID is the implementation of both of these needs.
 mkdir ./hostid
 cd hostid
 wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.yaml
-touch frontend.env
-wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
-# After properly configuring backend.env & frontend.env, run:
 docker compose up -d --wait
 ```
 
-The admin account `root` will be automatically initialized, and the password will be written to the logs. You can view it via `docker-compose logs` or check `logs/admin-credentials.log`.
+No configuration file is required. Open the site and the first-run wizard at `/setup` asks for the site URL and mail domain and creates the first administrator (password of at least 12 characters). Everything else — SMTP relay, Cloudflare Turnstile, SSO cookies, fused mail — lives in Admin → System Settings and applies immediately.
 
-Use Docker Compose v2.20 or newer. Host ports are configured separately with `FRONTEND_PORT` and `BACKEND_PORT`; backend HTTP binds to `127.0.0.1` by default. SMTP still publishes host port 25, mapped to unprivileged container port 2525. Set `IMAGE_TAG=sha-<full-commit-sha>` in the Compose `.env` file to deploy a matching frontend/backend pair from a successful workflow. Turnstile is configured at runtime through `frontend.env`; no build secret is needed. See the [Docker deployment guide](docs/docker.md) for build, upgrade, and CI details.
+`JWT_SECRET` and `DATA_ENCRYPTION_KEY` are generated on first start and stored in `secrets.json` (mode 0600) in the data volume. **Always back up the whole data volume (database + secrets.json).** Without secrets.json, encrypted data (OAuth client secrets, fused-mail tokens, SMTP/Turnstile secrets) cannot be decrypted and all sessions are invalidated.
 
-You can also run `reset-admin.cjs` inside the container to reset the root account password.
+Use Docker Compose v2.24 or newer. Host ports are configured separately with `FRONTEND_PORT` and `BACKEND_PORT`; backend HTTP binds to `127.0.0.1` by default. SMTP still publishes host port 25, mapped to unprivileged container port 2525. Set `IMAGE_TAG=sha-<full-commit-sha>` in the Compose `.env` file to deploy a matching frontend/backend pair from a successful workflow. Turnstile is configured in the admin System Settings page; no build secret is needed. See the [Docker deployment guide](docs/docker.md) for build, upgrade, and CI details.
 
-The optional `ghcr.io/ginpika/hostid-full` image (AMD64 / ARM64) serves the frontend, API, and SMTP in one container. Use [the full-image Compose file](docs/docker-compose.full.yaml) with a `hostid.env` containing the backend settings and optional public `CF_TURNSTILE_SITE_KEY`. For a source build, run `docker compose -f docker-compose.full.yaml up -d --build --wait`; it reads `backend/.env`. The separate frontend and backend images remain available. See [Docker deployment](docs/docker.md) for details and migration instructions.
+If you forget an admin password, run `node reset-admin.cjs <username>` inside the container; the new password is printed once to the terminal.
 
-## .env
+The optional `ghcr.io/ginpika/hostid-full` image (AMD64 / ARM64) serves the frontend, API, and SMTP in one container. Use [the full-image Compose file](docs/docker-compose.full.yaml) — no configuration file is needed either. For a source build, run `docker compose -f docker-compose.full.yaml up -d --build --wait`. The separate frontend and backend images remain available. See [Docker deployment](docs/docker.md) for details and migration instructions.
 
-See ./backend/.env.example & ./frontend/.env.example for details.
+## Optional environment variables
+
+Environment variables are only optional overrides (database path, ports, custom secrets); see ./backend/.env.example. Site, mail, SMTP, Turnstile and SSO values that older versions read from env are imported into the database once on the first start after upgrading; from then on System Settings is the source of truth.
 
 ## Development
 

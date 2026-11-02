@@ -2,20 +2,21 @@
 
 ## 从源码部署
 
-在仓库根目录准备配置，再启动 Compose：
+无需任何配置，直接在仓库根目录启动 Compose：
 
 ```sh
-cp frontend/.env.example frontend/.env
-cp backend/.env.example backend/.env
-# 编辑配置，尤其是 JWT_SECRET（至少 32 字符）、DATA_ENCRYPTION_KEY 和 MAIL_DOMAIN。
 docker compose up -d --build --wait
 ```
 
-需要 Docker Compose v2.20 或更新版本。前端通过服务网络访问后端；后端健康检查通过后，前端才启动。数据库、附件、日志和头像继续保存在原有的四个命名卷中。升级时不要执行 `docker compose down -v`。
+打开站点后按 `/setup` 向导创建第一个管理员，其余配置在「管理 → 系统设置」中修改（保存在数据库，立即生效）。`backend/.env` 是可选的，只用于覆盖数据库路径、端口或自定义密钥，参见 `backend/.env.example`。
+
+`JWT_SECRET` / `DATA_ENCRYPTION_KEY` 首次启动时自动生成到数据卷中的 `/app/data/secrets.json`（0600）。**备份 `backend_data` 卷即同时备份了数据库和 secrets.json，两者必须一起备份和恢复。** 如通过环境变量显式提供密钥（至少 32 字符），环境变量优先。
+
+需要 Docker Compose v2.24 或更新版本（`env_file` 的 `required: false`）。前端通过服务网络访问后端；后端健康检查通过后，前端才启动。数据库、附件、日志和头像继续保存在原有的四个命名卷中。升级时不要执行 `docker compose down -v`。
 
 ## 使用预构建镜像
 
-下载本目录的 `docker-compose.yaml`，在同目录放置 `frontend.env` 和 `backend.env`。Turnstile 的 `CF_TURNSTILE_SITE_KEY` 在 `frontend.env` 中配置，只在容器启动时注入，不需要 GitHub Secret 或重新构建镜像。更改环境文件后执行 `docker compose up -d` 重建容器；仅执行 `restart` 不会读取新的环境文件。
+下载本目录的 `docker-compose.yaml` 即可启动；同目录的 `backend.env` 是可选的覆盖文件。Turnstile 的 site key / secret key 在「系统设置 → 人机验证」中配置，前端 nginx 会把 `/config.js` 代理到后端，不需要 `frontend.env`、GitHub Secret 或重新构建镜像。
 
 推荐在 Compose 同目录的 `.env` 文件中固定同一套镜像版本：
 
@@ -45,9 +46,17 @@ docker compose ps
 | `BACKEND_BIND_ADDRESS` | `127.0.0.1` | 后端 HTTP 默认仅允许本机访问；需要远程直连时显式改成 `0.0.0.0` |
 | `SMTP_PORT` | `25` | SMTP 宿主机端口 |
 
-这些变量来自 shell 或 Compose 同目录的 `.env`，与 `env_file` 中的应用配置不同。容器内部的 API 端口固定为 `3001`，SMTP 固定为 `2525`，Compose 会覆盖应用环境文件中的 `PORT` 和 `SMTP_PORT`。外部邮件服务器仍连接宿主机的 25 端口，容器无需 root 或绑定低端口的权限。自行执行 `docker run` 时应使用 `-p 25:2525`。
+这些变量来自 shell 或 Compose 同目录的 `.env`，与 `env_file` 中的应用配置不同。容器内部的 API 端口固定为 `3001`，SMTP 固定为 `2525`，Compose 会覆盖应用环境文件中的 `PORT` 和 `SMTP_PORT`。端口属于基础设施配置，仍通过环境变量设置，修改后需重建容器。外部邮件服务器仍连接宿主机的 25 端口，容器无需 root 或绑定低端口的权限。自行执行 `docker run` 时应使用 `-p 25:2525`。
 
-已有部署升级后保留卷名和项目名。若以前依赖固定容器名执行管理命令，改用 `docker compose exec backend node reset-admin.cjs` 等服务命令。
+已有部署升级后保留卷名和项目名。若以前依赖固定容器名执行管理命令，改用 `docker compose exec backend node reset-admin.cjs <用户名>` 等服务命令。
+
+### 从环境变量配置升级
+
+- 已有用户的部署不会进入 `/setup`；原有 `root` 等账号保持不变。旧版本写入的 `logs/admin-credentials.log` 含明文密码，确认已更换密码后请删除该文件。
+- 升级后首次启动时，环境变量中已设置的站点 / 邮件 / SMTP / Turnstile / SSO / 融合邮件配置会一次性导入数据库，此后以「系统设置」为准，可从环境文件中删除。
+- 环境变量中的 `JWT_SECRET` 会被记录到 `secrets.json`，之后即使从环境中移除，旧会话和用旧密钥加密的数据仍可解密。若未设置 `DATA_ENCRYPTION_KEY`，会自动生成新的数据密钥；旧密文继续可读，新写入的数据使用新密钥。
+- 旧的 `GITHUB_CLIENT_ID` 等 GitHub OAuth 环境变量已不再读取，请在「OAuth 配置」页面管理服务商（之前已自动迁移到数据库的配置不受影响）。
+- 双容器部署不再需要 `frontend.env`；其中的 `CF_TURNSTILE_SITE_KEY` 不会被自动导入，请在「系统设置 → 人机验证」中重新填写（或升级前把它加到后端环境文件以便自动导入）。
 
 ## 全量单镜像 hostid-full
 
@@ -58,8 +67,6 @@ docker compose ps
 从源码构建：
 
 ```sh
-cp backend/.env.example backend/.env
-# 编辑 backend/.env；全量版本的公开 CF_TURNSTILE_SITE_KEY 也写在这里。
 docker compose -f docker-compose.full.yaml up -d --build --wait
 docker compose -f docker-compose.full.yaml logs hostid-full
 ```
@@ -68,14 +75,13 @@ docker compose -f docker-compose.full.yaml logs hostid-full
 
 ```sh
 wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.full.yaml
-wget -O hostid.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
-# 编辑 hostid.env，配置 JWT_SECRET（至少 32 字符）、DATA_ENCRYPTION_KEY、MAIL_DOMAIN、FRONTEND_URL（CORS 白名单，可逗号分隔）等。
+# 可选：hostid.env 只用于覆盖（见 backend/.env.example），不需要创建。
 # 可选：在同目录的 .env 设置 IMAGE_TAG=sha-<完整提交 SHA>。
 docker compose -f docker-compose.full.yaml pull
 docker compose -f docker-compose.full.yaml up -d --wait
 ```
 
-启用 Turnstile 时，把公开的 `CF_TURNSTILE_SITE_KEY` 和后端的 `CF_TURNSTILE_SECRET_KEY` 配置在同一个应用环境文件中；浏览器只接收公开 site key。全量版本不读取 `frontend.env`。修改配置后运行 `up -d` 重建容器；`restart` 不会重新读取环境文件。`FRONTEND_URL` 和 OAuth 回调地址应指向对外访问的统一域名。
+Turnstile、站点地址等均在「系统设置」中配置；浏览器只通过 `/config.js` 接收公开 site key。站点地址和 OAuth 回调地址应指向对外访问的统一域名。
 
 现有双容器部署切换时，在原部署目录保留原 Compose 项目名（包括原来的 `-p` 或 `COMPOSE_PROJECT_NAME` 设置），四个命名卷仍使用 `backend_data`、`backend_uploads`、`backend_logs`、`backend_avatars`。先备份数据，并准备单镜像对应的环境文件，再停止旧服务后启动全量版本：
 
@@ -87,7 +93,7 @@ docker compose -f docker-compose.full.yaml up -d --wait
 源码部署启动全量版本时加上 `--build`；预构建部署先执行 `pull`。同一套数据应只由一套服务运行。不要使用 `down -v` 或删除原有卷。仅切换打包方式且应用版本相同时，可停止 `hostid-full` 后用原 Compose 启动双容器版本；跨版本回退还需核对数据库迁移兼容性。管理命令对应改为：
 
 ```sh
-docker compose -f docker-compose.full.yaml exec hostid-full node reset-admin.cjs
+docker compose -f docker-compose.full.yaml exec hostid-full node reset-admin.cjs <用户名>
 ```
 
 ## 构建约束

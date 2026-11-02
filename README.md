@@ -23,23 +23,22 @@ Hostid 正是上述两个需求的实现。
 mkdir ./hostid
 cd hostid
 wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.yaml
-touch frontend.env
-wget -O backend.env https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/backend/.env.example
-# 请在正确配置 backend.env & frontend.env 后执行
 docker compose up -d --wait
 ```
 
-管理员账号 root 会自动初始化，并且密码写在日志里，请通过 docker-compose logs 查看，或查看 logs/admin-credentials.log
+无需任何配置文件。启动后打开站点，首次访问会进入 `/setup` 初始化向导：填写站点地址、邮件域名，并创建第一个管理员（密码至少 12 位）。其余配置（SMTP 中继、Cloudflare Turnstile、SSO Cookie、融合邮件等）在「管理 → 系统设置」中修改，保存后立即生效。
+
+`JWT_SECRET` 和 `DATA_ENCRYPTION_KEY` 会在首次启动时自动生成，保存在数据卷的 `secrets.json`（权限 0600）。**备份时务必同时备份整个数据卷（数据库 + secrets.json）**，丢失 secrets.json 会导致已加密数据（OAuth 密钥、融合邮件令牌、SMTP/Turnstile 密钥）无法解密、所有会话失效。
 
 构建、端口配置、升级和 CI 发布说明见 [Docker 部署文档](docs/docker.md)。宿主机端口分别使用 `FRONTEND_PORT` 和 `BACKEND_PORT`，后端 HTTP 默认绑定 `127.0.0.1`；SMTP 对外仍为 25，容器内为 2525。推荐通过 `IMAGE_TAG=sha-<完整提交 SHA>` 固定前后端的一套版本。
 
-另提供全量单镜像 `ghcr.io/ginpika/hostid-full`（AMD64 / ARM64），在一个容器中运行前端、API 和 SMTP。使用 [单容器 Compose](docs/docker-compose.full.yaml)，把后端配置及可选的 `CF_TURNSTILE_SITE_KEY` 写入 `hostid.env`。源码构建使用 `docker compose -f docker-compose.full.yaml up -d --build --wait`，配置读取 `backend/.env`。现有前后端独立镜像继续提供；部署与切换方式见 [全量单镜像说明](docs/docker.md#全量单镜像-hostid-full)。
+另提供全量单镜像 `ghcr.io/ginpika/hostid-full`（AMD64 / ARM64），在一个容器中运行前端、API 和 SMTP。使用 [单容器 Compose](docs/docker-compose.full.yaml) 即可，同样无需配置文件。源码构建使用 `docker compose -f docker-compose.full.yaml up -d --build --wait`。现有前后端独立镜像继续提供；部署与切换方式见 [全量单镜像说明](docs/docker.md#全量单镜像-hostid-full)。
 
-你也可以直接在容器内执行 reset-admin.cjs 来重置 root 账号的密码
+忘记管理员密码时，可在容器内执行 `node reset-admin.cjs <用户名>` 重置，新密码只在终端输出一次。
 
-## .env
+## 可选的环境变量
 
-详情请见 ./backend/.env.example & ./frontend/.env.example
+环境变量只用于可选覆盖（数据库路径、端口、自定义密钥等），详见 ./backend/.env.example。旧版本通过环境变量配置的站点、邮件、SMTP、Turnstile、SSO 等参数会在升级后首次启动时自动导入数据库，之后以「系统设置」为准。
 
 ## 开发
 

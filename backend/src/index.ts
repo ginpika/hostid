@@ -20,7 +20,6 @@ import { errorHandler } from './middleware/error'
 import { startSMTPServer } from './smtp'
 import setupRoutes from './routes/setup'
 import { initRSAKeys } from './utils/rsa'
-import { migrateOAuthConfig } from './utils/migrateOAuthConfig'
 import { mountWebFrontend, serveConfigScript } from './web'
 import { initSettings, getSettings, getSsoLoginPageUrl } from './services/settings'
 import { assertSecurityConfig } from './config/secrets'
@@ -78,7 +77,6 @@ const startServer = async () => {
   }
   initRSAKeys()
   await initSettings()
-  await migrateOAuthConfig()
 
   app.listen(PORT, () => {
     console.log(`[API] Server running on port ${PORT}`)

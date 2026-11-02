@@ -7,8 +7,10 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
       - "${SMTP_PORT:-25}:2525"
+    # Optional overrides only; everything else is configured in the admin Settings page.
     env_file:
-      - ./backend/.env
+      - path: ./backend/.env
+        required: false
     environment:
       NODE_ENV: production
       PORT: "3000"

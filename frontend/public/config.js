@@ -1,3 +1,3 @@
-window.__ENV__ = {
-  CF_TURNSTILE_SITE_KEY: "${CF_TURNSTILE_SITE_KEY}"
-};
+// Runtime configuration is served by the backend at /config.js (from system settings).
+// This static fallback is only used when the backend is unreachable.
+window.__ENV__ = window.__ENV__ || {};

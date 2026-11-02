@@ -3,8 +3,6 @@ services:
     image: ghcr.io/ginpika/hostid-frontend:${IMAGE_TAG:-latest}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    env_file:
-      - ./frontend.env
     depends_on:
       backend:
         condition: service_healthy
@@ -20,8 +18,10 @@ services:
     ports:
       - "${SMTP_PORT:-25}:2525"
       - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-3001}:3001"
+    # Optional overrides only; everything else is configured in the admin Settings page.
     env_file:
-      - ./backend.env
+      - path: ./backend.env
+        required: false
     environment:
       NODE_ENV: production
       PORT: "3001"

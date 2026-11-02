@@ -43,8 +43,6 @@ docker volume create "$name-data" >/dev/null
 docker run -d --platform "$platform" --name "$name" --init \
   --cap-drop ALL --security-opt no-new-privileges:true \
   --mount "type=volume,source=$name-data,target=/app/data" \
-  -e JWT_SECRET=container-smoke-test-only-do-not-use-in-production \
-  -e MAIL_DOMAIN=smoke.invalid \
   -e CF_TURNSTILE_SITE_KEY=1x00000000000000000000AA \
   "$image" >/dev/null
 wait_healthy "$name"
@@ -59,8 +57,6 @@ docker exec -i -e SMOKE_BASE_URL=http://127.0.0.1:3000 -e SMOKE_FULL=true \
 # An independent instance verifies the default empty runtime configuration.
 docker run -d --platform "$platform" --name "$empty" --init \
   --cap-drop ALL --security-opt no-new-privileges:true \
-  -e JWT_SECRET=container-smoke-test-only-do-not-use-in-production \
-  -e MAIL_DOMAIN=smoke.invalid \
   "$image" >/dev/null
 wait_healthy "$empty"
 docker exec "$empty" node -e "fetch('http://127.0.0.1:3000/config.js').then(r=>r.text()).then(t=>{if(t !== 'window.__ENV__ = {\"CF_TURNSTILE_SITE_KEY\":\"\"};\\n')process.exit(1)})"

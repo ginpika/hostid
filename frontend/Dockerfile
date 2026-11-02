@@ -21,12 +21,10 @@ FROM nginx:stable-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee1
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY frontend/nginx-main.conf /etc/nginx/nginx.conf
-COPY frontend/public/config.js /etc/hostid/config.js.template
 COPY frontend/docker-entrypoint.sh /usr/local/bin/hostid-frontend
 
 RUN sed -i 's/\r$//' /usr/local/bin/hostid-frontend && \
-    chmod +x /usr/local/bin/hostid-frontend && \
-    chown nginx:nginx /usr/share/nginx/html/config.js
+    chmod +x /usr/local/bin/hostid-frontend
 
 USER nginx
 

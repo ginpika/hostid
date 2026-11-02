@@ -7,6 +7,18 @@ assert.equal(process.env.NODE_ENV, 'production');
 const baseUrl = process.env.SMOKE_BASE_URL || 'http://frontend:3000';
 const get = (path) => fetch(`${baseUrl}${path}`, { signal: AbortSignal.timeout(5000) });
 assert.equal((await (await get('/health')).json()).status, 'ok');
+// Zero-config start: secrets are generated into the data volume.
+const fs = await import('node:fs');
+const secretsStat = fs.statSync('/app/data/secrets.json');
+assert.equal(secretsStat.mode & 0o077, 0, 'secrets.json must not be group/world readable');
+const post = (path, body) => fetch(`${baseUrl}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+if (process.env.SMOKE_RESTART !== 'true') {
+  assert.equal((await (await get('/api/setup/status')).json()).needsSetup, true);
+  assert.equal((await post('/api/setup', { username: 'smoke', password: 'short', mailDomain: 'smoke.invalid' })).status, 400);
+  assert.equal((await post('/api/setup', { username: 'smoke', password: 'container-smoke-password', mailDomain: 'smoke.invalid', siteUrl: 'http://localhost:3000' })).status, 201);
+}
+assert.equal((await (await get('/api/setup/status')).json()).needsSetup, false);
+assert.equal((await post('/api/setup', { username: 'smoke2', password: 'container-smoke-password', mailDomain: 'smoke.invalid' })).status, 409);
 assert.equal((await (await get('/api/auth/domain')).json()).domain, 'smoke.invalid');
 assert.match((await (await get('/api/auth/public-key')).json()).publicKey, /BEGIN PUBLIC KEY/);
 assert.match(await (await get('/login')).text(), /<div id="root">/);
@@ -33,11 +45,12 @@ if (process.env.SMOKE_FULL === 'true') {
 }
 const db = new PrismaClient();
 try {
-  assert.equal(await db.user.count({ where: { username: 'root' } }), 1);
+  assert.equal(await db.user.count(), 1);
+  assert.equal((await db.user.findUnique({ where: { username: 'smoke' } })).role, 'admin');
   if (process.env.SMOKE_RESTART === 'true') {
-    assert.equal((await db.user.findUnique({ where: { username: 'root' } })).nickname, 'container-smoke-persistence');
+    assert.equal((await db.user.findUnique({ where: { username: 'smoke' } })).nickname, 'container-smoke-persistence');
   } else {
-    await db.user.update({ where: { username: 'root' }, data: { nickname: 'container-smoke-persistence' } });
+    await db.user.update({ where: { username: 'smoke' }, data: { nickname: 'container-smoke-persistence' } });
   }
   const migrations = await db.$queryRawUnsafe('SELECT COUNT(*) AS count FROM _prisma_migrations WHERE finished_at IS NOT NULL');
   assert.ok(Number(migrations[0].count) > 0);
