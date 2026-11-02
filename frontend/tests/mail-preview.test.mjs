@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import ts from '../node_modules/typescript/lib/typescript.js'
-import { decodeHTML } from '../node_modules/entities/lib/esm/index.js'
+import { decodeHTML } from 'entities'
 
 const source = readFileSync(new URL('../src/lib/mailPreview.ts', import.meta.url), 'utf8')
 const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
