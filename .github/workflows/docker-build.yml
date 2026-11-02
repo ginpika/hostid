@@ -111,6 +111,7 @@ jobs:
           cache-from: type=gha,scope=backend-${{ matrix.arch }}
           cache-to: type=gha,scope=backend-${{ matrix.arch }},mode=max
       - name: Verify container startup, proxy, SMTP, and persistence
+        timeout-minutes: 10
         run: bash scripts/smoke-containers.sh hostid-frontend:smoke hostid-backend:smoke linux/${{ matrix.arch }}
       - name: Build full image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -127,6 +128,7 @@ jobs:
           cache-from: type=gha,scope=full-${{ matrix.arch }}
           cache-to: type=gha,scope=full-${{ matrix.arch }},mode=max
       - name: Verify full image startup, SMTP, SPA, configuration, and persistence
+        timeout-minutes: 10
         run: sh scripts/smoke-full.sh hostid-full:smoke linux/${{ matrix.arch }}
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'

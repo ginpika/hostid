@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import { PrismaClient } from '@prisma/client';
 
+// Fail fast instead of hanging CI if any request or handle stalls.
+const watchdog = setTimeout(() => { console.error('Smoke checks timed out after 90s'); process.exit(124); }, 90_000);
+
 assert.notEqual(process.getuid(), 0, 'Backend must run without root');
 assert.equal(process.env.NODE_ENV, 'production');
 const baseUrl = process.env.SMOKE_BASE_URL || 'http://frontend:3000';
@@ -66,4 +69,5 @@ await new Promise((resolve, reject) => {
     catch (error) { socket.destroy(); reject(error); }
   });
 });
+clearTimeout(watchdog);
 console.log('API, migration, SMTP, proxy, SPA, and runtime configuration checks passed.');

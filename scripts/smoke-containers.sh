@@ -26,6 +26,15 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+# Bound every in-container command so a stall fails the job instead of hanging it.
+with_timeout() {
+  if command -v timeout >/dev/null 2>&1; then
+    timeout --kill-after=10 "${SMOKE_STEP_TIMEOUT:-150}" "$@"
+  else
+    "$@"
+  fi
+}
+
 wait_healthy() {
   container=$1
   attempt=0
@@ -58,7 +67,7 @@ docker run -d --platform "$platform" --name "$frontend" --init \
   "$frontend_image" >/dev/null
 wait_healthy "$frontend"
 test "$(docker exec "$frontend" id -u)" != 0
-docker exec -i -e SMOKE_RESTART=false "$backend" node --input-type=module < "$script_dir/smoke-checks.mjs"
+with_timeout docker exec -i -e SMOKE_RESTART=false "$backend" node --input-type=module < "$script_dir/smoke-checks.mjs"
 
 docker restart "$frontend" >/dev/null
 wait_healthy "$frontend"
@@ -66,5 +75,5 @@ wait_healthy "$frontend"
 # migrate deploy must be idempotent and retain the initialized database.
 docker restart "$backend" >/dev/null
 wait_healthy "$backend"
-docker exec -i -e SMOKE_RESTART=true "$backend" node --input-type=module < "$script_dir/smoke-checks.mjs"
+with_timeout docker exec -i -e SMOKE_RESTART=true "$backend" node --input-type=module < "$script_dir/smoke-checks.mjs"
 echo "Container checks passed for $platform."

@@ -23,6 +23,15 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+# Bound every in-container command so a stall fails the job instead of hanging it.
+with_timeout() {
+  if command -v timeout >/dev/null 2>&1; then
+    timeout --kill-after=10 "${SMOKE_STEP_TIMEOUT:-150}" "$@"
+  else
+    "$@"
+  fi
+}
+
 wait_healthy() {
   container=$1
   attempt=0
@@ -46,12 +55,12 @@ docker run -d --platform "$platform" --name "$name" --init \
   -e CF_TURNSTILE_SITE_KEY=1x00000000000000000000AA \
   "$image" >/dev/null
 wait_healthy "$name"
-docker exec -i -e SMOKE_BASE_URL=http://127.0.0.1:3000 -e SMOKE_FULL=true \
+with_timeout docker exec -i -e SMOKE_BASE_URL=http://127.0.0.1:3000 -e SMOKE_FULL=true \
   -e SMOKE_RESTART=false "$name" node --input-type=module < "$script_dir/smoke-checks.mjs"
 
 docker restart "$name" >/dev/null
 wait_healthy "$name"
-docker exec -i -e SMOKE_BASE_URL=http://127.0.0.1:3000 -e SMOKE_FULL=true \
+with_timeout docker exec -i -e SMOKE_BASE_URL=http://127.0.0.1:3000 -e SMOKE_FULL=true \
   -e SMOKE_RESTART=true "$name" node --input-type=module < "$script_dir/smoke-checks.mjs"
 
 # An independent instance verifies the default empty runtime configuration.
@@ -59,5 +68,5 @@ docker run -d --platform "$platform" --name "$empty" --init \
   --cap-drop ALL --security-opt no-new-privileges:true \
   "$image" >/dev/null
 wait_healthy "$empty"
-docker exec "$empty" node -e "fetch('http://127.0.0.1:3000/config.js').then(r=>r.text()).then(t=>{if(t !== 'window.__ENV__ = {\"CF_TURNSTILE_SITE_KEY\":\"\"};\\n')process.exit(1)})"
+with_timeout docker exec "$empty" node -e "fetch('http://127.0.0.1:3000/config.js').then(r=>r.text()).then(t=>{if(t !== 'window.__ENV__ = {\"CF_TURNSTILE_SITE_KEY\":\"\"};\\n')process.exit(1)})"
 echo "Full image checks passed for $platform."
