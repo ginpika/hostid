@@ -96,7 +96,6 @@ export default function Sidebar({ isOpen, onClose, currentFolder, pinned, onTogg
       { path: '/fused-mail', label: t('fusedMail'), icon: Combine },
       { path: '/fused-inbox', label: t('fusedInbox'), icon: Mails }
     ] },
-    { label: t('general'), items: [{ path: '/profile', label: t('profile'), icon: UserCircle }] },
     ...(user?.role === 'admin' ? [{ label: t('adminGroup'), items: [
       { path: '/admin', label: t('admin'), icon: Shield },
       { path: '/admin/oauth', label: t('oauthConfig'), icon: KeyRound },
@@ -115,7 +114,7 @@ export default function Sidebar({ isOpen, onClose, currentFolder, pinned, onTogg
           {wide && desktop && <button className="mail-icon-button classic-sidebar-pin" onClick={togglePin} aria-label={pinned ? t('unpinSidebar') : t('pinSidebar')} title={pinned ? t('unpinSidebar') : t('pinSidebar')}>{pinned ? <PinOff size={16} /> : <Pin size={16} />}</button>}
           {!wide && <button ref={expandButtonRef} className="mail-icon-button classic-sidebar-expand" onClick={expandSidebar} aria-label={t('expandSidebar')} title={t('expandSidebar')}><PanelLeftOpen size={16} /></button>}
           <div className="classic-sidebar-user">
-            <span className="classic-sidebar-avatar">{user?.avatarUrl || user?.avatar ? <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt="" /> : <UserCircle size={wide ? 32 : 22} />}</span>
+            <button type="button" className="classic-sidebar-avatar" title={t('profile')} aria-label={t('profile')} onClick={() => { navigate('/profile'); onClose() }} style={{ border: 0, padding: 0, background: 'none', cursor: 'pointer' }}>{user?.avatarUrl || user?.avatar ? <img src={user.avatarUrl || (user.avatar?.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`)} alt="" /> : <UserCircle size={wide ? 32 : 22} />}</button>
             {wide && <span className="classic-sidebar-user-text"><strong>{user?.nickname || user?.username}</strong><small>{user?.email}</small></span>}
             {!desktop && <button className="mail-icon-button" onClick={onClose} aria-label={t('close')}><X size={20} /></button>}
           </div>
