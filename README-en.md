@@ -101,6 +101,10 @@ HostID can serve as an SSO provider for other applications. See the integration 
    window.location.href = `https://mail.yourdomain.com/sso/login?redirect=${encodeURIComponent(currentUrl)}`
    ```
 
+## Fused Mail
+
+Link several Gmail / Outlook (Hotmail) mailboxes via OAuth2, sync them over IMAP and read everything in the Fused inbox. The callback URL is `https://<your-domain>/api/fused-mail/oauth/callback`. See [docs/fused-mail.md](docs/fused-mail.md) (Chinese) for Google Cloud / Azure registration and why the Google app must be published (refresh tokens of apps in "Testing" expire after 7 days).
+
 ## DNS Configuration
 
 To ensure the mail server works properly, configure the following DNS records:

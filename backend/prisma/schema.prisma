@@ -8,22 +8,23 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  username      String         @unique
-  password      String
-  nickname      String?
-  phone         String?
-  birthday      String?
-  avatar        String?
-  language      String         @default("zh-CN")
-  role          String         @default("user")
-  githubId      Int?           @unique
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  emails        Email[]
-  oauthApps     OAuthApp[]
-  refreshTokens RefreshToken[]
+  id                String             @id @default(cuid())
+  email             String             @unique
+  username          String             @unique
+  password          String
+  nickname          String?
+  phone             String?
+  birthday          String?
+  avatar            String?
+  language          String             @default("zh-CN")
+  role              String             @default("user")
+  githubId          Int?               @unique
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  emails            Email[]
+  oauthApps         OAuthApp[]
+  refreshTokens     RefreshToken[]
+  fusedMailAccounts FusedMailAccount[]
 }
 
 model Email {
@@ -69,18 +70,26 @@ model EmailAttachment {
 }
 
 model OAuthProvider {
-  id               String   @id @default(cuid())
-  provider         String   @unique
-  displayName      String
-  clientId         String
-  clientSecret     String
-  callbackUrl      String
-  authorizationUrl String   @default("https://github.com/login/oauth/authorize")
-  tokenUrl         String   @default("https://github.com/login/oauth/access_token")
-  userinfoUrl      String   @default("https://api.github.com/user")
-  isActive         Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                   String             @id @default(cuid())
+  provider             String             @unique
+  displayName          String
+  clientId             String
+  clientSecret         String
+  callbackUrl          String
+  authorizationUrl     String             @default("https://github.com/login/oauth/authorize")
+  tokenUrl             String             @default("https://github.com/login/oauth/access_token")
+  userinfoUrl          String             @default("https://api.github.com/user")
+  isActive             Boolean            @default(false)
+  // 用途：可同时勾选。已有 provider 迁移后默认只用于登录。
+  useForLogin          Boolean            @default(true)
+  useForFusedMail      Boolean            @default(false)
+  // 融合邮件平台：gmail | outlook（仅 useForFusedMail 时需要）
+  mailPlatform         String?
+  // 融合邮件 OAuth 回调地址（与登录回调分开）
+  fusedMailCallbackUrl String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  fusedMailAccounts    FusedMailAccount[]
 
   @@map("oauth_providers")
 }
@@ -113,4 +122,58 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   @@map("refresh_tokens")
+}
+
+/// 融合邮件账号：一个用户可以绑定多个 Gmail / Outlook 邮箱，令牌按「用户 + 平台 + 邮箱」唯一存储
+model FusedMailAccount {
+  id                   String         @id @default(cuid())
+  userId               String
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId           String?
+  provider             OAuthProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  platform             String
+  email                String
+  displayName          String?
+  accessToken          String
+  refreshToken         String
+  accessTokenExpiresAt DateTime?
+  status               String         @default("active")
+  lastError            String?
+  lastSyncedAt         DateTime?
+  uidValidity          String?
+  lastUid              Int            @default(0)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  messages             FusedEmail[]
+
+  @@unique([userId, platform, email])
+  @@index([userId])
+  @@map("fused_mail_accounts")
+}
+
+/// 从融合账号 IMAP 收件箱同步下来的邮件
+model FusedEmail {
+  id          String           @id @default(cuid())
+  accountId   String
+  account     FusedMailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  uidValidity String
+  uid         Int
+  messageId   String?
+  from        String
+  fromName    String?
+  to          String
+  toList      String           @default("[]")
+  ccList      String?          @default("[]")
+  subject     String
+  body        String
+  summary     String?
+  folder      String           @default("INBOX")
+  isRead      Boolean          @default(false)
+  isStarred   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([accountId, uidValidity, uid])
+  @@index([accountId, createdAt])
+  @@map("fused_emails")
 }

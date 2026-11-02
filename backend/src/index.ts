@@ -16,6 +16,7 @@ import oauthClientRoutes from './routes/oauthClient'
 import oauthConfigRoutes from './routes/oauthConfig'
 import oauthServerRoutes from './routes/oauthServer'
 import oauthAppsRoutes from './routes/oauthApps'
+import fusedMailRoutes from './routes/fusedMail'
 import { errorHandler } from './middleware/error'
 import { startSMTPServer } from './smtp'
 import { initAdminUsers } from './utils/initAdmin'
@@ -46,6 +47,7 @@ app.use('/api/oauth', oauthClientRoutes)
 app.use('/api/admin/oauth', oauthConfigRoutes)
 app.use('/api/oauth2', oauthServerRoutes)
 app.use('/api/admin/oauth-apps', oauthAppsRoutes)
+app.use('/api/fused-mail', fusedMailRoutes)
 
 app.get('/sso/login', (req, res) => {
   const redirect = req.query.redirect as string || ''

@@ -15,6 +15,8 @@ import '../styles/classic-reading.css'
 
 interface EmailDetailProps {
   emailId: string
+  /** 邮件接口前缀，融合收件箱传 /api/fused-mail/emails */
+  apiBase?: string
   embedded?: boolean
   onClose: () => void
   onDelete: () => void
@@ -33,7 +35,7 @@ const formatFileSize = (bytes: number) => bytes < 1024 ? `${bytes} B`
 const isImage = (mimeType: string, name: string) => mimeType.startsWith('image/') || /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(name)
 const focusableSelector = 'button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), iframe, [tabindex="0"]'
 
-export default function EmailDetail({ emailId, embedded = false, onClose, onDelete, onRestore,
+export default function EmailDetail({ emailId, apiBase = '/api/emails', embedded = false, onClose, onDelete, onRestore,
   onReply, onReplyAll, onForward, onToggleStar, onArchive, onRead, onFeedback }: EmailDetailProps) {
   const { t, language } = useI18n()
   const { layout } = useTheme()
@@ -75,7 +77,7 @@ export default function EmailDetail({ emailId, embedded = false, onClose, onDele
     setLoadError('')
     setStatus(null)
     setConfirmClassicDelete(false)
-    fetch(`/api/emails/${encodeURIComponent(emailId)}`, {
+    fetch(`${apiBase}/${encodeURIComponent(emailId)}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, signal: controller.signal
     }).then(async response => {
       if (!response.ok) throw new Error(String(response.status))
@@ -88,7 +90,7 @@ export default function EmailDetail({ emailId, embedded = false, onClose, onDele
       if (!controller.signal.aborted) setLoadError(error instanceof Error && error.message === '404' ? 'not-found' : 'failed')
     }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [emailId, revision])
+  }, [apiBase, emailId, revision])
 
   useEffect(() => {
     if (embedded) return
@@ -152,7 +154,7 @@ export default function EmailDetail({ emailId, embedded = false, onClose, onDele
     else notify(message, tone)
   }
   const request = async (suffix: string, method: string, body?: object) => {
-    const response = await fetch(`/api/emails/${encodeURIComponent(emailId)}${suffix}`, {
+    const response = await fetch(`${apiBase}/${encodeURIComponent(emailId)}${suffix}`, {
       method, headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {})
     })
