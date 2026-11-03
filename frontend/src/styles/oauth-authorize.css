@@ -1,0 +1,146 @@
+.oauth-connection {
+  --oauth-portrait-size: 68px;
+  --oauth-flow-color: #22c55e;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+  gap: 10px;
+  margin: 0 0 28px;
+  padding-top: 4px;
+}
+
+.oauth-connection__identity {
+  min-width: 0;
+  text-align: center;
+}
+
+.oauth-connection__portrait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--oauth-portrait-size);
+  height: var(--oauth-portrait-size);
+  margin: 0 auto 14px;
+  overflow: hidden;
+  color: var(--color-accent-primary);
+  background: var(--color-accent-muted);
+  border: 1px solid color-mix(in srgb, var(--color-accent-primary) 12%, transparent);
+}
+
+.oauth-connection__portrait--user {
+  border-radius: 50%;
+}
+
+.oauth-connection__portrait--user img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.oauth-connection__portrait--app {
+  border-radius: 19px;
+}
+
+.oauth-connection__label {
+  margin-bottom: 5px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.oauth-connection__name {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+.oauth-connection__email {
+  margin-top: 5px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+
+.oauth-connection__homepage {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  margin-top: 5px;
+  color: var(--color-accent-primary);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.oauth-connection__homepage span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.oauth-connection__homepage svg {
+  flex-shrink: 0;
+}
+
+.oauth-connection__homepage:hover {
+  text-decoration: underline;
+}
+
+.oauth-connection__flow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--oauth-portrait-size);
+}
+
+.oauth-connection__dot {
+  flex: 0 0 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--oauth-flow-color);
+  opacity: 0.22;
+  animation: oauth-connection-pulse 1.6s ease-in-out infinite;
+}
+
+/* Increasing delays carry the highlight from the account to the app. */
+@keyframes oauth-connection-pulse {
+  0%, 38%, 100% {
+    opacity: 0.22;
+    transform: scale(0.9);
+    box-shadow: none;
+  }
+  14% {
+    opacity: 1;
+    transform: scale(1.15);
+    box-shadow: 0 0 9px color-mix(in srgb, var(--oauth-flow-color) 45%, transparent);
+  }
+}
+
+@media (max-width: 400px) {
+  .oauth-connection {
+    --oauth-portrait-size: 58px;
+    grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .oauth-connection__dot {
+    flex-basis: 4px;
+    height: 4px;
+  }
+
+  .oauth-connection__name {
+    font-size: 14px;
+  }
+
+  .oauth-connection__email {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oauth-connection__dot {
+    animation: none !important;
+    opacity: 0.65;
+  }
+}

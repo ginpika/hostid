@@ -9,6 +9,8 @@ import { Shield, X, User, ExternalLink } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import AuthPage, { AuthHeader, AuthLoading } from '../components/AuthPage'
+import BrandMark from '../components/BrandMark'
+import '../styles/oauth-authorize.css'
 
 interface AuthorizeData {
   app: {
@@ -28,6 +30,16 @@ interface AuthorizeData {
   codeChallengeMethod: string
 }
 
+function AuthorizeHeader() {
+  const { t } = useI18n()
+  return (
+    <div className="text-center mb-8">
+      <BrandMark size={100} className="mx-auto w-[100px] h-[100px]" label="HostID" />
+      <h1 className="sr-only">{t('authorizeApp')}</h1>
+    </div>
+  )
+}
+
 export default function OAuthAuthorizePage() {
   const { user } = useAuth()
   const { t, language } = useI18n()
@@ -38,6 +50,11 @@ export default function OAuthAuthorizePage() {
   const [error, setError] = useState('')
   const [data, setData] = useState<AuthorizeData | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
+
+  const avatarUrl = user?.avatarUrl || (user?.avatar
+    ? user.avatar.startsWith('http') ? user.avatar : `/api/auth/avatar/${user.avatar}`
+    : null)
 
   // Get OAuth parameters from URL
   const clientId = searchParams.get('client_id')
@@ -145,7 +162,7 @@ export default function OAuthAuthorizePage() {
   if (loading) {
     return (
       <AuthPage>
-        <AuthHeader title={t('authorizeApp')} description={language === 'zh-CN' ? '验证应用权限请求' : 'Verify app permission request'} />
+        <AuthorizeHeader />
         <AuthLoading message={t('loading')} />
       </AuthPage>
     )
@@ -167,63 +184,50 @@ export default function OAuthAuthorizePage() {
 
   return (
     <AuthPage>
-      <AuthHeader title={t('authorizeApp')} description={language === 'zh-CN' ? '验证应用权限请求' : 'Verify app permission request'} />
+      <AuthorizeHeader />
 
       {/* Content */}
       <div>
-        {/* App Info */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg mb-3" style={{ backgroundColor: 'var(--color-accent-muted)' }}>
-            <Shield aria-hidden="true" className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
+        <section className="oauth-connection" aria-label={language === 'zh-CN' ? '授权账号与应用' : 'Authorizing account and app'}>
+          <div className="oauth-connection__identity">
+            <div className="oauth-connection__portrait oauth-connection__portrait--user">
+              {avatarUrl && avatarUrl !== failedAvatarUrl ? (
+                <img src={avatarUrl} alt="" onError={() => setFailedAvatarUrl(avatarUrl)} />
+              ) : (
+                <User aria-hidden="true" size={30} strokeWidth={1.5} />
+              )}
+            </div>
+            <p className="oauth-connection__label">{language === 'zh-CN' ? '当前账号' : 'Your account'}</p>
+            <p className="oauth-connection__name">{data.user.nickname || data.user.username}</p>
+            <p className="oauth-connection__email">{data.user.email}</p>
           </div>
-          <h2 className="text-xl font-semibold mb-1 break-words" style={{ color: 'var(--color-text-primary)' }}>
-            {data.app.name}
-          </h2>
-          {data.app.description && (
-            <p className="text-sm break-words" style={{ color: 'var(--color-text-secondary)' }}>
-              {data.app.description}
-            </p>
-          )}
-          {data.app.homepage && (
-            <a
-              href={data.app.homepage}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm mt-1 max-w-full break-all hover:underline"
-              style={{ color: 'var(--color-accent-primary)' }}
-            >
-              {data.app.homepage}
-              <ExternalLink className="w-3 h-3 shrink-0" />
-            </a>
-          )}
-        </div>
 
-        {/* User Info */}
-        <div
-          className="mb-6 p-3 rounded-lg flex items-center gap-3"
-          style={{ backgroundColor: 'var(--color-bg-tertiary)' }}
-        >
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-            style={{ backgroundColor: 'var(--color-accent-muted)' }}
-          >
-            <User className="w-4 h-4" style={{ color: 'var(--color-accent-primary)' }} />
+          <div className="oauth-connection__flow" aria-hidden="true">
+            {Array.from({ length: 7 }, (_, index) => (
+              <span key={index} className="oauth-connection__dot" style={{ animationDelay: `${index * 140 - 1600}ms` }} />
+            ))}
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium break-words" style={{ color: 'var(--color-text-primary)' }}>
-              {data.user.nickname || data.user.username}
-            </p>
-            <p className="text-xs break-all" style={{ color: 'var(--color-text-muted)' }}>
-              {data.user.email}
-            </p>
+
+          <div className="oauth-connection__identity">
+            <div className="oauth-connection__portrait oauth-connection__portrait--app">
+              <Shield aria-hidden="true" size={30} strokeWidth={1.5} />
+            </div>
+            <p className="oauth-connection__label">{language === 'zh-CN' ? '待授权应用' : 'Requesting app'}</p>
+            <h2 className="oauth-connection__name">{data.app.name}</h2>
+            {data.app.homepage && (
+              <a href={data.app.homepage} target="_blank" rel="noopener noreferrer" className="oauth-connection__homepage">
+                <span>{data.app.homepage}</span>
+                <ExternalLink aria-hidden="true" size={11} />
+              </a>
+            )}
           </div>
-        </div>
+        </section>
 
         {/* Warning */}
         <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--color-text-tertiary)' }}>
           {language === 'zh-CN'
-            ? '授权后，该应用将能够访问您的账号信息。请确保您信任该应用。'
-            : 'By authorizing, this app will be able to access your account information. Make sure you trust this app.'}
+            ? '授权后，该应用将能够访问您的个人资料。请确保您信任该应用。'
+            : 'By authorizing, this app will be able to access your profile information. Make sure you trust this app.'}
         </p>
 
         {/* Actions */}
