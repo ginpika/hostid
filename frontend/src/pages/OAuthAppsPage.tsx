@@ -3,10 +3,11 @@
  * 管理 OAuth 授权应用，让其他应用通过 Hostid 登录
  * 支持创建、编辑、删除应用和重置密钥
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId, useRef } from 'react'
 import { AppWindow, Plus, Trash2, Edit, Power, PowerOff, X, Check, RefreshCw, Copy, Eye, EyeOff } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { isTopModal, restoreModalFocus } from '../lib/modalStack'
 
 interface OAuthApp {
   id: string
@@ -41,6 +42,8 @@ interface AppFormData {
 
 export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean }) {
   const { t, language } = useI18n()
+  const modalTitleId = useId()
+  const modalRef = useRef<HTMLDivElement>(null)
   const Heading = embedded ? 'h3' : 'h2'
   const [apps, setApps] = useState<OAuthApp[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,7 +65,11 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
   const [saving, setSaving] = useState(false)
 
   // New secret display
-  const [newSecret, setNewSecret] = useState<string | null>(null)
+  const [newSecret, setNewSecret] = useState<{
+    clientId: string
+    clientSecret: string
+    isReset: boolean
+  } | null>(null)
   const [showSecret, setShowSecret] = useState(false)
 
   useEffect(() => {
@@ -124,9 +131,43 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
     setShowModal(false)
     setEditingApp(null)
     setError('')
+    if (newSecret) setSuccess('')
     setNewSecret(null)
     setShowSecret(false)
   }
+
+  useEffect(() => {
+    if (!newSecret || confirmAction) return
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const focusFirst = () => {
+      if (modalRef.current && isTopModal(modalRef.current)) modalRef.current.querySelector('button')?.focus()
+    }
+    focusFirst()
+    const keydown = (event: KeyboardEvent) => {
+      const dialog = modalRef.current
+      if (event.key !== 'Tab' || !dialog || !isTopModal(dialog)) return
+      const buttons = dialog.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
+      const first = buttons[0]
+      const last = buttons[buttons.length - 1]
+      if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        event.preventDefault()
+        last?.focus()
+      } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        event.preventDefault()
+        first?.focus()
+      }
+    }
+    const focusin = (event: FocusEvent) => {
+      if (event.target instanceof Node && !modalRef.current?.contains(event.target)) focusFirst()
+    }
+    document.addEventListener('keydown', keydown, true)
+    document.addEventListener('focusin', focusin)
+    return () => {
+      document.removeEventListener('keydown', keydown, true)
+      document.removeEventListener('focusin', focusin)
+      restoreModalFocus(previous)
+    }
+  }, [newSecret, confirmAction])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -173,17 +214,12 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
         const data = await res.json()
         if (data.clientSecret && !editingApp) {
           // Show the new secret
-          setNewSecret(data.clientSecret)
+          setNewSecret({ clientId: data.clientId, clientSecret: data.clientSecret, isReset: false })
+          setShowSecret(true)
           setSuccess(language === 'zh-CN' ? '应用创建成功！请保存以下密钥' : 'App created! Save the secret below')
-        } else if (data.clientSecret && editingApp) {
-          setNewSecret(data.clientSecret)
-          setSuccess(language === 'zh-CN' ? '密钥重置成功！请保存以下新密钥' : 'Secret reset! Save the new secret below')
         } else {
           setSuccess(t('configSaved'))
           closeModal()
-          fetchApps()
-        }
-        if (!data.clientSecret) {
           setTimeout(() => setSuccess(''), 3000)
         }
         fetchApps()
@@ -245,7 +281,8 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
 
       if (res.ok) {
         const data = await res.json()
-        setNewSecret(data.clientSecret)
+        setNewSecret({ clientId: data.clientId, clientSecret: data.clientSecret, isReset: true })
+        setShowSecret(true)
         setSuccess(language === 'zh-CN' ? '密钥重置成功！请保存以下新密钥' : 'Secret reset! Save the new secret below')
         fetchApps()
       } else {
@@ -452,14 +489,18 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
-      {showModal && (
+      {/* Add/Edit and one-time secret modal */}
+      {(showModal || newSecret) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-          onClick={closeModal}
+          onClick={newSecret ? undefined : closeModal}
         >
           <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={modalTitleId}
             className="rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden max-h-[90vh] overflow-y-auto"
             style={{ backgroundColor: 'var(--color-bg-secondary)' }}
             onClick={e => e.stopPropagation()}
@@ -468,11 +509,12 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
               className="px-6 py-4 border-b flex items-center justify-between sticky top-0"
               style={{ borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-secondary)' }}
             >
-              <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                {editingApp ? t('editOAuthApp') : t('createOAuthApp')}
+              <h3 id={modalTitleId} className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                {newSecret ? t(newSecret.isReset ? 'resetSecret' : 'createOAuthApp') : editingApp ? t('editOAuthApp') : t('createOAuthApp')}
               </h3>
               <button
                 onClick={closeModal}
+                aria-label={t('close')}
                 className="p-1.5 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
                 style={{ color: 'var(--color-text-secondary)' }}
               >
@@ -503,10 +545,11 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
                         className="flex-1 px-3 py-2 rounded-lg font-mono text-xs break-all"
                         style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}
                       >
-                        {editingApp?.clientId || apps[apps.length - 1]?.clientId}
+                        {newSecret.clientId}
                       </p>
                       <button
-                        onClick={() => copyToClipboard(editingApp?.clientId || apps[apps.length - 1]?.clientId || '')}
+                        onClick={() => copyToClipboard(newSecret.clientId)}
+                        title={`${t('clickToCopy')} ${t('clientId')}`}
                         className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         style={{ color: 'var(--color-text-secondary)' }}
                       >
@@ -522,19 +565,21 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
                     <div className="flex items-center gap-2">
                       <p
                         className="flex-1 px-3 py-2 rounded-lg font-mono text-xs break-all"
-                        style={{ backgroundColor: 'var(--color-bg-tertiary)', color: showSecret ? 'var(--color-text-primary)' : 'transparent', userSelect: 'all' }}
+                        style={{ backgroundColor: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)', userSelect: 'all' }}
                       >
-                        {showSecret ? newSecret : '••••••••••••••••••••••••••••••••'}
+                        {showSecret ? newSecret.clientSecret : '••••••••••••••••••••••••••••••••'}
                       </p>
                       <button
                         onClick={() => setShowSecret(!showSecret)}
+                        title={t(showSecret ? 'hideSecret' : 'showSecret')}
                         className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         style={{ color: 'var(--color-text-secondary)' }}
                       >
                         {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                       <button
-                        onClick={() => copyToClipboard(newSecret)}
+                        onClick={() => copyToClipboard(newSecret.clientSecret)}
+                        title={`${t('clickToCopy')} ${t('clientSecret')}`}
                         className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         style={{ color: 'var(--color-text-secondary)' }}
                       >
@@ -550,7 +595,7 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
                     className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                     style={{ backgroundColor: 'var(--color-accent-primary)', color: 'var(--color-accent-text)' }}
                   >
-                    {t('continue')}
+                    {language === 'zh-CN' ? '我已保存' : 'I have saved the secret'}
                   </button>
                 </div>
               </div>
