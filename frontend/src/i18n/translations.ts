@@ -121,7 +121,7 @@ export const translations = {
     backToInbox: '返回收件箱',
     
     // Profile page
-    profileDescription: '管理您的个人信息',
+    profileDescription: '管理个人信息、账户安全与登录方式',
     accountInfo: '账户信息',
     basicInfo: '基本信息',
     personalInfo: '个人信息',
@@ -520,7 +520,7 @@ export const translations = {
     backToInbox: 'Back to Inbox',
     
     // Profile page
-    profileDescription: 'Manage your personal information',
+    profileDescription: 'Manage your personal details, security and sign-in options',
     accountInfo: 'Account Info',
     basicInfo: 'Basic Info',
     personalInfo: 'Personal Info',

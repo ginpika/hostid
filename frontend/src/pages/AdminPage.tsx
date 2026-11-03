@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { Database, Trash2, ChevronLeft, ChevronRight, RefreshCw, Maximize2, Minimize2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 interface TableInfo {
   name: string
@@ -33,6 +34,7 @@ export default function AdminPage({ embedded = false }: { embedded?: boolean }) 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ table: string; id: string; page: number } | null>(null)
 
   useEffect(() => {
     fetchTables()
@@ -80,21 +82,21 @@ export default function AdminPage({ embedded = false }: { embedded?: boolean }) 
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!selectedTable) return
-    if (!confirm(t('confirmDelete'))) return
+  const handleDelete = async () => {
+    if (!pendingDelete) return false
+    const { table, id, page: targetPage } = pendingDelete
 
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch(`/api/admin/tables/${selectedTable}/${id}`, {
+      const res = await fetch(`/api/admin/tables/${table}/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
-      if (res.ok) {
-        fetchTableData(selectedTable, page)
-      }
+      if (!res.ok) return false
+      fetchTableData(table, targetPage)
     } catch (err) {
       console.error('Failed to delete record:', err)
+      return false
     }
   }
 
@@ -115,7 +117,7 @@ export default function AdminPage({ embedded = false }: { embedded?: boolean }) 
     }
   }
 
-  const TableContent = () => (
+  const renderTableContent = () => (
     <div
       className={`rounded-lg border ${isFullscreen ? 'h-full flex flex-col' : ''}`}
       style={{
@@ -187,7 +189,7 @@ export default function AdminPage({ embedded = false }: { embedded?: boolean }) 
                     ))}
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => handleDelete(row.id)}
+                        onClick={() => selectedTable && setPendingDelete({ table: selectedTable, id: row.id, page })}
                         className="p-1.5 rounded"
                         style={{ color: 'var(--color-text-quaternary)' }}
                         title={t('delete')}
@@ -237,6 +239,18 @@ export default function AdminPage({ embedded = false }: { embedded?: boolean }) 
     </div>
   )
 
+  const deleteDialog = (
+    <ConfirmDialog
+      open={pendingDelete !== null}
+      title={t('delete')}
+      description={t('confirmDelete')}
+      confirmLabel={t('delete')}
+      cancelLabel={t('cancel')}
+      onConfirm={handleDelete}
+      onCancel={() => setPendingDelete(null)}
+    />
+  )
+
   if (error) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -249,9 +263,12 @@ export default function AdminPage({ embedded = false }: { embedded?: boolean }) 
 
   if (isFullscreen && selectedTable) {
     return (
-      <div className="fixed inset-0 z-50 p-4" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <TableContent />
-      </div>
+      <>
+        <div className="fixed inset-0 z-50 p-4" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
+          {renderTableContent()}
+        </div>
+        {deleteDialog}
+      </>
     )
   }
 
@@ -309,7 +326,7 @@ export default function AdminPage({ embedded = false }: { embedded?: boolean }) 
 
           {/* 下方显示行记录 */}
           {selectedTable ? (
-            <TableContent />
+            renderTableContent()
           ) : (
             <div
               className="rounded-lg border p-8 text-center"
@@ -324,6 +341,7 @@ export default function AdminPage({ embedded = false }: { embedded?: boolean }) 
           )}
         </div>
       </div>
+      {deleteDialog}
     </>
   )
 }

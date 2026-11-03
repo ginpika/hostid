@@ -77,7 +77,6 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
       .then(applyView)
       .catch(err => setError(`${t('settingsLoadFailed')}: ${err.message}`))
       .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const grouped = useMemo(() => GROUPS.map(g => ({ ...g, items: settings.filter(s => s.group === g.id) })), [settings])

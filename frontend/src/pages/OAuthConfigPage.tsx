@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react'
 import { Key, Plus, Trash2, Edit, Power, PowerOff, X, Check } from 'lucide-react'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { useI18n } from '../i18n/I18nContext'
 
 interface OAuthProvider {
@@ -42,6 +43,7 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [deletingProvider, setDeletingProvider] = useState<OAuthProvider | null>(null)
 
   const [showModal, setShowModal] = useState(false)
   const [editingProvider, setEditingProvider] = useState<OAuthProvider | null>(null)
@@ -200,8 +202,6 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
   }
 
   const handleDelete = async (provider: OAuthProvider) => {
-    if (!confirm(t('confirmDeleteProvider'))) return
-
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/admin/oauth/providers/${provider.id}`, {
@@ -213,9 +213,12 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
         setSuccess(t('configDeleted'))
         fetchProviders()
         setTimeout(() => setSuccess(''), 3000)
+        return true
       }
+      return false
     } catch (err) {
       console.error('Failed to delete provider:', err)
+      return false
     }
   }
 
@@ -410,7 +413,7 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
                           <Edit className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleDelete(provider)}
+                          onClick={() => setDeletingProvider(provider)}
                           className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
                           title={t('delete')}
                           style={{ color: '#ef4444' }}
@@ -728,6 +731,15 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={deletingProvider !== null}
+        title={t('deleteProvider')}
+        description={t('confirmDeleteProvider')}
+        confirmLabel={t('delete')}
+        cancelLabel={t('cancel')}
+        onConfirm={() => deletingProvider ? handleDelete(deletingProvider) : false}
+        onCancel={() => setDeletingProvider(null)}
+      />
     </>
   )
 }

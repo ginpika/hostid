@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { AppWindow, Plus, Trash2, Edit, Power, PowerOff, X, Check, RefreshCw, Copy, Eye, EyeOff } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 interface OAuthApp {
   id: string
@@ -45,6 +46,7 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [confirmAction, setConfirmAction] = useState<{ type: 'delete' | 'resetSecret'; app: OAuthApp } | null>(null)
 
   // Modal state
   const [showModal, setShowModal] = useState(false)
@@ -197,8 +199,6 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
   }
 
   const handleDelete = async (app: OAuthApp) => {
-    if (!confirm(t('confirmDeleteOAuthApp'))) return
-
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/admin/oauth-apps/${app.id}`, {
@@ -210,9 +210,12 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
         setSuccess(t('configDeleted'))
         fetchApps()
         setTimeout(() => setSuccess(''), 3000)
+      } else {
+        return false
       }
     } catch (err) {
       console.error('Failed to delete app:', err)
+      return false
     }
   }
 
@@ -233,8 +236,6 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
   }
 
   const handleResetSecret = async (app: OAuthApp) => {
-    if (!confirm(t('resetSecretConfirm'))) return
-
     try {
       const token = localStorage.getItem('token')
       const res = await fetch(`/api/admin/oauth-apps/${app.id}/reset-secret`, {
@@ -247,9 +248,12 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
         setNewSecret(data.clientSecret)
         setSuccess(language === 'zh-CN' ? '密钥重置成功！请保存以下新密钥' : 'Secret reset! Save the new secret below')
         fetchApps()
+      } else {
+        return false
       }
     } catch (err) {
       console.error('Failed to reset secret:', err)
+      return false
     }
   }
 
@@ -371,7 +375,7 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
                         {app.isActive ? <Power className="w-5 h-5" /> : <PowerOff className="w-5 h-5" />}
                       </button>
                       <button
-                        onClick={() => handleResetSecret(app)}
+                        onClick={() => setConfirmAction({ type: 'resetSecret', app })}
                         className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         title={t('resetSecret')}
                         style={{ color: 'var(--color-text-secondary)' }}
@@ -387,7 +391,7 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
                         <Edit className="w-5 h-5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(app)}
+                        onClick={() => setConfirmAction({ type: 'delete', app })}
                         className="p-2 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         title={t('delete')}
                         style={{ color: '#ef4444' }}
@@ -689,6 +693,22 @@ export default function OAuthAppsPage({ embedded = false }: { embedded?: boolean
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={confirmAction?.type === 'resetSecret'
+          ? `${t('resetSecret')} — ${confirmAction.app.name}`
+          : `${t('delete')} — ${confirmAction?.app.name ?? ''}`}
+        description={t(confirmAction?.type === 'resetSecret' ? 'resetSecretConfirm' : 'confirmDeleteOAuthApp')}
+        confirmLabel={t(confirmAction?.type === 'resetSecret' ? 'resetSecret' : 'delete')}
+        cancelLabel={t('cancel')}
+        onConfirm={() => {
+          if (!confirmAction) return false
+          return confirmAction.type === 'resetSecret'
+            ? handleResetSecret(confirmAction.app)
+            : handleDelete(confirmAction.app)
+        }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </>
   )
 }

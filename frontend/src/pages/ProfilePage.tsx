@@ -1,13 +1,11 @@
-/**
- * 用户资料页面
- * 显示和编辑用户个人信息
- * 包含头像上传、密码修改和 GitHub 绑定功能
- */
+/** Personal details and account security, styled to match the workspace. */
 import { useState, useEffect, useRef } from 'react'
-import { Save, Loader2, Pencil, X, Shield, Camera, User, KeyRound, Github, Check } from 'lucide-react'
+import { Save, Loader2, Pencil, X, Shield, Camera, UserRound, KeyRound, Github, Check, ArrowUpRight, AlertCircle, RefreshCw, Upload } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useAuth } from '../contexts/AuthContext'
 import { encryptPassword } from '../utils/rsa'
+import ProfileDialog from '../components/ProfileDialog'
+import '../styles/profile.css'
 
 interface UserProfile {
   id: string
@@ -27,83 +25,105 @@ interface UserProfile {
 export default function ProfilePage() {
   const { t, language } = useI18n()
   const { user, setUser } = useAuth()
+  const zh = language === 'zh-CN'
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [formData, setFormData] = useState({
-    nickname: '',
-    phone: '',
-    birthday: ''
-  })
+  const [formData, setFormData] = useState({ nickname: '', phone: '', birthday: '' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  
+  const nicknameRef = useRef<HTMLInputElement>(null)
+  const editButtonRef = useRef<HTMLButtonElement>(null)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
-  const [passwordData, setPasswordData] = useState({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  })
+  const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
   const [passwordError, setPasswordError] = useState('')
 
+  const copy = zh ? {
+    avatar: '更换头像', avatarHint: 'JPG、PNG、GIF、WebP，最大 2 MB',
+    personalDescription: '让我们更好地认识你。', unset: '未填写',
+    security: '登录与安全', securityDescription: '管理密码和关联的登录方式。',
+    password: '账户密码', changePassword: '修改密码', setPassword: '设置密码',
+    passwordDescription: '使用密码登录你的 HostID 账户。', noPassword: '设置密码后，也可以使用用户名和密码登录。',
+    githubDescription: '使用 GitHub 账户快捷登录。', connected: '已关联', connect: '关联账户', viewAccount: '查看账户',
+    currentPassword: '当前密码', newPassword: '新密码', confirmPassword: '确认新密码',
+    passwordHint: '新密码至少需要 6 个字符。', passwordSaving: '保存中…',
+    avatarDescription: '选择一张图片，作为你的账户头像。', selectImage: '选择图片', reselectImage: '重新选择图片',
+    upload: '保存头像', uploading: '上传中…', preview: '新头像预览',
+    loadFailed: '暂时无法加载个人资料', retry: '重新加载'
+  } : {
+    avatar: 'Change avatar', avatarHint: 'JPG, PNG, GIF or WebP, up to 2 MB',
+    personalDescription: 'A little more about you.', unset: 'Not provided',
+    security: 'Sign-in & security', securityDescription: 'Manage your password and connected accounts.',
+    password: 'Account password', changePassword: 'Change password', setPassword: 'Set password',
+    passwordDescription: 'Sign in to HostID with your password.', noPassword: 'Add a password to sign in with your username, too.',
+    githubDescription: 'Sign in quickly with your GitHub account.', connected: 'Connected', connect: 'Connect account', viewAccount: 'View account',
+    currentPassword: 'Current password', newPassword: 'New password', confirmPassword: 'Confirm new password',
+    passwordHint: 'Use at least 6 characters for your new password.', passwordSaving: 'Saving…',
+    avatarDescription: 'Choose an image for your account avatar.', selectImage: 'Choose an image', reselectImage: 'Choose another image',
+    upload: 'Save avatar', uploading: 'Uploading…', preview: 'New avatar preview',
+    loadFailed: 'Your profile could not be loaded', retry: 'Try again'
+  }
+
+  useEffect(() => { void fetchProfile() }, [])
+
   useEffect(() => {
-    fetchProfile()
-  }, [])
+    if (!selectedFile) { setPreviewUrl(null); return }
+    const url = URL.createObjectURL(selectedFile)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [selectedFile])
+
+  useEffect(() => {
+    if (editing) nicknameRef.current?.focus()
+  }, [editing])
 
   const fetchProfile = async () => {
+    setLoading(true)
+    setError('')
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setProfile(data)
-        setFormData({
-          nickname: data.nickname || '',
-          phone: data.phone || '',
-          birthday: data.birthday || ''
-        })
-      }
-    } catch (err) {
-      console.error('Failed to fetch profile:', err)
+      const res = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error(copy.loadFailed)
+      const data: UserProfile = await res.json()
+      setProfile(data)
+      setFormData({ nickname: data.nickname || '', phone: data.phone || '', birthday: data.birthday || '' })
+    } catch {
+      setError(copy.loadFailed)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (saving) return
     setSaving(true)
     setError('')
     setSuccess('')
-
     try {
       const token = localStorage.getItem('token')
       const res = await fetch('/api/auth/profile', {
         method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
-
-      if (res.ok) {
-        const data = await res.json()
-        setProfile(data)
-        setEditing(false)
-        setSuccess(t('profileUpdated'))
-      } else {
-        setError(t('saveFailed'))
-      }
-    } catch (err) {
+      if (!res.ok) throw new Error(t('saveFailed'))
+      const data = await res.json()
+      // The update response omits password and connected-account information.
+      setProfile(previous => previous ? { ...previous, ...data } : previous)
+      if (user) setUser({ ...user, nickname: data.nickname })
+      setEditing(false)
+      setSuccess(t('profileUpdated'))
+      requestAnimationFrame(() => editButtonRef.current?.focus())
+    } catch {
       setError(t('saveFailed'))
     } finally {
       setSaving(false)
@@ -111,746 +131,531 @@ export default function ProfilePage() {
   }
 
   const handleCancel = () => {
-    setFormData({
-      nickname: profile?.nickname || '',
-      phone: profile?.phone || '',
-      birthday: profile?.birthday || ''
-    })
+    setFormData({ nickname: profile?.nickname || '', phone: profile?.phone || '', birthday: profile?.birthday || '' })
     setEditing(false)
     setError('')
+    requestAnimationFrame(() => editButtonRef.current?.focus())
   }
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setError(language === 'zh-CN' ? '请选择图片文件' : 'Please select an image file')
-        return
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setError(language === 'zh-CN' ? '图片大小不能超过 5MB' : 'Image size cannot exceed 5MB')
-        return
-      }
-      setSelectedFile(file)
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
-      setError('')
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setSelectedFile(null)
+    if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+      setAvatarError(zh ? '请选择 JPG、PNG、GIF 或 WebP 图片' : 'Choose a JPG, PNG, GIF or WebP image')
+      return
     }
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError(zh ? '图片大小不能超过 2 MB' : 'Image size cannot exceed 2 MB')
+      return
+    }
+    setSelectedFile(file)
+    setAvatarError('')
   }
 
-  const handleAvatarUpload = async () => {
-    if (!selectedFile) return
-
+  const handleAvatarUpload = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!selectedFile || uploadingAvatar) return
     setUploadingAvatar(true)
-    setError('')
-
+    setAvatarError('')
+    setSuccess('')
     try {
+      const body = new FormData()
+      body.append('avatar', selectedFile)
       const token = localStorage.getItem('token')
-      const formData = new FormData()
-      formData.append('avatar', selectedFile)
-
-      const res = await fetch('/api/auth/avatar', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: formData
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setProfile(prev => prev ? { ...prev, avatar: data.avatar, avatarUrl: data.avatarUrl } : null)
-        // 同步更新 AuthContext，侧边栏等组件会立即反映
-        if (user) {
-          setUser({ ...user, avatar: data.avatar, avatarUrl: data.avatarUrl })
-        }
-        setShowAvatarModal(false)
-        setSelectedFile(null)
-        setPreviewUrl(null)
-        setSuccess(language === 'zh-CN' ? '头像更新成功' : 'Avatar updated successfully')
-      } else {
-        const errData = await res.json()
-        setError(errData.error || (language === 'zh-CN' ? '上传失败' : 'Upload failed'))
-      }
-    } catch (err) {
-      setError(language === 'zh-CN' ? '上传失败' : 'Upload failed')
+      const res = await fetch('/api/auth/avatar', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || (zh ? '上传失败，请重试' : 'Upload failed. Please try again.'))
+      setProfile(previous => previous ? { ...previous, avatar: data.avatar, avatarUrl: data.avatarUrl } : previous)
+      if (user) setUser({ ...user, avatar: data.avatar, avatarUrl: data.avatarUrl })
+      setShowAvatarModal(false)
+      setSelectedFile(null)
+      setSuccess(zh ? '头像已更新' : 'Avatar updated')
+    } catch (cause) {
+      setAvatarError(cause instanceof Error ? cause.message : (zh ? '上传失败，请重试' : 'Upload failed. Please try again.'))
     } finally {
       setUploadingAvatar(false)
     }
   }
 
   const closeAvatarModal = () => {
+    if (uploadingAvatar) return
     setShowAvatarModal(false)
     setSelectedFile(null)
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(null)
-    }
-    setError('')
+    setAvatarError('')
   }
 
-  const handlePasswordChange = async () => {
+  const handlePasswordChange = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (changingPassword) return
     setPasswordError('')
-    
     if (profile?.hasPassword && !passwordData.oldPassword) {
-      setPasswordError(language === 'zh-CN' ? '请输入当前密码' : 'Please enter current password')
+      setPasswordError(zh ? '请输入当前密码' : 'Please enter your current password')
       return
     }
-    
-    if (!passwordData.newPassword || !passwordData.confirmPassword) {
-      setPasswordError(language === 'zh-CN' ? '请填写所有字段' : 'Please fill in all fields')
-      return
-    }
-    
     if (passwordData.newPassword.length < 6) {
-      setPasswordError(language === 'zh-CN' ? '新密码至少需要 6 个字符' : 'New password must be at least 6 characters')
+      setPasswordError(copy.passwordHint)
       return
     }
-    
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError(language === 'zh-CN' ? '两次输入的新密码不一致' : 'New passwords do not match')
+      setPasswordError(zh ? '两次输入的新密码不一致' : 'New passwords do not match')
       return
     }
-
     setChangingPassword(true)
-
+    setSuccess('')
     try {
+      const payload: { newPassword: string; oldPassword?: string } = { newPassword: await encryptPassword(passwordData.newPassword) }
+      if (profile?.hasPassword) payload.oldPassword = await encryptPassword(passwordData.oldPassword)
       const token = localStorage.getItem('token')
-      
-      const encryptedNewPassword = await encryptPassword(passwordData.newPassword)
-      
-      const payload: { newPassword: string; oldPassword?: string } = {
-        newPassword: encryptedNewPassword
-      }
-      
-      if (profile?.hasPassword && passwordData.oldPassword) {
-        payload.oldPassword = await encryptPassword(passwordData.oldPassword)
-      }
-      
       const res = await fetch('/api/auth/password', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-
-      if (res.ok) {
-        const data = await res.json()
-        if (data.hasPassword !== undefined) {
-          setProfile(prev => prev ? { ...prev, hasPassword: data.hasPassword } : null)
-        }
-        setShowPasswordModal(false)
-        setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' })
-        setSuccess(profile?.hasPassword 
-          ? (language === 'zh-CN' ? '密码修改成功' : 'Password changed successfully')
-          : (language === 'zh-CN' ? '密码设置成功' : 'Password set successfully')
-        )
-      } else {
-        const errData = await res.json()
-        setPasswordError(errData.error || (language === 'zh-CN' ? '修改失败' : 'Failed to change password'))
-      }
-    } catch (err) {
-      setPasswordError(language === 'zh-CN' ? '修改失败' : 'Failed to change password')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || (zh ? '密码保存失败，请重试' : 'Could not save your password. Please try again.'))
+      setProfile(previous => previous ? { ...previous, hasPassword: data.hasPassword ?? true } : previous)
+      setShowPasswordModal(false)
+      setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' })
+      setSuccess(profile?.hasPassword ? (zh ? '密码已修改' : 'Password changed') : (zh ? '密码已设置' : 'Password set'))
+    } catch (cause) {
+      setPasswordError(cause instanceof Error ? cause.message : (zh ? '密码保存失败，请重试' : 'Could not save your password. Please try again.'))
     } finally {
       setChangingPassword(false)
     }
   }
 
   const closePasswordModal = () => {
+    if (changingPassword) return
     setShowPasswordModal(false)
     setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' })
     setPasswordError('')
   }
 
-  const getAvatarUrl = () => {
-    if (profile?.avatarUrl) {
-      return profile.avatarUrl
-    }
-    if (profile?.avatar) {
-      return profile.avatar.startsWith('http') ? profile.avatar : `/api/auth/avatar/${profile.avatar}`
-    }
-    return null
-  }
-
   const handleGitHubClick = async () => {
     if (!profile?.githubId) return
-
     try {
       const res = await fetch(`https://api.github.com/user/${profile.githubId}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data.html_url) {
-          window.open(data.html_url, '_blank', 'noopener,noreferrer')
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch GitHub user info:', err)
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.html_url) window.open(data.html_url, '_blank', 'noopener,noreferrer')
+    } catch (cause) {
+      console.error('Failed to fetch GitHub user info:', cause)
     }
   }
 
-  if (loading) {
+  if (loading || !profile) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
+      <div className="profile-page">
+        <div className="profile-empty" role={loading ? 'status' : 'alert'}>
+          {loading ? <Loader2 size={26} className="animate-spin" /> : <AlertCircle size={28} />}
+          <p>{loading ? t('loading') : error || t('profileNotFound')}</p>
+          {!loading && (
+            <button type="button" className="profile-button" onClick={() => void fetchProfile()}>
+              <RefreshCw size={15} />
+              {copy.retry}
+            </button>
+          )}
+        </div>
       </div>
     )
   }
 
-  if (!profile) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p style={{ color: 'var(--color-text-tertiary)' }}>{t('profileNotFound')}</p>
-      </div>
-    )
-  }
+  const avatarUrl = profile.avatarUrl || (profile.avatar ? profile.avatar.startsWith('http') ? profile.avatar : `/api/auth/avatar/${profile.avatar}` : null)
+  const passwordTitle = profile.hasPassword ? copy.changePassword : copy.setPassword
+  const registeredDate = new Date(profile.createdAt).toLocaleDateString(language, { year: 'numeric', month: 'short', day: 'numeric' })
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto relative" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <a
-          href="/sso/info"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute top-4 right-4 z-10 flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg transition-all hover:scale-105"
-          style={{ 
-            backgroundColor: 'var(--color-bg-secondary)',
-            border: '1px solid var(--color-border-primary)',
-            color: 'var(--color-text-secondary)'
-          }}
-          title={t('ssoInfo')}
-        >
-          <Shield className="w-4 h-4" style={{ color: 'var(--color-accent-primary)' }} />
-          <span className="text-sm font-medium">{t('ssoInfo')}</span>
-        </a>
-        
-        <div className="max-w-3xl mx-auto p-8">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{t('profile')}</h2>
-            <p className="mt-1" style={{ color: 'var(--color-text-tertiary)' }}>{t('profileDescription')}</p>
-          </div>
+      <div className="profile-page">
+        <div className="profile-shell">
+          <header className="profile-heading">
+            <div className="profile-heading-copy">
+              <span className="profile-mark" aria-hidden="true">
+                <UserRound size={24} strokeWidth={1.6} />
+              </span>
+              <div>
+                <h2>{t('profile')}</h2>
+                <p>{t('profileDescription')}</p>
+              </div>
+            </div>
+            <a
+              className="profile-heading-link"
+              href="/sso/info"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Shield size={15} />
+              {t('ssoInfo')}
+              <ArrowUpRight size={14} />
+            </a>
+          </header>
 
           {error && (
-            <div 
-              className="mb-6 p-4 border rounded-lg"
-              style={{ 
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                borderColor: 'rgba(239, 68, 68, 0.3)',
-                color: '#ef4444'
-              }}
-            >
-              {error}
+            <div className="profile-feedback profile-feedback--error" role="alert">
+              <AlertCircle size={17} />
+              <span>{error}</span>
+              <button type="button" onClick={() => setError('')} aria-label={t('close')}>
+                <X size={16} />
+              </button>
             </div>
           )}
           {success && (
-            <div 
-              className="mb-6 p-4 border rounded-lg"
-              style={{ 
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                borderColor: 'rgba(34, 197, 94, 0.3)',
-                color: '#22c55e'
-              }}
-            >
-              {success}
+            <div className="profile-feedback profile-feedback--success" role="status">
+              <Check size={17} />
+              <span>{success}</span>
+              <button type="button" onClick={() => setSuccess('')} aria-label={t('close')}>
+                <X size={16} />
+              </button>
             </div>
           )}
 
-          <div 
-            className="rounded-lg border"
-            style={{ 
-              backgroundColor: 'var(--color-bg-secondary)',
-              borderColor: 'var(--color-border-primary)'
-            }}
-          >
-            <div className="p-6">
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--color-text-tertiary)' }}>
-                {language === 'zh-CN' ? '头像' : 'Avatar'}
-              </h3>
-              <div className="flex items-center gap-6">
-                <button
-                  onClick={() => setShowAvatarModal(true)}
-                  className="relative group cursor-pointer"
-                >
-                  <div 
-                    className="w-24 h-24 rounded-full overflow-hidden border-2 transition-all group-hover:border-[var(--color-accent-primary)]"
-                    style={{ 
-                      borderColor: 'var(--color-border-primary)',
-                      backgroundColor: 'var(--color-bg-tertiary)'
-                    }}
-                  >
-                    {getAvatarUrl() ? (
-                      <img 
-                        src={getAvatarUrl()!} 
-                        alt="Avatar" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <User className="w-10 h-10" style={{ color: 'var(--color-text-muted)' }} />
-                      </div>
-                    )}
-                  </div>
-                  <div 
-                    className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-                  >
-                    <Camera className="w-6 h-6 text-white" />
-                  </div>
-                </button>
+          <div className="profile-layout">
+            <aside className="profile-card profile-identity" aria-label={t('accountInfo')}>
+              <button
+                type="button"
+                className="profile-avatar-button"
+                onClick={() => setShowAvatarModal(true)}
+                aria-label={copy.avatar}
+              >
+                <span className="profile-avatar">
+                  {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserRound size={36} strokeWidth={1.5} />}
+                </span>
+                <span className="profile-avatar-camera" aria-hidden="true">
+                  <Camera size={14} />
+                </span>
+              </button>
+              <h3 className="profile-identity-name">{profile.nickname || profile.username}</h3>
+              <p className="profile-identity-handle">@{profile.username}</p>
+              <dl className="profile-account-details">
                 <div>
-                  <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                    {language === 'zh-CN' ? '点击头像更换' : 'Click avatar to change'}
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                    {language === 'zh-CN' ? '支持 JPG、PNG、GIF，最大 5MB' : 'JPG, PNG, GIF supported, max 5MB'}
-                  </p>
+                  <dt>{t('username')}</dt>
+                  <dd>{profile.username}</dd>
                 </div>
-              </div>
-            </div>
+                <div>
+                  <dt>{t('email')}</dt>
+                  <dd>{profile.email}</dd>
+                </div>
+                <div>
+                  <dt>{t('registeredAt')}</dt>
+                  <dd><time dateTime={profile.createdAt}>{registeredDate}</time></dd>
+                </div>
+              </dl>
+            </aside>
 
-            <div className="border-t" style={{ borderColor: 'var(--color-border-primary)' }} />
-
-            <div className="p-6">
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--color-text-tertiary)' }}>
-                {t('accountInfo')}
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-tertiary)' }}>{t('username')}</label>
-                  <p className="text-base" style={{ color: 'var(--color-text-primary)' }}>{profile.username}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-tertiary)' }}>{t('email')}</label>
-                  <p className="text-base" style={{ color: 'var(--color-text-primary)' }}>{profile.email}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-tertiary)' }}>{t('registeredAt')}</label>
-                  <p className="text-base" style={{ color: 'var(--color-text-primary)' }}>{new Date(profile.createdAt).toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              <div className="mt-6 pt-4 border-t" style={{ borderColor: 'var(--color-border-primary)' }}>
-                <div className="flex flex-wrap items-center gap-4">
-                  <button
-                    onClick={() => setShowPasswordModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                    style={{ 
-                      color: 'var(--color-text-primary)',
-                      backgroundColor: 'var(--color-bg-tertiary)'
-                    }}
-                  >
-                    <KeyRound className="w-4 h-4" />
-                    {profile.hasPassword 
-                      ? (language === 'zh-CN' ? '修改密码' : 'Change Password')
-                      : (language === 'zh-CN' ? '设置密码' : 'Set Password')
-                    }
-                  </button>
-                  
-                  {profile.githubId ? (
+            <div className="profile-content">
+              <section className="profile-card" aria-labelledby="profile-personal-title">
+                <header className="profile-section-heading">
+                  <span className="profile-section-icon" aria-hidden="true">
+                    <UserRound size={19} />
+                  </span>
+                  <div>
+                    <h3 id="profile-personal-title">{t('personalInfo')}</h3>
+                    <p>{copy.personalDescription}</p>
+                  </div>
+                  {!editing && (
                     <button
-                      onClick={handleGitHubClick}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm cursor-pointer transition-all hover:scale-[1.02]"
-                      style={{
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        border: '1px solid rgba(34, 197, 94, 0.3)'
-                      }}
+                      ref={editButtonRef}
+                      type="button"
+                      className="profile-button profile-button--quiet profile-button--small"
+                      onClick={() => { setEditing(true); setSuccess('') }}
                     >
-                      <img
-                        src={`https://avatars.githubusercontent.com/u/${profile.githubId}?s=40`}
-                        alt="GitHub"
-                        className="w-5 h-5 rounded-full"
-                      />
-                      <span style={{ color: '#22c55e' }}>GitHub</span>
-                      <Check className="w-4 h-4" style={{ color: '#22c55e' }} />
-                      <span className="text-xs" style={{ color: '#22c55e' }}>
-                        {language === 'zh-CN' ? '已绑定' : 'Connected'}
-                      </span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        window.location.href = '/api/oauth/github?redirect=' + encodeURIComponent('/profile')
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm cursor-pointer transition-all hover:scale-[1.02]"
-                      style={{
-                        backgroundColor: 'var(--color-bg-tertiary)',
-                        border: '1px solid var(--color-border-primary)'
-                      }}
-                    >
-                      <Github className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
-                      <span style={{ color: 'var(--color-text-secondary)' }}>GitHub</span>
-                      <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                        {language === 'zh-CN' ? '未绑定' : 'Not connected'}
-                      </span>
+                      <Pencil size={14} />
+                      {t('edit')}
                     </button>
                   )}
-                </div>
-              </div>
-            </div>
+                </header>
+                <form onSubmit={handleSave} aria-label={t('personalInfo')}>
+                  <div className="profile-form-grid">
+                    <div className="profile-field profile-field--wide">
+                      {editing ? (
+                        <>
+                          <label htmlFor="profile-nickname">{t('nickname')}</label>
+                          <input
+                            ref={nicknameRef}
+                            id="profile-nickname"
+                            className="profile-input"
+                            autoComplete="nickname"
+                            maxLength={50}
+                            value={formData.nickname}
+                            onChange={event => setFormData({ ...formData, nickname: event.target.value })}
+                            placeholder={t('nicknamePlaceholder')}
+                            disabled={saving}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <span>{t('nickname')}</span>
+                          <p className={`profile-field-value${profile.nickname ? '' : ' profile-field-empty'}`}>
+                            {profile.nickname || copy.unset}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <div className="profile-field">
+                      {editing ? (
+                        <>
+                          <label htmlFor="profile-phone">{t('phone')}</label>
+                          <input
+                            id="profile-phone"
+                            type="tel"
+                            className="profile-input"
+                            autoComplete="tel"
+                            maxLength={20}
+                            value={formData.phone}
+                            onChange={event => setFormData({ ...formData, phone: event.target.value })}
+                            placeholder={t('phonePlaceholder')}
+                            disabled={saving}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <span>{t('phone')}</span>
+                          <p className={`profile-field-value${profile.phone ? '' : ' profile-field-empty'}`}>
+                            {profile.phone || copy.unset}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <div className="profile-field">
+                      {editing ? (
+                        <>
+                          <label htmlFor="profile-birthday">{t('birthday')}</label>
+                          <input
+                            id="profile-birthday"
+                            type="date"
+                            className="profile-input"
+                            autoComplete="bday"
+                            value={formData.birthday}
+                            onChange={event => setFormData({ ...formData, birthday: event.target.value })}
+                            disabled={saving}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <span>{t('birthday')}</span>
+                          <p className={`profile-field-value${profile.birthday ? '' : ' profile-field-empty'}`}>
+                            {profile.birthday || copy.unset}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {editing && (
+                    <div className="profile-form-actions">
+                      <button type="button" className="profile-button" onClick={handleCancel} disabled={saving}>
+                        {t('cancel')}
+                      </button>
+                      <button type="submit" className="profile-button profile-button--primary" disabled={saving}>
+                        {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                        {t(saving ? 'saving' : 'save')}
+                      </button>
+                    </div>
+                  )}
+                </form>
+              </section>
 
-            <div className="border-t" style={{ borderColor: 'var(--color-border-primary)' }} />
-
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>
-                  {t('personalInfo')}
-                </h3>
-                {!editing && (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors"
-                    style={{ 
-                      color: 'var(--color-accent-primary)',
-                      backgroundColor: 'var(--color-accent-muted)'
-                    }}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    {t('edit')}
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>{t('nickname')}</label>
-                  <div className="min-h-[42px] flex items-center">
-                    {editing ? (
-                      <input
-                        type="text"
-                        value={formData.nickname}
-                        onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
-                        style={{ 
-                          backgroundColor: 'var(--color-bg-primary)',
-                          borderColor: 'var(--color-border-primary)',
-                          color: 'var(--color-text-primary)'
-                        }}
-                        placeholder={t('nicknamePlaceholder')}
-                      />
+              <section className="profile-card" aria-labelledby="profile-security-title">
+                <header className="profile-section-heading">
+                  <span className="profile-section-icon" aria-hidden="true">
+                    <Shield size={19} />
+                  </span>
+                  <div>
+                    <h3 id="profile-security-title">{copy.security}</h3>
+                    <p>{copy.securityDescription}</p>
+                  </div>
+                </header>
+                <div className="profile-settings-list">
+                  <div className="profile-setting-row">
+                    <span className="profile-setting-icon" aria-hidden="true">
+                      <KeyRound size={17} strokeWidth={1.7} />
+                    </span>
+                    <div className="profile-setting-copy">
+                      <h4>{copy.password}</h4>
+                      <p>{profile.hasPassword ? copy.passwordDescription : copy.noPassword}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="profile-button profile-button--small"
+                      onClick={() => setShowPasswordModal(true)}
+                    >
+                      {passwordTitle}
+                    </button>
+                  </div>
+                  <div className="profile-setting-row">
+                    <span className="profile-setting-icon" aria-hidden="true">
+                      <Github size={17} strokeWidth={1.7} />
+                    </span>
+                    <div className="profile-setting-copy">
+                      <h4>
+                        {'GitHub '}
+                        {profile.githubId && (
+                          <span className="profile-status">
+                            <Check size={11} />
+                            {copy.connected}
+                          </span>
+                        )}
+                      </h4>
+                      <p>{copy.githubDescription}</p>
+                    </div>
+                    {profile.githubId ? (
+                      <button type="button" className="profile-button profile-button--small" onClick={handleGitHubClick}>
+                        {copy.viewAccount}
+                        <ArrowUpRight size={13} />
+                      </button>
                     ) : (
-                      <p className="text-base py-2" style={{ color: 'var(--color-text-primary)' }}>{profile.nickname || '-'}</p>
+                      <a
+                        className="profile-button profile-button--small"
+                        href={`/api/oauth/github?redirect=${encodeURIComponent('/profile')}`}
+                      >
+                        {copy.connect}
+                        <ArrowUpRight size={13} />
+                      </a>
                     )}
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>{t('phone')}</label>
-                  <div className="min-h-[42px] flex items-center">
-                    {editing ? (
-                      <input
-                        type="tel"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
-                        style={{ 
-                          backgroundColor: 'var(--color-bg-primary)',
-                          borderColor: 'var(--color-border-primary)',
-                          color: 'var(--color-text-primary)'
-                        }}
-                        placeholder={t('phonePlaceholder')}
-                      />
-                    ) : (
-                      <p className="text-base py-2" style={{ color: 'var(--color-text-primary)' }}>{profile.phone || '-'}</p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>{t('birthday')}</label>
-                  <div className="min-h-[42px] flex items-center">
-                    {editing ? (
-                      <input
-                        type="date"
-                        value={formData.birthday}
-                        onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
-                        style={{ 
-                          backgroundColor: 'var(--color-bg-primary)',
-                          borderColor: 'var(--color-border-primary)',
-                          color: 'var(--color-text-primary)'
-                        }}
-                      />
-                    ) : (
-                      <p className="text-base py-2" style={{ color: 'var(--color-text-primary)' }}>{profile.birthday || '-'}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {editing && (
-                <div className="flex justify-end gap-3 mt-6 pt-4 border-t" style={{ borderColor: 'var(--color-border-primary)' }}>
-                  <button
-                    onClick={handleCancel}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                    style={{ 
-                      color: 'var(--color-text-secondary)',
-                      backgroundColor: 'var(--color-bg-tertiary)'
-                    }}
-                    disabled={saving}
-                  >
-                    <X className="w-4 h-4" />
-                    {t('cancel')}
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--color-accent-primary)', color: 'var(--color-accent-text)' }}
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        {t('saving')}
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        {t('save')}
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+              </section>
             </div>
           </div>
         </div>
       </div>
 
-      {showAvatarModal && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-          onClick={closeAvatarModal}
-        >
-          <div 
-            className="rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
-            style={{ backgroundColor: 'var(--color-bg-secondary)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div 
-              className="px-6 py-4 border-b flex items-center justify-between"
-              style={{ borderColor: 'var(--color-border-primary)' }}
+      <ProfileDialog
+        open={showAvatarModal}
+        title={copy.avatar}
+        description={copy.avatarDescription}
+        icon={<Camera size={20} />}
+        onClose={closeAvatarModal}
+        busy={uploadingAvatar}
+        footer={(
+          <>
+            <button type="button" className="profile-button" onClick={closeAvatarModal} disabled={uploadingAvatar}>
+              {t('cancel')}
+            </button>
+            <button
+              type="submit"
+              form="profile-avatar-form"
+              className="profile-button profile-button--primary"
+              disabled={!selectedFile || uploadingAvatar}
             >
-              <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                {language === 'zh-CN' ? '更换头像' : 'Change Avatar'}
-              </h3>
-              <button
-                onClick={closeAvatarModal}
-                className="p-1.5 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                <X className="w-5 h-5" />
-              </button>
+              {uploadingAvatar ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+              {uploadingAvatar ? copy.uploading : copy.upload}
+            </button>
+          </>
+        )}
+      >
+        <form id="profile-avatar-form" onSubmit={handleAvatarUpload}>
+          {avatarError && (
+            <div className="profile-feedback profile-feedback--error" role="alert">
+              <AlertCircle size={16} />
+              <span>{avatarError}</span>
             </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            onChange={handleFileSelect}
+            hidden
+            disabled={uploadingAvatar}
+            aria-label={copy.selectImage}
+          />
+          <button
+            type="button"
+            className="profile-upload-button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingAvatar}
+          >
+            {previewUrl ? (
+              <img className="profile-upload-preview" src={previewUrl} alt={copy.preview} />
+            ) : (
+              <span className="profile-avatar">
+                {avatarUrl ? <img src={avatarUrl} alt="" /> : <Camera size={30} strokeWidth={1.5} />}
+              </span>
+            )}
+            <span>{selectedFile ? copy.reselectImage : copy.selectImage}</span>
+            <span className="profile-upload-hint">{selectedFile?.name || copy.avatarHint}</span>
+          </button>
+        </form>
+      </ProfileDialog>
 
-            <div className="p-6">
+      <ProfileDialog
+        open={showPasswordModal}
+        title={passwordTitle}
+        description={copy.passwordHint}
+        icon={<KeyRound size={20} />}
+        onClose={closePasswordModal}
+        busy={changingPassword}
+        footer={(
+          <>
+            <button type="button" className="profile-button" onClick={closePasswordModal} disabled={changingPassword}>
+              {t('cancel')}
+            </button>
+            <button
+              type="submit"
+              form="profile-password-form"
+              className="profile-button profile-button--primary"
+              disabled={changingPassword}
+            >
+              {changingPassword ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+              {changingPassword ? copy.passwordSaving : passwordTitle}
+            </button>
+          </>
+        )}
+      >
+        <form id="profile-password-form" className="profile-form-grid" onSubmit={handlePasswordChange}>
+          {passwordError && (
+            <div className="profile-feedback profile-feedback--error profile-field--wide" role="alert">
+              <AlertCircle size={16} />
+              <span>{passwordError}</span>
+            </div>
+          )}
+          {profile.hasPassword && (
+            <div className="profile-field profile-field--wide">
+              <label htmlFor="profile-current-password">{copy.currentPassword}</label>
               <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-
-              <div 
-                className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors hover:border-[var(--color-accent-primary)]"
-                style={{ borderColor: 'var(--color-border-primary)' }}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {previewUrl ? (
-                  <div className="flex flex-col items-center">
-                    <img 
-                      src={previewUrl} 
-                      alt="Preview" 
-                      className="w-32 h-32 rounded-full object-cover mb-4"
-                    />
-                    <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                      {language === 'zh-CN' ? '点击重新选择' : 'Click to select another'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <Camera className="w-12 h-12 mb-4" style={{ color: 'var(--color-text-muted)' }} />
-                    <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                      {language === 'zh-CN' ? '点击选择图片' : 'Click to select image'}
-                    </p>
-                    <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
-                      {language === 'zh-CN' ? '支持 JPG、PNG、GIF，最大 5MB' : 'JPG, PNG, GIF supported, max 5MB'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div 
-              className="px-6 py-4 border-t flex justify-end gap-3"
-              style={{ borderColor: 'var(--color-border-primary)' }}
-            >
-              <button
-                onClick={closeAvatarModal}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ 
-                  color: 'var(--color-text-secondary)',
-                  backgroundColor: 'var(--color-bg-tertiary)'
-                }}
-              >
-                {t('cancel')}
-              </button>
-              <button
-                onClick={handleAvatarUpload}
-                disabled={!selectedFile || uploadingAvatar}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-accent-primary)', color: 'var(--color-accent-text)' }}
-              >
-                {uploadingAvatar ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {language === 'zh-CN' ? '上传中...' : 'Uploading...'}
-                  </>
-                ) : (
-                  language === 'zh-CN' ? '确认上传' : 'Upload'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPasswordModal && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-          onClick={closePasswordModal}
-        >
-          <div 
-            className="rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
-            style={{ backgroundColor: 'var(--color-bg-secondary)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div 
-              className="px-6 py-4 border-b flex items-center justify-between"
-              style={{ borderColor: 'var(--color-border-primary)' }}
-            >
-              <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                {profile?.hasPassword 
-                  ? (language === 'zh-CN' ? '修改密码' : 'Change Password')
-                  : (language === 'zh-CN' ? '设置密码' : 'Set Password')
-                }
-              </h3>
-              <button
-                onClick={closePasswordModal}
-                className="p-1.5 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {passwordError && (
-                <div 
-                  className="p-3 rounded-lg text-sm"
-                  style={{ 
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    color: '#ef4444'
-                  }}
-                >
-                  {passwordError}
-                </div>
-              )}
-              
-              {profile?.hasPassword && (
-                <div>
-                  <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-                    {language === 'zh-CN' ? '当前密码' : 'Current Password'}
-                  </label>
-                  <input
-                    type="password"
-                    value={passwordData.oldPassword}
-                    onChange={(e) => setPasswordData({ ...passwordData, oldPassword: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
-                    style={{ 
-                      backgroundColor: 'var(--color-bg-primary)',
-                      borderColor: 'var(--color-border-primary)',
-                      color: 'var(--color-text-primary)'
-                    }}
-                    placeholder="••••••••"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-                  {language === 'zh-CN' ? '新密码' : 'New Password'}
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
-                  style={{ 
-                    backgroundColor: 'var(--color-bg-primary)',
-                    borderColor: 'var(--color-border-primary)',
-                    color: 'var(--color-text-primary)'
-                  }}
-                  placeholder="••••••••"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-                  {language === 'zh-CN' ? '确认新密码' : 'Confirm New Password'}
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2"
-                  style={{ 
-                    backgroundColor: 'var(--color-bg-primary)',
-                    borderColor: 'var(--color-border-primary)',
-                    color: 'var(--color-text-primary)'
-                  }}
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            <div 
-              className="px-6 py-4 border-t flex justify-end gap-3"
-              style={{ borderColor: 'var(--color-border-primary)' }}
-            >
-              <button
-                onClick={closePasswordModal}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ 
-                  color: 'var(--color-text-secondary)',
-                  backgroundColor: 'var(--color-bg-tertiary)'
-                }}
-              >
-                {t('cancel')}
-              </button>
-              <button
-                onClick={handlePasswordChange}
+                id="profile-current-password"
+                type="password"
+                className="profile-input"
+                autoComplete="current-password"
+                value={passwordData.oldPassword}
+                onChange={event => setPasswordData({ ...passwordData, oldPassword: event.target.value })}
+                required
                 disabled={changingPassword}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-accent-primary)', color: 'var(--color-accent-text)' }}
-              >
-                {changingPassword ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {language === 'zh-CN' ? '设置中...' : 'Setting...'}
-                  </>
-                ) : (
-                  profile?.hasPassword 
-                    ? (language === 'zh-CN' ? '确认修改' : 'Confirm')
-                    : (language === 'zh-CN' ? '确认设置' : 'Set Password')
-                )}
-              </button>
+              />
             </div>
+          )}
+          <div className="profile-field profile-field--wide">
+            <label htmlFor="profile-new-password">{copy.newPassword}</label>
+            <input
+              id="profile-new-password"
+              type="password"
+              className="profile-input"
+              autoComplete="new-password"
+              minLength={6}
+              value={passwordData.newPassword}
+              onChange={event => setPasswordData({ ...passwordData, newPassword: event.target.value })}
+              required
+              disabled={changingPassword}
+            />
           </div>
-        </div>
-      )}
+          <div className="profile-field profile-field--wide">
+            <label htmlFor="profile-confirm-password">{copy.confirmPassword}</label>
+            <input
+              id="profile-confirm-password"
+              type="password"
+              className="profile-input"
+              autoComplete="new-password"
+              minLength={6}
+              value={passwordData.confirmPassword}
+              onChange={event => setPasswordData({ ...passwordData, confirmPassword: event.target.value })}
+              required
+              disabled={changingPassword}
+            />
+          </div>
+        </form>
+      </ProfileDialog>
     </>
   )
 }
