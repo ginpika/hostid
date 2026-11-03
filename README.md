@@ -4,11 +4,9 @@
 
 # HostID
 
-**Your domain. Your inbox. Your identity.**
+**Self-hosted webmail and sign-in for your own domain.**
 
-A self-hosted web mailbox and a sign-in home for the apps you build.
-
-Built for a decentralized web, one independently run instance at a time.
+A self-hosted web mail client that also provides SSO and OAuth 2.0 for your apps.
 
 [![Build and verify](https://github.com/ginpika/hostid/actions/workflows/docker-build.yml/badge.svg)](https://github.com/ginpika/hostid/actions/workflows/docker-build.yml)
 [![Docker: AMD64 / ARM64](https://img.shields.io/badge/Docker-AMD64%20%2F%20ARM64-2496ED?logo=docker&logoColor=white)](./docs/docker.md)
@@ -16,62 +14,56 @@ Built for a decentralized web, one independently run instance at a time.
 
 **English** · [简体中文](./README-zh-CN.md)
 
-[Take a look](#preview) · [Decentralized by design](#decentralization) · [Get started](#quick-start) · [Connect your apps](#identity) · [Documentation](./docs/README.md)
+[Screenshots](#preview) · [Architecture](#decentralization) · [Quick start](#quick-start) · [Identity](#identity) · [Documentation](./docs/README.md)
 
 </div>
 
 <a id="preview"></a>
 
-![HostID inbox — a real mailbox, on your own server](./docs/screenshots/inbox.png)
+![HostID inbox on a self-hosted instance](./docs/screenshots/inbox.png)
 
 <details>
-<summary>A different mood. The same mailbox.</summary>
+<summary>More screenshots.</summary>
 
-**Classic, after dark.**
-
-![HostID classic dark theme](./docs/screenshots/classic-dark.png)
-
-**Room to write.**
+**Compose.**
 
 ![Writing an email in HostID](./docs/screenshots/compose.png)
 
 </details>
 
-## Give your domain a little more to do
+## What HostID is for
 
-You have a domain, a server, and a growing collection of side projects. HostID gives them a shared home: an inbox at `you@yourdomain.com`, and one account your own apps can recognize.
-
-It started with two personal wishes: a self-hosted mailbox that feels good to use, and a simple way to sign in to the services I build. HostID puts both in one place.
+HostID is for people who own a domain and run their own server. It started from two needs: a self-hosted mailbox I wanted to use daily, and a simple way for my own services to sign in. It provides both: mail at `you@yourdomain.com`, and one account your apps can authenticate against.
 
 <a id="decentralization"></a>
 
-## Your own corner of a decentralized web
+## Independent instances and local accounts
 
-HostID's decentralized design starts with independently operated instances. Run your mailbox and identity service under your own domain, with no HostID-operated account service required.
+HostID does not depend on a HostID-operated account service. Each instance runs under your domain and is responsible for its own accounts and sign-in.
 
-- **Your domain is your address.** Give your mail and sign-in endpoints a home in a namespace you control.
-- **Your data lives with you.** Mail, accounts, attachments and instance keys live in your deployment, where you control storage and backups.
-- **Your apps answer to your own identity service.** Create local accounts and connect your projects through SSO or OAuth 2.0.
-- **Open protocols keep the doors open.** Exchange mail through SMTP and connect apps through OAuth 2.0, with relay and login providers you choose.
+- **Addresses under your domain.** Mail addresses and sign-in endpoints live in a domain you control.
+- **Data in your deployment.** Mail, accounts, attachments and instance keys stay in your deployment; storage and backups are up to you.
+- **Local accounts.** Create accounts in the instance and connect apps through SSO or OAuth 2.0.
+- **Standard protocols.** SMTP for mail and OAuth 2.0 for apps; choose your own relay and login providers.
 
-Here, decentralization means independent deployment and operator control: each instance is the authority for its own accounts. A personal server or a community-run instance can have its own home on the web.
+"Decentralized" here means independent deployment and operator control: each instance is authoritative for its own accounts. A personal server and a community instance use the same model.
 
-## A mailbox worth opening
+## Mailbox features
 
-| Make it yours | What you get |
+| Area | Details |
 | --- | --- |
-| **Read your way** | Split-pane or list view, a resizable reading pane, and HTML email that keeps its original layout in an isolated frame. |
-| **Find the signal** | Search the current folder, filter unread mail, star what matters, archive the rest, and handle messages in batches. |
-| **Write with room to think** | Rich text, Markdown and HTML editing; replies, reply-all, forwarding, CC/BCC, and attachments. |
-| **Pick up where you left off** | Drafts are saved on the current device, with attachment recovery. |
-| **Set the mood** | Ten themes, including classic light and dark, plus system appearance and English / Simplified Chinese. |
-| **Keep the controls close** | A first-run setup wizard and an admin interface for system settings, users, OAuth providers and client apps. |
+| **Reading** | Split-pane or list view, a resizable reading pane, and HTML email that keeps its original layout in an isolated frame. |
+| **Search and filtering** | Search the current folder, filter unread mail, star what matters, archive the rest, and handle messages in batches. |
+| **Composing** | Rich text, Markdown and HTML editing; replies, reply-all, forwarding, CC/BCC, and attachments. |
+| **Drafts** | Drafts are saved on the current device, with attachment recovery. |
+| **Themes and language** | Ten themes, including light, dark, classic and classic-dark, plus system appearance and English / Simplified Chinese. |
+| **Setup and admin** | A first-run setup wizard and an admin interface for system settings, users, OAuth providers and client apps. |
 
-Mail comes in through the built-in SMTP receiver. Send through a configured SMTP relay, or directly to the recipient domain's MX server. You can also import and export `.eml` messages; exported files contain headers and body, without attachments.
+Inbound mail is handled by the built-in SMTP receiver. Outbound mail goes through a configured SMTP relay or directly to the recipient domain's MX server. You can also import and export `.eml` messages; exported files contain headers and body, without attachments.
 
 <a id="quick-start"></a>
 
-## Get your own inbox running
+## Quick start
 
 You need **Docker with Compose 2.24+**. The all-in-one image includes the web app, API and SMTP receiver, with builds for **AMD64 and ARM64**.
 
@@ -88,15 +80,15 @@ Open **[http://localhost:3000](http://localhost:3000)**, or replace `localhost` 
 2. Create the first administrator, with a password of at least 12 characters.
 3. Open **Settings → System Settings** to configure your SMTP relay, Turnstile and SSO settings as needed.
 
-No environment file to prepare. No default administrator password to hunt down. Most settings apply as soon as you save them.
+There is no environment file to prepare and no default administrator password; most settings take effect when you save them.
 
 The default host ports are **3000 for HTTP** and **25 for incoming SMTP**. Set `FRONTEND_PORT` or `SMTP_PORT` in a Compose `.env` file to change them. For public access, put HTTP behind an HTTPS reverse proxy and use that public URL in setup.
 
 Prefer separate frontend and backend containers, or a source build? See the [Docker deployment guide](./docs/docker.md) and [two-container Compose file](./docs/docker-compose.yaml).
 
-### Put your domain to work
+### DNS and inbound mail
 
-Starting the app gives you a web mailbox. Receiving mail from the internet also needs DNS and a reachable SMTP port:
+The web interface works as soon as the app starts. Receiving mail from the internet also requires DNS records and a reachable SMTP port:
 
 | Record | Example |
 | --- | --- |
@@ -105,13 +97,13 @@ Starting the app gives you a web mailbox. Receiving mail from the internet also 
 
 Allow inbound **TCP 25** to the server; an HTTP reverse proxy does not forward SMTP. Incoming recipients must be existing HostID users.
 
-For external sending, a configured **SMTP relay is the recommended starting point**. Set SPF, DKIM and DMARC according to your actual sending path and relay provider. Direct MX delivery depends on outbound port 25, your IP's reputation and the recipient's policies. See [Mail and DNS](./docs/mail.md) for setup and delivery diagnostics.
+For outbound mail, start with a configured **SMTP relay**. Set SPF, DKIM and DMARC according to your actual sending path and relay provider. Direct MX delivery depends on outbound port 25, your IP's reputation and the recipient's policies. See [Mail and DNS](./docs/mail.md) for setup and delivery diagnostics.
 
 <a id="identity"></a>
 
-## One account for your corner of the web
+## SSO and OAuth 2.0
 
-Your mailbox account can also be the account behind your other apps.
+The mailbox account can also sign users in to your own applications.
 
 | Connection | Use it for |
 | --- | --- |
@@ -139,9 +131,9 @@ For OAuth clients, create an app in the admin interface and register its callbac
 
 Start with the [OAuth 2.0 guide](./docs/oauth.md) for client apps, or [shared-session SSO](./docs/sso.md) for trusted services under the same parent domain. Server-side SSO examples: [Node.js](./docs/sso-integration-nodejs.md) · [Go](./docs/sso-integration-go.md) · [Java](./docs/sso-integration-java.md) · [Rust](./docs/sso-integration-rust.md).
 
-## Keep your home in order
+## Backups and upgrades
 
-**Back up the data, and the keys that unlock it.** The `backend_data` volume holds the SQLite database and automatically generated `secrets.json`. Back them up and restore them **together**: losing the keys prevents encrypted settings from being read and invalidates existing sessions. Include `backend_uploads`, `backend_avatars` and `backend_logs`, and preserve your Compose and environment files. If you explicitly supply `JWT_SECRET` or `DATA_ENCRYPTION_KEY`, securely back up those exact values too.
+**Back up the database together with `secrets.json`.** The `backend_data` volume holds the SQLite database and automatically generated `secrets.json`. Back them up and restore them **together**: losing the keys prevents encrypted settings from being read and invalidates existing sessions. Include `backend_uploads`, `backend_avatars` and `backend_logs`, and preserve your Compose and environment files. If you explicitly supply `JWT_SECRET` or `DATA_ENCRYPTION_KEY`, securely back up those exact values too.
 
 To update, back up first, then run in your deployment directory:
 
@@ -172,9 +164,9 @@ HostID currently provides a web mailbox and an SMTP receiver. It does not provid
 
 </details>
 
-## Make it your own
+## Tech stack
 
-**React + TypeScript + Vite** on the frontend. **Express + Prisma + SQLite** on the backend. Nodemailer for delivery, `smtp-server` for receiving, and Tiptap for writing.
+**React + TypeScript + Vite** on the frontend. **Express + Prisma + SQLite** on the backend. Nodemailer for outbound mail, `smtp-server` for inbound, and Tiptap for the editor.
 
 <details>
 <summary>Run from source and develop locally</summary>
@@ -213,7 +205,7 @@ npm --prefix backend run typecheck
 
 ## Documentation
 
-[Open the documentation index](./docs/README.md) for setup paths, integration choices and developer references. Every guide has an English / 简体中文 switch.
+[Open the documentation index](./docs/README.md) for setup paths, integration choices and developer references. Every guide is available in English and Simplified Chinese.
 
 | What you're doing | Where to go |
 | --- | --- |
@@ -225,9 +217,3 @@ npm --prefix backend run typecheck
 | Understanding how email content is displayed | [Email rendering](./docs/email-rendering.md) |
 | Working on the interface | [Design system](./docs/design-system.md) |
 | Syncing appearance with an embedding host | [Appearance integration](./docs/embedding.md) |
-
-<div align="center">
-
-**A small home for your mail. A familiar face for your apps.**
-
-</div>
