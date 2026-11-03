@@ -1,7 +1,7 @@
 /**
  * 主题配置模块
  * 定义多种预设主题的配色方案
- * 包含浅色、深色、经典、樱花、星空、森林、海洋、商务浅色、薰衣草主题
+ * 包含浅色、深色、经典、樱花、星空、森林、海洋、深空灰、薰衣草主题
  */
 export interface ThemeColors {
   bg: {
@@ -192,9 +192,9 @@ export const themes: ThemeConfig[] = [
   {
     id: 'business',
     colorScheme: 'light',
-    name: '商务浅色',
-    nameEn: 'Business Light',
-    description: '白与浅灰的商务空间，搭配深灰强调',
+    name: '深空灰',
+    nameEn: 'Space Gray',
+    description: '白与浅灰的留白空间，搭配深灰强调',
     descriptionEn: 'A clean white and light-gray workspace with charcoal accents',
     colors: {
       bg: { primary: '#f5f5f5', secondary: '#ffffff', tertiary: '#efefef', hover: '#f0f0f0' },

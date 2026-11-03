@@ -66,7 +66,7 @@ HostID 的两套界面布局共用一组语义化主题变量。本文说明修�
 
 `layout` 字段默认为 `workspace`，两个经典预设明确指定为 `classic`。每个预设还声明 `colorScheme`，因此主题同时决定配色，以及明确指定时的布局。
 
-商务浅色（`business`）使用白色、浅灰色背景和深灰色强调色。现代 `dark` 采用与 `classic-dark` 相同的黑灰配色，包括 `#0a0a0a` 背景和 `#00d98a` 荧光绿强调色，同时保留现代工作区布局。
+深空灰（`business`）使用白色、浅灰色背景和深灰色强调色。现代 `dark` 采用与 `classic-dark` 相同的黑灰配色，包括 `#0a0a0a` 背景和 `#00d98a` 荧光绿强调色，同时保留现代工作区布局。
 
 - 选择保存在本机的 `theme_mode` 中。
 - 未保存选择时使用 `system`，根据 `prefers-color-scheme` 解析为现代 `light` 或 `dark`。
