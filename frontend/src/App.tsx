@@ -27,18 +27,24 @@ import OAuthCallback from './pages/OAuthCallback'
 import OAuthRegister from './pages/OAuthRegister'
 import ComposeModal from './components/ComposeModal'
 import Layout from './components/Layout'
+import AuthPage, { AuthHeader, AuthLoading } from './components/AuthPage'
 
 const PUBLIC_ROUTES = ['/setup', '/login', '/register', '/tos', '/sso/info', '/oauth/callback', '/oauth/register', '/oauth2/authorize']
+
+function AuthPending() {
+  return (
+    <AuthPage>
+      <AuthHeader title="HostID" />
+      <AuthLoading />
+    </AuthPage>
+  )
+}
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
-      </div>
-    )
+    return <AuthPending />
   }
   
   return user ? <>{children}</> : <Navigate to="/login" />
@@ -50,11 +56,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const oauthSuccess = searchParams.get('oauth_success') === 'true'
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
-      </div>
-    )
+    return <AuthPending />
   }
   
   if (user && oauthSuccess) {
@@ -112,7 +114,7 @@ function SetupGate({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true }
   }, [])
 
-  if (needsSetup === null) return null
+  if (needsSetup === null) return <AuthPending />
   if (needsSetup) {
     if (location.pathname !== '/setup') return <Navigate to="/setup" replace />
     return <SetupPage onComplete={() => { setNeedsSetup(false); window.location.replace('/login') }} />

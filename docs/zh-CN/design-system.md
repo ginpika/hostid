@@ -61,14 +61,17 @@ HostID 的两套界面布局共用一组语义化主题变量。本文说明修�
 
 | 布局 | 预设 ID |
 | --- | --- |
-| 现代工作区 | `light`、`dark`、`sakura`、`starry-night`、`forest`、`ocean`、`sunset`、`lavender` |
+| 现代工作区 | `light`、`dark`、`sakura`、`starry-night`、`forest`、`ocean`、`business`、`lavender` |
 | 经典 | `classic`、`classic-dark` |
 
 `layout` 字段默认为 `workspace`，两个经典预设明确指定为 `classic`。每个预设还声明 `colorScheme`，因此主题同时决定配色，以及明确指定时的布局。
 
+商务浅色（`business`）使用白色、浅灰色背景和深灰色强调色。现代 `dark` 采用与 `classic-dark` 相同的黑灰配色，包括 `#0a0a0a` 背景和 `#00d98a` 荧光绿强调色，同时保留现代工作区布局。
+
 - 选择保存在本机的 `theme_mode` 中。
 - 未保存选择时使用 `system`，根据 `prefers-color-scheme` 解析为现代 `light` 或 `dark`。
 - 明确选择的预设不会随操作系统明暗变化而切换。
+- 已保存的 `sunset` 选择解析为替代它的 `business`。
 - 无法识别的预设回退到 `getDefaultTheme()`。
 - 应用主题时，提供者会替换 `theme-*`、`design-*` 和 `system-*` 类；组件不应额外添加冲突的布局标记。
 

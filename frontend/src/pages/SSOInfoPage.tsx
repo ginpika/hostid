@@ -4,8 +4,9 @@
  * 提供刷新状态和登出功能
  */
 import { useState, useEffect } from 'react'
-import { Shield, Monitor, Key, Cookie, Clock, LogOut, RefreshCw, CheckCircle, XCircle, Info, User } from 'lucide-react'
+import { Monitor, Key, Cookie, Clock, LogOut, RefreshCw, CheckCircle, XCircle, Info, User } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
+import AuthPage, { AuthHeader, AuthLoading } from '../components/AuthPage'
 
 interface SessionInfo {
   authenticated: boolean
@@ -124,28 +125,17 @@ export default function SSOInfoPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
-      </div>
+      <AuthPage>
+        <AuthHeader title={language === 'zh-CN' ? '单点登录信息' : 'SSO Information'} />
+        <AuthLoading />
+      </AuthPage>
     )
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-      <header 
-        className="border-b px-6 py-4 flex items-center gap-4"
-        style={{ 
-          backgroundColor: 'var(--color-bg-secondary)',
-          borderColor: 'var(--color-border-primary)'
-        }}
-      >
-        <Shield className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
-        <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          {language === 'zh-CN' ? '单点登录信息' : 'SSO Information'}
-        </h1>
-      </header>
-
-      <main className="max-w-4xl mx-auto p-6 space-y-6">
+    <AuthPage>
+      <AuthHeader title={language === 'zh-CN' ? '单点登录信息' : 'SSO Information'} />
+      <main className="space-y-6 [overflow-wrap:anywhere]">
         <section>
           <div className="flex items-center gap-3 mb-4">
             <div 
@@ -154,15 +144,15 @@ export default function SSOInfoPage() {
             >
               <Monitor className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
             </div>
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
               {language === 'zh-CN' ? '登录状态' : 'Login Status'}
             </h2>
           </div>
           
           <div 
-            className="rounded-xl p-6"
+            className="rounded-lg p-4"
             style={{ 
-              backgroundColor: 'var(--color-bg-secondary)',
+              backgroundColor: 'var(--color-bg-primary)',
               border: '1px solid var(--color-border-primary)'
             }}
           >
@@ -173,21 +163,21 @@ export default function SSOInfoPage() {
                     <img
                       src={sessionInfo.user.avatarUrl}
                       alt="Avatar"
-                      className="w-20 h-20 rounded-full object-cover"
+                      className="w-16 h-16 rounded-full object-cover"
                       style={{ border: '2px solid var(--color-border-primary)' }}
                     />
                   ) : (
                     <div 
-                      className="w-20 h-20 rounded-full flex items-center justify-center"
+                      className="w-16 h-16 rounded-full flex items-center justify-center"
                       style={{ 
                         border: '2px solid var(--color-border-primary)',
                         backgroundColor: 'var(--color-bg-tertiary)'
                       }}
                     >
-                      <User className="w-10 h-10" style={{ color: 'var(--color-text-muted)' }} />
+                      <User className="w-8 h-8" style={{ color: 'var(--color-text-muted)' }} />
                     </div>
                   )}
-                  <span className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                  <span className="max-w-full break-words text-lg font-semibold text-center" style={{ color: 'var(--color-text-primary)' }}>
                     {sessionInfo.user?.nickname || sessionInfo.user?.username}
                   </span>
                 </div>
@@ -199,7 +189,7 @@ export default function SSOInfoPage() {
                   </span>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="space-y-4 mt-4">
                   <div>
                     <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
                       {language === 'zh-CN' ? '用户名' : 'Username'}
@@ -254,20 +244,20 @@ export default function SSOInfoPage() {
               >
                 <Cookie className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
               </div>
-              <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                 {language === 'zh-CN' ? 'Cookie 信息' : 'Cookie Information'}
               </h2>
             </div>
             
             <div 
-              className="rounded-xl p-6"
+              className="rounded-lg p-4"
               style={{ 
-                backgroundColor: 'var(--color-bg-secondary)',
+                backgroundColor: 'var(--color-bg-primary)',
                 border: '1px solid var(--color-border-primary)'
               }}
             >
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div>
                     <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
                       {language === 'zh-CN' ? '名称' : 'Name'}
@@ -317,7 +307,7 @@ export default function SSOInfoPage() {
                   </p>
                 </div>
 
-                <div className="flex gap-4 mt-4">
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
                   <div className="flex items-center gap-2">
                     <div 
                       className={`w-3 h-3 rounded-full ${cookieInfo.httpOnly ? 'bg-green-500' : 'bg-red-500'}`}
@@ -357,15 +347,15 @@ export default function SSOInfoPage() {
               >
                 <Key className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
               </div>
-              <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                 {language === 'zh-CN' ? 'Token 解码信息' : 'Token Decoded'}
               </h2>
             </div>
             
             <div 
-              className="rounded-xl p-6"
+              className="rounded-lg p-4"
               style={{ 
-                backgroundColor: 'var(--color-bg-secondary)',
+                backgroundColor: 'var(--color-bg-primary)',
                 border: '1px solid var(--color-border-primary)'
               }}
             >
@@ -385,7 +375,7 @@ export default function SSOInfoPage() {
                   </p>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div>
                     <label className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
                       {language === 'zh-CN' ? '签发时间' : 'Issued At'}
@@ -421,30 +411,30 @@ export default function SSOInfoPage() {
           <div className="flex items-center gap-3 mb-4">
             <div 
               className="p-2 rounded-lg"
-              style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)' }}
+              style={{ backgroundColor: 'var(--color-accent-muted)' }}
             >
-              <Info className="w-5 h-5" style={{ color: '#fbbf24' }} />
+              <Info className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
             </div>
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
               {language === 'zh-CN' ? '操作' : 'Actions'}
             </h2>
           </div>
           
           <div 
-            className="rounded-xl p-6"
+            className="rounded-lg p-4"
             style={{ 
-              backgroundColor: 'var(--color-bg-secondary)',
+              backgroundColor: 'var(--color-bg-primary)',
               border: '1px solid var(--color-border-primary)'
             }}
           >
-            <div className="flex flex-wrap gap-3">
+            <div className="space-y-3">
               <button
                 onClick={() => loadSessionInfo(true)}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50"
                 style={{ 
-                  backgroundColor: 'var(--color-bg-tertiary)',
-                  color: 'var(--color-text-primary)'
+                  backgroundColor: 'var(--color-accent-primary)',
+                  color: 'var(--color-accent-text)'
                 }}
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -456,7 +446,7 @@ export default function SSOInfoPage() {
               {sessionInfo?.authenticated && (
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors"
                   style={{ 
                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
                     color: '#ef4444'
@@ -470,6 +460,6 @@ export default function SSOInfoPage() {
           </div>
         </section>
       </main>
-    </div>
+    </AuthPage>
   )
 }

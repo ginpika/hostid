@@ -61,14 +61,17 @@ There are currently **10 presets**, plus the **Match system** selection mode:
 
 | Layout | Preset IDs |
 | --- | --- |
-| Modern workspace | `light`, `dark`, `sakura`, `starry-night`, `forest`, `ocean`, `sunset`, `lavender` |
+| Modern workspace | `light`, `dark`, `sakura`, `starry-night`, `forest`, `ocean`, `business`, `lavender` |
 | Classic | `classic`, `classic-dark` |
 
 The `layout` field defaults to `workspace`; the two classic presets set it to `classic`. Each preset also declares `colorScheme`. A theme therefore controls both its palette and, where specified, its layout.
 
+Business Light (`business`) uses white and light-gray surfaces with a dark-gray accent. Modern `dark` shares the black-gray palette of `classic-dark`, including the `#0a0a0a` background and `#00d98a` neon-green accent, while retaining the modern workspace layout.
+
 - The choice is stored locally under `theme_mode`.
 - An unset choice defaults to `system`, which follows `prefers-color-scheme` and resolves to modern `light` or `dark`.
 - An explicit preset stays selected when the operating system changes appearance.
+- A saved `sunset` choice resolves to `business`, which replaces that preset.
 - An unknown preset resolves to `getDefaultTheme()`.
 - The provider replaces `theme-*`, `design-*`, and `system-*` classes when applying a theme; consumers should not add competing layout markers.
 

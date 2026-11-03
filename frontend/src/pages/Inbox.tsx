@@ -1,7 +1,7 @@
 /** Shared mailbox workspace for inbox, sent, starred, archive and trash. */
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type PointerEvent } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
-import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRight, RefreshCw, ArrowLeft, AlertCircle, Inbox, RotateCcw, Upload, Loader2 } from 'lucide-react'
+import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, Inbox, RotateCcw, Upload, Loader2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -9,6 +9,7 @@ import '../styles/classic-mailbox.css'
 import EmailList, { type Email } from '../components/EmailList'
 import EmailDetail from '../components/EmailDetail'
 import ConfirmDialog from '../components/ConfirmDialog'
+import BrandMark from '../components/BrandMark'
 import { notify, refreshMail } from '../lib/mailEvents'
 import { clampMailListWidth, getMailListWidthBounds } from '../lib/mailLayout'
 
@@ -350,11 +351,8 @@ export default function InboxPage() {
           <div className="mail-resizer" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={zh ? '调整邮件列表宽度' : 'Resize message list'} aria-valuemin={widthBounds.min} aria-valuemax={widthBounds.max} aria-valuenow={measuredListWidth} onPointerDown={startResize} onPointerMove={event => { if (dragRef.current) updateWidth(dragRef.current.width + event.clientX - dragRef.current.x) }} onPointerUp={endResize} onPointerCancel={endResize} onLostPointerCapture={endResize} onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { event.preventDefault(); updateWidth(event.key === 'Home' ? widthBounds.min : event.key === 'End' ? widthBounds.max : measuredListWidth + (event.key === 'ArrowLeft' ? -20 : 20)) } }}><span /></div>
           <section className="mail-reading-panel" aria-label={zh ? '邮件阅读区' : 'Message reader'}>
             {selectedEmail && wideScreen ? <EmailDetail key={selectedEmail.id} embedded emailId={selectedEmail.id} onClose={() => setSelectedEmail(null)} onDelete={refreshAfterAction} onRestore={refreshAfterAction} onArchive={refreshAfterAction} onToggleStar={toggleStar} onRead={markRead} onFeedback={notify} onReply={email => composeFrom(email, 'reply')} onReplyAll={email => composeFrom(email, 'replyAll')} onForward={email => composeFrom(email, 'forward')} /> : classic ? <div className="classic-reader-empty"><Mail className="w-16 h-16 mb-4" /><p>{t('selectEmailToView')}</p></div> : <div className="mail-reader-empty">
-              <div className="mail-reader-art" aria-hidden="true"><div className="mail-reader-art-paper"><i /><i /><i /></div><Mail size={42} strokeWidth={1.25} /></div>
-              <span className="mail-eyebrow">{zh ? '留一点空间，给重要的消息' : 'A little space for what matters'}</span>
-              <h2>{zh ? '每一封信，都值得专注' : 'A calmer place for your mail'}</h2>
-              <p>{zh ? '选择一封邮件，开始阅读或回复。' : 'Select a message to read or reply.'}</p>
-              <div className="mail-reader-hint"><ArrowLeft size={14} />{zh ? '从左侧选择邮件' : 'Choose a message on the left'}</div>
+              <BrandMark size={180} className="mail-reader-logo" label="HostID" />
+              <h2>{zh ? '欢迎回来，我的朋友！' : 'Welcome back, my friend!'}</h2>
             </div>}
           </section>
         </>}

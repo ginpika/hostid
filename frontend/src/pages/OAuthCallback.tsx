@@ -6,6 +6,8 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useI18n } from '../i18n/I18nContext'
+import AuthPage, { AuthHeader, AuthLoading } from '../components/AuthPage'
 
 interface OAuthUser {
   id: string
@@ -22,6 +24,7 @@ export default function OAuthCallback() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { setUser } = useAuth()
+  const { t, language } = useI18n()
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -58,16 +61,15 @@ export default function OAuthCallback() {
     }
   }, [searchParams, navigate, setUser])
 
-  if (error) {
-    return (
-      <div 
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: 'var(--color-bg-primary)' }}
-      >
-        <div className="text-center">
-          <div 
-            className="mb-4 p-4 rounded-lg"
-            style={{ 
+  return (
+    <AuthPage>
+      <AuthHeader title={t('login')} description={t('loginToAccount')} />
+      {error ? (
+        <div className="space-y-4">
+          <div
+            role="alert"
+            className="p-3 rounded-lg text-sm break-words"
+            style={{
               backgroundColor: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               color: '#ef4444'
@@ -77,28 +79,15 @@ export default function OAuthCallback() {
           </div>
           <button
             onClick={() => navigate('/login')}
-            className="px-4 py-2 rounded-lg font-medium transition-colors"
-            style={{ 
-              backgroundColor: 'var(--color-accent-primary)', 
-              color: 'var(--color-accent-text)' 
-            }}
+            className="w-full px-4 py-2.5 rounded-lg font-medium transition-colors"
+            style={{ backgroundColor: 'var(--color-accent-primary)', color: 'var(--color-accent-text)' }}
           >
-            Back to Login
+            {t('backToLogin')}
           </button>
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <div 
-      className="min-h-screen flex items-center justify-center"
-      style={{ backgroundColor: 'var(--color-bg-primary)' }}
-    >
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-4" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
-        <p style={{ color: 'var(--color-text-secondary)' }}>Processing login...</p>
-      </div>
-    </div>
+      ) : (
+        <AuthLoading message={language === 'zh-CN' ? '正在处理登录...' : 'Processing login...'} />
+      )}
+    </AuthPage>
   )
 }

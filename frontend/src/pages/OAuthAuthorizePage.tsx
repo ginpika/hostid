@@ -8,6 +8,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Shield, X, User, ExternalLink } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
+import AuthPage, { AuthHeader, AuthLoading } from '../components/AuthPage'
 
 interface AuthorizeData {
   app: {
@@ -143,148 +144,121 @@ export default function OAuthAuthorizePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--color-accent-primary)' }}></div>
-      </div>
+      <AuthPage>
+        <AuthHeader title={t('authorizeApp')} description={language === 'zh-CN' ? '验证应用权限请求' : 'Verify app permission request'} />
+        <AuthLoading message={t('loading')} />
+      </AuthPage>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-        <div
-          className="max-w-md w-full p-6 rounded-xl text-center"
-          style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-primary)' }}
-        >
-          <X className="w-12 h-12 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            {language === 'zh-CN' ? '授权错误' : 'Authorization Error'}
-          </h2>
-          <p style={{ color: 'var(--color-text-secondary)' }}>{error}</p>
+      <AuthPage>
+        <AuthHeader title={language === 'zh-CN' ? '授权错误' : 'Authorization Error'} />
+        <div role="alert" className="p-3 rounded-lg text-sm flex items-start gap-2" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444' }}>
+          <X aria-hidden="true" className="w-5 h-5 shrink-0" />
+          <p className="break-words min-w-0">{error}</p>
         </div>
-      </div>
+      </AuthPage>
     )
   }
 
   if (!data) return null
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-      <div
-        className="max-w-md w-full rounded-xl overflow-hidden shadow-xl"
-        style={{ backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border-primary)' }}
-      >
-        {/* Header */}
-        <div
-          className="px-6 py-4 border-b"
-          style={{ borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-tertiary)' }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--color-accent-muted)' }}
+    <AuthPage>
+      <AuthHeader title={t('authorizeApp')} description={language === 'zh-CN' ? '验证应用权限请求' : 'Verify app permission request'} />
+
+      {/* Content */}
+      <div>
+        {/* App Info */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg mb-3" style={{ backgroundColor: 'var(--color-accent-muted)' }}>
+            <Shield aria-hidden="true" className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
+          </div>
+          <h2 className="text-xl font-semibold mb-1 break-words" style={{ color: 'var(--color-text-primary)' }}>
+            {data.app.name}
+          </h2>
+          {data.app.description && (
+            <p className="text-sm break-words" style={{ color: 'var(--color-text-secondary)' }}>
+              {data.app.description}
+            </p>
+          )}
+          {data.app.homepage && (
+            <a
+              href={data.app.homepage}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm mt-1 max-w-full break-all hover:underline"
+              style={{ color: 'var(--color-accent-primary)' }}
             >
-              <Shield className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                {t('authorizeApp')}
-              </h1>
-              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                {language === 'zh-CN' ? '验证应用权限请求' : 'Verify app permission request'}
-              </p>
-            </div>
+              {data.app.homepage}
+              <ExternalLink className="w-3 h-3 shrink-0" />
+            </a>
+          )}
+        </div>
+
+        {/* User Info */}
+        <div
+          className="mb-6 p-3 rounded-lg flex items-center gap-3"
+          style={{ backgroundColor: 'var(--color-bg-tertiary)' }}
+        >
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            style={{ backgroundColor: 'var(--color-accent-muted)' }}
+          >
+            <User className="w-4 h-4" style={{ color: 'var(--color-accent-primary)' }} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium break-words" style={{ color: 'var(--color-text-primary)' }}>
+              {data.user.nickname || data.user.username}
+            </p>
+            <p className="text-xs break-all" style={{ color: 'var(--color-text-muted)' }}>
+              {data.user.email}
+            </p>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {/* App Info */}
-          <div className="text-center mb-6">
-            <h2 className="text-xl font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>
-              {data.app.name}
-            </h2>
-            {data.app.description && (
-              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                {data.app.description}
-              </p>
-            )}
-            {data.app.homepage && (
-              <a
-                href={data.app.homepage}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm mt-1 hover:underline"
-                style={{ color: 'var(--color-accent-primary)' }}
-              >
-                {data.app.homepage}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
-          </div>
+        {/* Warning */}
+        <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--color-text-tertiary)' }}>
+          {language === 'zh-CN'
+            ? '授权后，该应用将能够访问您的账号信息。请确保您信任该应用。'
+            : 'By authorizing, this app will be able to access your account information. Make sure you trust this app.'}
+        </p>
 
-          {/* User Info */}
-          <div
-            className="mb-6 p-3 rounded-lg flex items-center gap-3"
-            style={{ backgroundColor: 'var(--color-bg-tertiary)' }}
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => handleAuthorize(false)}
+            disabled={submitting}
+            className="flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: 'var(--color-bg-tertiary)',
+              color: 'var(--color-text-primary)'
+            }}
           >
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: 'var(--color-accent-muted)' }}
-            >
-              <User className="w-4 h-4" style={{ color: 'var(--color-accent-primary)' }} />
-            </div>
-            <div>
-              <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                {data.user.nickname || data.user.username}
-              </p>
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                {data.user.email}
-              </p>
-            </div>
-          </div>
-
-          {/* Warning */}
-          <p className="text-xs mb-6" style={{ color: 'var(--color-text-muted)' }}>
-            {language === 'zh-CN'
-              ? '授权后，该应用将能够访问您的账号信息。请确保您信任该应用。'
-              : 'By authorizing, this app will be able to access your account information. Make sure you trust this app.'}
-          </p>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleAuthorize(false)}
-              disabled={submitting}
-              className="flex-1 px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-              style={{
-                backgroundColor: 'var(--color-bg-tertiary)',
-                color: 'var(--color-text-primary)'
-              }}
-            >
-              {t('deny')}
-            </button>
-            <button
-              onClick={() => handleAuthorize(true)}
-              disabled={submitting}
-              className="flex-1 px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-              style={{
-                backgroundColor: 'var(--color-accent-primary)',
-                color: 'var(--color-accent-text)'
-              }}
-            >
-              {submitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2" style={{ borderColor: 'var(--color-accent-text)' }}></div>
-                  {language === 'zh-CN' ? '处理中...' : 'Processing...'}
-                </span>
-              ) : (
-                t('approve')
-              )}
-            </button>
-          </div>
+            {t('deny')}
+          </button>
+          <button
+            onClick={() => handleAuthorize(true)}
+            disabled={submitting}
+            className="flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: 'var(--color-accent-primary)',
+              color: 'var(--color-accent-text)'
+            }}
+          >
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2" style={{ borderColor: 'var(--color-accent-text)' }}></div>
+                {language === 'zh-CN' ? '处理中...' : 'Processing...'}
+              </span>
+            ) : (
+              t('approve')
+            )}
+          </button>
         </div>
       </div>
-    </div>
+    </AuthPage>
   )
 }

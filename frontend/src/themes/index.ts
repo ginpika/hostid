@@ -1,7 +1,7 @@
 /**
  * 主题配置模块
  * 定义多种预设主题的配色方案
- * 包含浅色、深色、樱花、星空、森林、海洋、日落、薰衣草主题
+ * 包含浅色、深色、经典、樱花、星空、森林、海洋、商务浅色、薰衣草主题
  */
 export interface ThemeColors {
   bg: {
@@ -62,6 +62,16 @@ export interface ThemeConfig {
   customCSS?: string
 }
 
+/** Modern and classic dark share the same charcoal and neon-green palette. */
+const darkColors: ThemeColors = {
+  bg: { primary: '#0a0a0a', secondary: '#141414', tertiary: '#1a1a1a', hover: '#1a1a1a' },
+  text: { primary: '#e5e5e5', secondary: '#b3b3b3', tertiary: '#999999', quaternary: '#858585', muted: '#858585' },
+  border: { primary: '#262626', secondary: '#333333' },
+  accent: { primary: '#00d98a', secondary: '#00c47a', muted: 'rgba(0, 217, 138, 0.1)', text: '#0a0a0a' },
+  code: { bg: '#262626', text: '#e5e5e5' },
+  pre: { bg: '#0d1117', text: '#c9d1d9' }
+}
+
 export const themes: ThemeConfig[] = [
   {
     id: 'light',
@@ -84,16 +94,9 @@ export const themes: ThemeConfig[] = [
     colorScheme: 'dark',
     name: '深色模式',
     nameEn: 'Dark',
-    description: '柔和蓝灰色的深色工作空间',
-    descriptionEn: 'A calm blue-gray workspace after dark',
-    colors: {
-      bg: { primary: '#10151e', secondary: '#171e29', tertiary: '#222c3a', hover: '#202b3b' },
-      text: { primary: '#e8edf6', secondary: '#bdc8da', tertiary: '#98a7be', quaternary: '#8291a8', muted: '#8291a8' },
-      border: { primary: '#2b3545', secondary: '#3b485d' },
-      accent: { primary: '#8db5ff', secondary: '#6b9cf5', muted: 'rgba(141, 181, 255, 0.1)', text: '#14213b' },
-      code: { bg: '#262626', text: '#e5e5e5' },
-      pre: { bg: '#0d1117', text: '#c9d1d9' }
-    }
+    description: '经典黑灰底色，搭配荧光绿强调',
+    descriptionEn: 'Classic charcoal with neon-green accents',
+    colors: darkColors
   },
   {
     id: 'classic',
@@ -120,14 +123,7 @@ export const themes: ThemeConfig[] = [
     description: '保留旧版布局与深色配色',
     descriptionEn: 'Original layout and dark palette',
     layout: 'classic',
-    colors: {
-      bg: { primary: '#0a0a0a', secondary: '#141414', tertiary: '#1a1a1a', hover: '#1a1a1a' },
-      text: { primary: '#e5e5e5', secondary: '#b3b3b3', tertiary: '#999999', quaternary: '#858585', muted: '#858585' },
-      border: { primary: '#262626', secondary: '#333333' },
-      accent: { primary: '#00d98a', secondary: '#00c47a', muted: 'rgba(0, 217, 138, 0.1)', text: '#0a0a0a' },
-      code: { bg: '#262626', text: '#e5e5e5' },
-      pre: { bg: '#0d1117', text: '#c9d1d9' }
-    }
+    colors: darkColors
   },
   {
     id: 'sakura',
@@ -194,19 +190,19 @@ export const themes: ThemeConfig[] = [
     }
   },
   {
-    id: 'sunset',
+    id: 'business',
     colorScheme: 'light',
-    name: '日落',
-    nameEn: 'Sunset',
-    description: '温暖日落橙色调',
-    descriptionEn: 'Warm sunset orange theme',
+    name: '商务浅色',
+    nameEn: 'Business Light',
+    description: '白与浅灰的商务空间，搭配深灰强调',
+    descriptionEn: 'A clean white and light-gray workspace with charcoal accents',
     colors: {
-      bg: { primary: '#fffbeb', secondary: '#ffffff', tertiary: '#fef3c7', hover: '#fef3c7' },
-      text: { primary: '#78350f', secondary: '#92400e', tertiary: '#b45309', quaternary: '#d97706', muted: '#d97706' },
-      border: { primary: '#fde68a', secondary: '#fcd34d' },
-      accent: { primary: '#f59e0b', secondary: '#d97706', muted: 'rgba(245, 158, 11, 0.1)', text: '#ffffff' },
-      code: { bg: '#fef3c7', text: '#78350f' },
-      pre: { bg: '#78350f', text: '#fef3c7' }
+      bg: { primary: '#f5f5f5', secondary: '#ffffff', tertiary: '#efefef', hover: '#f0f0f0' },
+      text: { primary: '#1f1f1f', secondary: '#4b4b4b', tertiary: '#626262', quaternary: '#6b6b6b', muted: '#6b6b6b' },
+      border: { primary: '#e3e3e3', secondary: '#d4d4d4' },
+      accent: { primary: '#333333', secondary: '#1f1f1f', muted: 'rgba(51, 51, 51, 0.07)', text: '#ffffff' },
+      code: { bg: '#efefef', text: '#333333' },
+      pre: { bg: '#202020', text: '#ededed' }
     }
   },
   {
@@ -228,7 +224,9 @@ export const themes: ThemeConfig[] = [
 ]
 
 export function getThemeById(id: string): ThemeConfig | undefined {
-  return themes.find(t => t.id === id)
+  // Restore saved Sunset preferences using its replacement palette.
+  const themeId = id === 'sunset' ? 'business' : id
+  return themes.find(t => t.id === themeId)
 }
 
 export function getDefaultTheme(): ThemeConfig {
