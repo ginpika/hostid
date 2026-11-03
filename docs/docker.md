@@ -1,128 +1,185 @@
-# Docker 构建与发布
+# Docker deployment
 
-## 从源码部署
+[Documentation](./README.md) · **English** · [简体中文](./zh-CN/docker.md)
 
-无需任何配置，直接在仓库根目录启动 Compose：
+[Quick start](#quick-start) · [Ports](#ports) · [Backups](#backup-and-restore) · [Upgrading](#upgrading) · [Maintainer notes](#maintainers)
 
-```sh
-docker compose up -d --build --wait
-```
+<a id="quick-start"></a>
+<a id="single-container"></a>
+<a id="全量单镜像-hostid-full"></a>
 
-打开站点后按 `/setup` 向导创建第一个管理员，其余配置在「管理 → 系统设置」中修改（保存在数据库，立即生效）。`backend/.env` 是可选的，只用于覆盖数据库路径、端口或自定义密钥，参见 `backend/.env.example`。
+## Start with one container
 
-`JWT_SECRET` / `DATA_ENCRYPTION_KEY` 首次启动时自动生成到数据卷中的 `/app/data/secrets.json`（0600）。**备份 `backend_data` 卷即同时备份了数据库和 secrets.json，两者必须一起备份和恢复。** 如通过环境变量显式提供密钥（至少 32 字符），环境变量优先。
+Use **Docker Compose 2.24+**; the files use optional `env_file` entries. The recommended `ghcr.io/ginpika/hostid-full` image serves the frontend, API, SSO/OAuth routes and SMTP from one Node.js service. Images support `linux/amd64` and `linux/arm64`.
 
-需要 Docker Compose v2.24 或更新版本（`env_file` 的 `required: false`）。前端通过服务网络访问后端；后端健康检查通过后，前端才启动。数据库、附件、日志和头像继续保存在原有的四个命名卷中。升级时不要执行 `docker compose down -v`。
+Run in a new deployment directory:
 
-## 使用预构建镜像
+~~~sh
+mkdir hostid
+cd hostid
+curl -fsSL https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.full.yaml -o docker-compose.full.yaml
+docker compose -f docker-compose.full.yaml up -d --wait
+docker compose -f docker-compose.full.yaml ps
+~~~
 
-下载本目录的 `docker-compose.yaml` 即可启动；同目录的 `backend.env` 是可选的覆盖文件。Turnstile 的 site key / secret key 在「系统设置 → 人机验证」中配置，前端 nginx 会把 `/config.js` 代理到后端，不需要 `frontend.env`、GitHub Secret 或重新构建镜像。
+Open [http://localhost:3000](http://localhost:3000), replacing `localhost` with your server address if needed. The `/setup` wizard asks for the public site URL, mail domain and first administrator; the password must contain at least 12 characters. There is no default administrator password.
 
-推荐在 Compose 同目录的 `.env` 文件中固定同一套镜像版本：
+For public access, put HTTP behind an HTTPS reverse proxy. Point the mail domain's MX record at a hostname with an A/AAAA record for your server, and allow inbound TCP 25. An HTTP proxy does not forward SMTP. Incoming recipients must already exist as HostID users. External sending can use an SMTP relay; configure SPF, DKIM and DMARC for the actual sending service. The receiver currently lacks STARTTLS and the app does not sign DKIM.
 
-```dotenv
-# 用成功发布的工作流摘要中的完整提交 SHA 替换占位符。
-IMAGE_TAG=sha-<full-commit-sha>
-FRONTEND_PORT=3000
-BACKEND_PORT=3001
-BACKEND_BIND_ADDRESS=127.0.0.1
-SMTP_PORT=25
-```
+<a id="configuration"></a>
 
-```sh
-docker compose pull
+## Configure the running instance
+
+Use **Settings → System Settings** for the site URL, mail domain, SMTP relay, Turnstile and SSO cookies. Values live in the database; most changes apply immediately. Updating the SMTP greeting after changing the mail domain requires a restart. Manage external OAuth providers and client apps in their respective admin pages.
+
+No environment file is required. Optional infrastructure and key overrides are described in [`backend/.env.example`](../backend/.env.example):
+
+| Deployment | Optional application environment file |
+| --- | --- |
+| Published single image | `hostid.env` beside the Compose file |
+| Published separate images | `backend.env` beside the Compose file |
+| Either source build | `backend/.env` in the checkout |
+
+Compose explicitly sets its internal ports, database URL and production mode, overriding conflicting application environment entries. Host port and image selection belong in the Compose `.env`, described below.
+
+The browser receives only the public Turnstile site key through `/config.js`. No frontend environment file, build secret or rebuild is needed. Use the public site URL consistently for OAuth callbacks. In separate-container deployments, forward `/.well-known/oauth-authorization-server` to the backend if clients use authorization-server discovery.
+
+Check `docker compose -f docker-compose.full.yaml logs --tail=100 hostid-full` when startup fails. Startup applies Prisma migrations automatically. The full image's health check requests `/health` and `/login`; it does not test external mail delivery.
+
+<a id="ports"></a>
+
+## Ports and image selection
+
+Set these in the deployment directory's `.env` or shell, then recreate containers with `up -d --wait`:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `FRONTEND_PORT` | `3000` | Published HTTP port, both layouts |
+| `SMTP_PORT` | `25` | Published incoming SMTP port |
+| `BACKEND_PORT` | `3001` | Published API port, separate containers only |
+| `BACKEND_BIND_ADDRESS` | `127.0.0.1` | API bind address, separate containers only |
+| `IMAGE_TAG` | `latest` | Published image tag |
+
+Internally, single-image HTTP uses `3000`; separate-container API uses `3001`. SMTP always uses `2525`. For a plain `docker run`, publish `-p 25:2525`. Internet mail senders still expect TCP 25 on the receiving server. The old Compose `PORT` variable no longer selects host ports. Keep API access local unless remote access is intended.
+
+<a id="separate-containers"></a>
+
+## Separate containers or a source build
+
+For **published separate images**, run this in an empty deployment directory:
+
+~~~sh
+curl -fsSL https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.yaml -o docker-compose.yaml
 docker compose up -d --wait
 docker compose ps
-```
+~~~
 
-未指定 `IMAGE_TAG` 时仍使用 `latest`。`latest` 和默认分支标签跟随默认分支；`v*` 标签发布版本标签，合法语义版本还会发布对应的版本号和主次版本标签，不会把旧版本重新标记成 `latest`。需要严格不可变的部署时，可在 Compose 中分别使用工作流发布的镜像摘要 `image@sha256:...`。
+This starts `hostid-frontend` and `hostid-backend`. Nginx proxies API and runtime configuration requests over the Compose network; the frontend waits for backend health before starting. Use `docker compose logs --tail=100 backend` for backend diagnostics.
 
-## 端口变更
+For a **source build**, choose one layout from the repository root:
 
-| 配置 | 默认值 | 用途 |
-| --- | --- | --- |
-| `FRONTEND_PORT` | `3000` | 前端宿主机端口，替代旧的 Compose `PORT` |
-| `BACKEND_PORT` | `3001` | 后端宿主机端口，替代旧的 Compose `PORT` |
-| `BACKEND_BIND_ADDRESS` | `127.0.0.1` | 后端 HTTP 默认仅允许本机访问；需要远程直连时显式改成 `0.0.0.0` |
-| `SMTP_PORT` | `25` | SMTP 宿主机端口 |
-
-这些变量来自 shell 或 Compose 同目录的 `.env`，与 `env_file` 中的应用配置不同。容器内部的 API 端口固定为 `3001`，SMTP 固定为 `2525`，Compose 会覆盖应用环境文件中的 `PORT` 和 `SMTP_PORT`。端口属于基础设施配置，仍通过环境变量设置，修改后需重建容器。外部邮件服务器仍连接宿主机的 25 端口，容器无需 root 或绑定低端口的权限。自行执行 `docker run` 时应使用 `-p 25:2525`。
-
-已有部署升级后保留卷名和项目名。若以前依赖固定容器名执行管理命令，改用 `docker compose exec backend node reset-admin.cjs <用户名>` 等服务命令。
-
-### 从环境变量配置升级
-
-- 已有用户的部署不会进入 `/setup`；原有 `root` 等账号保持不变。旧版本写入的 `logs/admin-credentials.log` 含明文密码，确认已更换密码后请删除该文件。
-- 升级后首次启动时，环境变量中已设置的站点 / 邮件 / SMTP / Turnstile / SSO 配置会一次性导入数据库，此后以「系统设置」为准，可从环境文件中删除。
-- 环境变量中的 `JWT_SECRET` 会被记录到 `secrets.json`，之后即使从环境中移除，旧会话和用旧密钥加密的数据仍可解密。若未设置 `DATA_ENCRYPTION_KEY`，会自动生成新的数据密钥；旧密文继续可读，新写入的数据使用新密钥。
-- 旧的 `GITHUB_CLIENT_ID` 等 GitHub OAuth 环境变量已不再读取，请在「OAuth 配置」页面管理服务商（之前已自动迁移到数据库的配置不受影响）。
-- 双容器部署不再需要 `frontend.env`；其中的 `CF_TURNSTILE_SITE_KEY` 不会被自动导入，请在「系统设置 → 人机验证」中重新填写（或升级前把它加到后端环境文件以便自动导入）。
-
-## 全量单镜像 hostid-full
-
-除了原有的 `hostid-frontend` / `hostid-backend`，还发布 `ghcr.io/ginpika/hostid-full`，支持 `linux/amd64` 和 `linux/arm64`，沿用 `latest`、分支、版本及 `sha-<完整提交 SHA>` 标签规则。三个镜像通过同一工作流验证和发布。
-
-全量镜像由一个 Node.js 服务提供前端静态页面、API、SSO/OAuth 路由和 SMTP，无需容器内 Nginx。HTTP 内部端口为 `3000`，SMTP 为 `2525`；宿主机端口仍使用 `FRONTEND_PORT`（默认 `3000`）和 `SMTP_PORT`（默认 `25`），不再单独映射 `BACKEND_PORT`。页面入口使用 `no-cache`，带哈希的 `/assets/` 资源使用长期缓存，`/config.js` 使用 `no-store`。TLS 和 HTTP 压缩可由部署入口的反向代理处理。
-
-从源码构建：
-
-```sh
+~~~sh
+# Single container
 docker compose -f docker-compose.full.yaml up -d --build --wait
-docker compose -f docker-compose.full.yaml logs hostid-full
-```
+~~~
 
-使用预构建镜像，在一个新的部署目录执行：
+~~~sh
+# Separate frontend and backend
+docker compose up -d --build --wait
+~~~
 
-```sh
-wget https://raw.githubusercontent.com/ginpika/hostid/refs/heads/main/docs/docker-compose.full.yaml
-# 可选：hostid.env 只用于覆盖（见 backend/.env.example），不需要创建。
-# 可选：在同目录的 .env 设置 IMAGE_TAG=sha-<完整提交 SHA>。
+The [published single-image Compose](./docker-compose.full.yaml) and [published separate-image Compose](./docker-compose.yaml) pull GHCR images. The repository-root [single-image](../docker-compose.full.yaml) and [separate-image](../docker-compose.yaml) files build local source; `IMAGE_TAG` does not select a source revision.
+
+<a id="backup-and-restore"></a>
+
+## Back up and restore
+
+`backend_data` holds SQLite and automatically generated `/app/data/secrets.json` (mode `0600`). **Restore the database and its keys together.** Losing a required key prevents encrypted settings and OAuth secrets from being decrypted. Preserve explicitly supplied `JWT_SECRET` / `DATA_ENCRYPTION_KEY` too: environment values take precedence and may differ from those already stored in `secrets.json`. New explicit keys should contain at least 32 characters.
+
+1. Record the running image tag/digest (and checkout revision for source builds) and Compose project name. Stop the instance with `docker compose -f docker-compose.full.yaml stop`, or `docker compose stop` for separate containers.
+2. With services stopped, archive all four project volumes, preserving ownership and permissions: `backend_data`, `backend_uploads` (attachments), `backend_avatars` and `backend_logs`. Their Docker names normally include the project prefix. Also copy the Compose file, Compose `.env`, optional application environment file and any separately supplied keys.
+3. Restart the existing instance with the same `up -d --wait` command.
+
+For recovery, restore deployment files and secrets first, retaining the original project name (including `-p` or `COMPOSE_PROJECT_NAME`). Use the recorded image version; for source builds, restore the recorded checkout revision and run `docker compose -f docker-compose.full.yaml build` first. Run `docker compose -f docker-compose.full.yaml create` to create stopped containers and volumes, restore the archives into those volumes, then run `up -d --wait`. For separate containers, omit `-f docker-compose.full.yaml`. Restore into an empty recovery deployment; do not overwrite a running instance.
+
+The application uses UID/GID `1001` for backend files. Preserve their ownership and `secrets.json` permissions. SSO sessions are held in memory, so users sign in again after a server restart.
+
+<a id="upgrading"></a>
+
+## Upgrade and pin versions
+
+Back up first, then run from the original deployment directory:
+
+~~~sh
 docker compose -f docker-compose.full.yaml pull
 docker compose -f docker-compose.full.yaml up -d --wait
-```
+~~~
 
-Turnstile、站点地址等均在「系统设置」中配置；浏览器只通过 `/config.js` 接收公开 site key。站点地址和 OAuth 回调地址应指向对外访问的统一域名。
+For published separate images, omit `-f docker-compose.full.yaml`. For source builds, update the checkout to the desired revision and use `up -d --build --wait`. Keep the same project and volume names. **Do not use `down -v` to upgrade: it removes the data volumes.** Cross-version rollback requires checking migration compatibility; a backup is the recovery point.
 
-现有双容器部署切换时，在原部署目录保留原 Compose 项目名（包括原来的 `-p` 或 `COMPOSE_PROJECT_NAME` 设置），四个命名卷仍使用 `backend_data`、`backend_uploads`、`backend_logs`、`backend_avatars`。先备份数据，并准备单镜像对应的环境文件，再停止旧服务后启动全量版本：
+To select a published revision, put `IMAGE_TAG=sha-<full-commit-sha>` in the Compose `.env`, using a successful publication's commit SHA. This selects the matching release across images. For immutable deployment, use the published `image@sha256:...` references in Compose.
 
-```sh
+`latest` and the default-branch tag follow the default branch. `v*` tags publish version tags; valid semantic versions also publish version and major/minor aliases. Tagging an older release does not move `latest`. Avoid candidate `build-...` tags: publication has not completed for those tags.
+
+<a id="legacy-configuration"></a>
+
+### Upgrading an older configuration
+
+- Existing users keep their accounts and skip `/setup`. If an old `logs/admin-credentials.log` exists, change that administrator password and delete the plaintext file.
+- Previously configured site, mail, SMTP, Turnstile and SSO environment values initialize missing database settings on startup. Thereafter, edit them in System Settings and remove obsolete environment entries.
+- On first migration, an environment JWT key is preserved for compatible decryption; a weak legacy JWT key is retained only to decrypt old data, while a strong signing key is generated and old sessions require login. A data encryption key is generated if absent. Keep explicit key overrides backed up, including any changed after initial migration.
+- Legacy `GITHUB_CLIENT_ID` and related OAuth variables are no longer read. Manage providers in the OAuth configuration page; configurations already migrated to the database remain there.
+- Separate deployments no longer use `frontend.env`. Its Turnstile site key is not imported automatically: enter it in System Settings, or put it in the backend environment before the first migration.
+
+<a id="switching-layouts"></a>
+
+## Switch container layouts
+
+Use the matching published or source Compose files above in the **same deployment directory and project**. Back up first. Preserve all four volume names and prepare the target layout's optional environment file; move explicit key overrides with it. Only one backend may use the data at a time.
+
+To switch separate containers to a published single image:
+
+~~~sh
 docker compose stop frontend backend
+docker compose -f docker-compose.full.yaml pull
 docker compose -f docker-compose.full.yaml up -d --wait
-```
+~~~
 
-源码部署启动全量版本时加上 `--build`；预构建部署先执行 `pull`。同一套数据应只由一套服务运行。不要使用 `down -v` 或删除原有卷。仅切换打包方式且应用版本相同时，可停止 `hostid-full` 后用原 Compose 启动双容器版本；跨版本回退还需核对数据库迁移兼容性。管理命令对应改为：
+For a source build, replace `pull` and the final command with `docker compose -f docker-compose.full.yaml up -d --build --wait`. Preserve any custom `-p` / `COMPOSE_PROJECT_NAME` throughout. At the same application version, reverse the switch by stopping `hostid-full` and starting the original separate-container Compose. Across versions, check database migration compatibility before switching back.
 
-```sh
-docker compose -f docker-compose.full.yaml exec hostid-full node reset-admin.cjs <用户名>
-```
+<a id="admin-password"></a>
 
-## 构建约束
+## Reset an administrator password
 
-- 前端构建上下文为仓库根目录，使用根目录 `.dockerignore`；后端使用 `backend/.dockerignore`。本地依赖、环境文件、数据库和上传目录均不进入对应构建上下文。
-- 全量镜像使用根目录的 `Dockerfile.full` 和独立的 `Dockerfile.full.dockerignore`，允许复制前后端源码，同时排除环境文件和本地数据；原有两个 Dockerfile 和忽略规则继续保留。
-- 三个镜像均使用固定的多架构基础镜像摘要；GitHub Actions 固定提交 SHA。Dependabot 每周检查基础镜像和 Actions 更新，需要通过 CI 后再合入。
-- 前后端依赖都由锁文件安装。前端锁文件包含 Rollup/esbuild 的平台可选包，镜像内不再临时安装原生依赖。
-- 后端构建阶段生成 Prisma 客户端并执行类型检查，然后移除开发依赖。运行阶段保留锁定版本的 Prisma 和 `tsx`，继续运行现有 TypeScript 源码。
-- 三种镜像均以非 root 用户运行。入口脚本使用 LF，镜像构建时也会清理 CRLF。运行时健康检查访问 `/health`；前端的检查同时验证后端代理可用，全量镜像还检查前端页面。
+Replace `your_username` with an existing administrator username:
 
-## CI 发布顺序
+~~~sh
+docker compose -f docker-compose.full.yaml exec hostid-full node reset-admin.cjs your_username
+~~~
 
-1. 安装锁定依赖，检查前后端类型并运行测试，校验双容器与单容器的 Compose 配置。
-2. 分别构建 AMD64、ARM64 的前后端镜像和全量镜像。每种架构均启动独立的临时容器，检查迁移、API、SMTP、反向代理、SPA、Turnstile 配置和重启后的数据库状态；全量镜像还检查静态资源缓存及 API / 资源的 404 行为。
-3. PR 到此结束，不登录镜像仓库、不推送镜像。其他事件只推送带运行编号的候选标签。
-4. 两种架构全部通过后，单独的发布任务合并多架构镜像，先生成三个镜像共同的 `sha-<commit>` 标签，再更新发布别名。发布任务串行执行，并拒绝用落后的分支构建更新分支标签和 `latest`。
+For separate containers: `docker compose exec backend node reset-admin.cjs your_username`. The generated password appears once in the terminal and is not written to a log. Use service names rather than assuming fixed container names.
 
-镜像仓库对两个镜像的标签写入不支持跨镜像事务，网络失败仍可能中断别名更新。因此部署应使用成功发布摘要中的共同提交标签，而不要依赖同时拉取两个 `latest` 来保证版本一致。临时候选标签包含运行编号，不应作为部署入口，可按仓库保留策略定期清理。
+<a id="maintainers"></a>
 
-本地复用同一套启动检查（需要 POSIX shell 和可访问的 Docker 引擎）：
+## Build and publication notes
 
-```sh
+- Build contexts: frontend uses the repository root and `.dockerignore`; backend uses `backend/` and `backend/.dockerignore`; the full image uses `Dockerfile.full` and `Dockerfile.full.dockerignore`. Dependencies, environment files, databases and uploaded data are excluded by the applicable rules.
+- Dependencies install from lockfiles, including platform-specific frontend packages. Backend builds generate Prisma and check types before pruning development dependencies; runtime retains pinned Prisma and `tsx` to run TypeScript source.
+- All images run as non-root users. Entrypoints use LF and strip CRLF during builds. Base images use multi-architecture digest pins; Actions use commit pins. Dependabot checks base images and Actions weekly.
+- The full image needs no Nginx: HTML uses `no-cache`, hashed assets use long-lived immutable caching and `/config.js` uses `no-store`. Put TLS and HTTP compression at the deployment's reverse proxy. Separate frontend health checks also verify the API proxy.
+
+The [Docker workflow](../.github/workflows/docker-build.yml) first checks workflows, shell scripts, Compose, types and tests. It builds all three images for AMD64 and ARM64, then tests migrations, HTTP/API/SMTP, proxying, SPA routes, runtime configuration and restart persistence. Full-image checks also cover caching and missing-resource/API responses. PRs stop here without registry login or publication.
+
+Other workflow events push run-specific candidates. After both architectures pass, a serialized publication job assembles a shared `sha-<commit>` revision for all three images, then updates release aliases. Stale branch builds cannot move the branch tag or `latest`. Alias updates are not atomic across images; pin the shared commit tag from a successful publication. Candidate retention can be managed separately.
+
+Run the same container checks locally with a POSIX shell and Docker:
+
+~~~sh
 docker build --platform linux/amd64 -f frontend/Dockerfile -t hostid-frontend:smoke .
 docker build --platform linux/amd64 -f backend/Dockerfile -t hostid-backend:smoke backend
 sh scripts/smoke-containers.sh hostid-frontend:smoke hostid-backend:smoke linux/amd64
 docker build --platform linux/amd64 -f Dockerfile.full -t hostid-full:smoke .
 sh scripts/smoke-full.sh hostid-full:smoke linux/amd64
-```
+~~~
 
-ARM64 验证时将构建和检查命令中的平台改成 `linux/arm64`。检查只创建和删除带唯一 `hostid-smoke-` 前缀的临时容器与网络，不读取部署配置，不挂载现有数据卷，也不发布宿主机端口。
-
+For ARM64, replace `linux/amd64` throughout with `linux/arm64`. Checks create and remove isolated `hostid-smoke-` containers and networks; they do not read deployment configuration, mount existing volumes or publish host ports.

@@ -1,376 +1,121 @@
-# HostID SSO 集成指南 (Java)
+[Documentation](./README.md) · **English** · [简体中文](./zh-CN/sso-integration-java.md)
 
-本文档指导如何将 HostID 作为 SSO 服务端，接入 Java 客户端应用。
+# Java SSO integration
 
-## 架构概述
+Complete [shared-session SSO](./sso.md) configuration first. This minimal JDK 17 example validates the shared cookie on the backend before returning user information. It uses the JDK HTTP server/client and Jackson for JSON.
 
-```
-┌─────────────────────┐                         ┌─────────────────────┐
-│     SSO Server      │                         │     SSO Client      │
-│     mail.a.com      │                         │     app.a.com       │
-├─────────────────────┤                         ├─────────────────────┤
-│ /api/sso/session    │◄──── Cookie ───────────►│   Check Session     │
-│ /api/sso/login      │◄──── POST Form ────────►│   Submit Login      │
-│ /api/sso/logout     │◄──── Cookie ───────────►│   User Logout       │
-│ /login              │◄──── Browser Redirect ─►│   Login Page (GET)  │
-└─────────────────────┘                         └─────────────────────┘
-```
+## Project
 
-**重要说明：**
-- `/login?redirect=xxx` 是前端页面路由，客户端应重定向浏览器到此页面
-- `/api/sso/login` 是后端 API，仅用于前端页面提交登录表单（POST 请求）
-- 客户端集成时只需使用 `/login?redirect=xxx` 和 `/api/sso/session`
-
-## 前置条件
-
-1. 所有应用必须在同一主域名下（如 `*.a.com`）
-2. SSO 服务端已部署并可访问
-3. Java 11+ 环境
-
-## 环境配置
-
-### SSO 服务端配置
-
-```env
-# .env
-SSO_COOKIE_DOMAIN=.a.com
-SSO_COOKIE_NAME=sso_token
-SSO_COOKIE_PATH=/
-SSO_COOKIE_SECURE=true
-SSO_COOKIE_SAMESITE=lax
-SESSION_TTL=604800
-```
-
-## API 接口
-
-### 1. 验证登录态
-
-```http
-GET /api/sso/session HTTP/1.1
-Host: mail.a.com
-Cookie: sso_token=<token>
-```
-
-**响应：**
-```json
-{
-  "authenticated": true,
-  "user": {
-    "id": "clxxxx",
-    "username": "user",
-    "email": "user@a.com",
-    "role": "user"
-  }
-}
-```
-
-### 2. 登录
-
-```http
-POST /api/sso/login HTTP/1.1
-Host: mail.a.com
-Content-Type: application/json
-
-{
-  "username": "user",
-  "password": "password"
-}
-```
-
-### 3. 登出
-
-```http
-POST /api/sso/logout HTTP/1.1
-Host: mail.a.com
-Cookie: sso_token=<token>
-```
-
-## Java 集成示例
-
-### Spring Boot 配置
-
-#### 1. 添加依赖
+Create `pom.xml`:
 
 ```xml
-<!-- pom.xml -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
-</dependency>
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-webflux</artifactId>
-</dependency>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>example</groupId><artifactId>hostid-sso</artifactId><version>1.0</version>
+  <properties><maven.compiler.release>17</maven.compiler.release></properties>
+  <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId><version>2.21.4</version>
+    </dependency>
+  </dependencies>
+  <build><plugins>
+    <plugin><groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId><version>3.13.0</version></plugin>
+    <plugin><groupId>org.codehaus.mojo</groupId>
+      <artifactId>exec-maven-plugin</artifactId><version>3.5.0</version></plugin>
+  </plugins></build>
+</project>
 ```
 
-#### 2. SSO 配置类
+Create `src/main/java/Main.java`, replacing the HostID URL and cookie name:
 
 ```java
-// SsoConfig.java
-@Configuration
-public class SsoConfig {
-    
-    @Value("${sso.server-url}")
-    private String ssoServerUrl;
-    
-    @Bean
-    public WebClient ssoWebClient() {
-        return WebClient.builder()
-            .baseUrl(ssoServerUrl)
-            .build();
-    }
-    
-    public String getServerUrl() {
-        return ssoServerUrl;
-    }
-}
-```
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 
-#### 3. SSO 服务类
+public class Main {
+    static final URI SESSION = URI.create("https://mail.example.com/api/sso/session");
+    static final String COOKIE = "sso_token";
+    static final ObjectMapper JSON = new ObjectMapper();
+    static final HttpClient CLIENT = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(5))
+        .followRedirects(HttpClient.Redirect.NEVER).build();
 
-```java
-// SsoService.java
-@Service
-public class SsoService {
-    
-    private final WebClient webClient;
-    private final SsoConfig ssoConfig;
-    
-    public SsoService(WebClient webClient, SsoConfig ssoConfig) {
-        this.webClient = webClient;
-        this.ssoConfig = ssoConfig;
+    static void reply(HttpExchange exchange, int status, String body) throws IOException {
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Cache-Control", "no-store");
+        exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        exchange.sendResponseHeaders(status, bytes.length);
+        try (var output = exchange.getResponseBody()) { output.write(bytes); }
     }
-    
-    public Mono<SsoSession> checkSession(String token) {
-        return webClient.get()
-            .uri("/api/sso/session")
-            .cookie("sso_token", token)
-            .retrieve()
-            .bodyToMono(SsoSession.class);
-    }
-    
-    public Mono<SsoLoginResponse> login(String username, String password) {
-        return webClient.post()
-            .uri("/api/sso/login")
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(Map.of("username", username, "password", password))
-            .retrieve()
-            .bodyToMono(SsoLoginResponse.class);
-    }
-    
-    public Mono<Void> logout(String token) {
-        return webClient.post()
-            .uri("/api/sso/logout")
-            .cookie("sso_token", token)
-            .retrieve()
-            .bodyToMono(Void.class);
-    }
-    
-    public String getLoginUrl(String redirectUrl) {
-        return ssoConfig.getServerUrl() + "/sso/login?redirect=" + 
-            URLEncoder.encode(redirectUrl, StandardCharsets.UTF_8);
-    }
-}
-```
 
-#### 4. DTO 类
-
-```java
-// SsoSession.java
-@Data
-public class SsoSession {
-    private boolean authenticated;
-    private SsoUser user;
-}
-
-// SsoUser.java
-@Data
-public class SsoUser {
-    private String id;
-    private String username;
-    private String email;
-    private String role;
-}
-
-// SsoLoginResponse.java
-@Data
-public class SsoLoginResponse {
-    private boolean success;
-    private SsoUser user;
-}
-```
-
-#### 5. 拦截器（认证检查）
-
-```java
-// SsoInterceptor.java
-@Component
-public class SsoInterceptor implements HandlerInterceptor {
-    
-    private final SsoService ssoService;
-    
-    public SsoInterceptor(SsoService ssoService) {
-        this.ssoService = ssoService;
-    }
-    
-    @Override
-    public boolean preHandle(HttpServletRequest request, 
-                            HttpServletResponse response, 
-                            Object handler) throws Exception {
-        
-        String token = getTokenFromCookie(request);
-        
-        if (token == null) {
-            redirectToLogin(request, response);
-            return false;
+    static void me(HttpExchange exchange) throws IOException {
+        if (!exchange.getRequestMethod().equals("GET") ||
+                !exchange.getRequestURI().getPath().equals("/api/me")) {
+            reply(exchange, 404, "{\"error\":\"Not found\"}"); return;
         }
-        
+        String token = exchange.getRequestHeaders().getOrDefault("Cookie", List.of())
+            .stream().flatMap(h -> Arrays.stream(h.split(";"))).map(String::trim)
+            .filter(c -> c.startsWith(COOKIE + "="))
+            .map(c -> c.substring(COOKIE.length() + 1)).findFirst().orElse("");
+        if (token.length() > 4096 || !token.matches("[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")) {
+            reply(exchange, 401, "{\"error\":\"Sign in required\"}"); return;
+        }
         try {
-            SsoSession session = ssoService.checkSession(token).block();
-            
-            if (session != null && session.isAuthenticated()) {
-                request.setAttribute("ssoUser", session.getUser());
-                return true;
+            var request = HttpRequest.newBuilder(SESSION).timeout(Duration.ofSeconds(5))
+                .header("Cookie", COOKIE + "=" + token)
+                .header("Accept", "application/json").GET().build();
+            var response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) throw new IOException("Upstream error");
+            JsonNode session = JSON.readTree(response.body());
+            if (session == null || !session.path("authenticated").isBoolean()) {
+                throw new IOException("Invalid session response");
             }
-        } catch (Exception e) {
-            // Token invalid or expired
-        }
-        
-        redirectToLogin(request, response);
-        return false;
-    }
-    
-    private String getTokenFromCookie(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if ("sso_token".equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
+            if (!session.path("authenticated").booleanValue()) {
+                reply(exchange, 401, "{\"error\":\"Sign in required\"}"); return;
             }
-        }
-        return null;
-    }
-    
-    private void redirectToLogin(HttpServletRequest request, 
-                                 HttpServletResponse response) throws IOException {
-        String currentUrl = request.getRequestURL().toString();
-        String loginUrl = ssoService.getLoginUrl(currentUrl);
-        response.sendRedirect(loginUrl);
-    }
-}
-```
-
-#### 6. 注册拦截器
-
-```java
-// WebConfig.java
-@Configuration
-public class WebConfig implements WebMvcConfigurer {
-    
-    @Autowired
-    private SsoInterceptor ssoInterceptor;
-    
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(ssoInterceptor)
-            .addPathPatterns("/**")
-            .excludePathPatterns("/public/**", "/error");
-    }
-}
-```
-
-#### 7. 控制器示例
-
-```java
-// UserController.java
-@RestController
-@RequestMapping("/api")
-public class UserController {
-    
-    @GetMapping("/me")
-    public SsoUser getCurrentUser(HttpServletRequest request) {
-        return (SsoUser) request.getAttribute("ssoUser");
-    }
-    
-    @PostMapping("/logout")
-    public void logout(HttpServletRequest request, 
-                      HttpServletResponse response) throws IOException {
-        String token = getTokenFromCookie(request);
-        if (token != null) {
-            ssoService.logout(token).block();
-        }
-        
-        Cookie cookie = new Cookie("sso_token", null);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
-        
-        response.sendRedirect(ssoService.getLoginUrl("/"));
-    }
-    
-    private String getTokenFromCookie(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if ("sso_token".equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
+            JsonNode user = session.path("user");
+            if (!user.path("id").isTextual() || user.path("id").asText().isBlank()) {
+                throw new IOException("Invalid session response");
             }
+            reply(exchange, 200, JSON.writeValueAsString(user));
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            reply(exchange, 503, "{\"error\":\"Session service unavailable\"}");
+        } catch (Exception error) {
+            reply(exchange, 503, "{\"error\":\"Session service unavailable\"}");
         }
-        return null;
+    }
+
+    public static void main(String[] args) throws IOException {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 8080), 0);
+        server.createContext("/api/me", Main::me);
+        server.start();
     }
 }
 ```
 
-## application.yml 配置
-
-```yaml
-sso:
-  server-url: https://mail.a.com
-
-server:
-  port: 8080
+```bash
+mvn compile exec:java -Dexec.mainClass=Main
 ```
 
-## 注意事项
+Put this server behind HTTPS at `app.example.com`. Set HostID's shared cookie domain to `example.com`, then open `https://mail.example.com/login?redirect=https%3A%2F%2Fapp.example.com%2Fapi%2Fme` in the browser. The application returns 401 without a valid session and 503 when upstream validation fails.
 
-### 1. Cookie 跨域
+Only the named cookie is forwarded to a fixed HTTPS endpoint; redirects are disabled. Use the validated user ID for your application's permissions. For a Spring application, place the same validation in a filter/interceptor before the protected handler and attach the validated user to the server-side request.
 
-确保所有应用在同一主域名下，Cookie 的 `domain` 属性设置为 `.a.com`。
+Follow the common guide for [logout, local sessions and CSRF considerations](./sso.md#browser-requests-and-logout).
 
-### 2. HTTPS 要求
-
-生产环境必须使用 HTTPS。
-
-### 3. 会话同步
-
-```java
-@Scheduled(fixedRate = 300000) // 5 minutes
-public void syncSession() {
-    String token = getCurrentToken();
-    if (token != null) {
-        ssoService.checkSession(token)
-            .subscribe(session -> {
-                if (!session.isAuthenticated()) {
-                    // Force logout
-                }
-            });
-    }
-}
-```
-
-## 故障排查
-
-| 问题 | 解决方案 |
-|------|----------|
-| Cookie 未设置 | 检查 `SSO_COOKIE_DOMAIN` 配置 |
-| 跨域请求失败 | 确认 CORS 配置正确 |
-| 会话丢失 | 检查会话是否过期 |
-
-## 安全建议
-
-1. 生产环境必须使用 HTTPS
-2. 设置合理的会话过期时间
-3. 敏感操作需要二次验证
-4. 记录登录日志用于审计
+Contract: [SSO routes](../backend/src/routes/sso.ts).

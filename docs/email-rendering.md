@@ -1,35 +1,69 @@
-# 邮件正文兼容性
+[Documentation](./README.md) · **English** · [简体中文](./zh-CN/email-rendering.md)
 
-目标是在现代浏览器中完整显示常见的静态 HTML 邮件。以下结论基于实际 MIME 样例、原始 GitHub/DeepSeek 邮件及浏览器回归检查，不代表覆盖所有邮件客户端或全部 HTML 功能。
+# Email rendering and compatibility
 
-## 已覆盖
+HostID aims to display common static HTML email in a modern browser while keeping sender styles separate from the application. Compatibility is defined by the parser, sanitizer, renderer, and regression fixtures below; it does not imply support for every email template or identical output in every browser engine.
 
-| 类型 | 支持情况 |
+## Rendering path
+
+1. SMTP reception and EML import use MailParser. [getParsedEmailBody](../backend/src/lib/parsed-email-body.ts) prefers the HTML alternative, then the parser's escaped HTML representation of plain text, then plain text itself. [parseEmailFile](../backend/src/lib/parse-email-file.ts) reads EML as bytes so the parser can decode each part using its declared charset and transfer encoding.
+2. Stored bodies do not have a separate MIME-type field. [mailContent.ts](../frontend/src/lib/mailContent.ts) infers HTML, Markdown, or plain text, including older messages. A complete HTML document or a fragment starting with a tag takes priority over Markdown examples inside it.
+3. [EmailBody.tsx](../frontend/src/components/EmailBody.tsx) renders HTML in a `srcdoc` iframe, Markdown through Marked followed by DOMPurify, and plain text with preserved whitespace.
+4. [htmlEmail.ts](../frontend/src/lib/htmlEmail.ts) sanitizes the complete HTML document, preserving allowed head and body styles. Its low-specificity defaults precede the sender's styles rather than replacing them.
+
+New MIME `text/plain` messages use escaped HTML when available. Literal tags, Markdown headings, asterisks, and line breaks therefore remain text rather than becoming formatting. Historical stored bodies still depend on heuristic detection.
+
+## Covered behavior
+
+| Area | Current implementation and regression coverage |
 | --- | --- |
-| 发送者样式 | 保留头部 `<style>`、内联样式、`@media` 和 `style[media]`；应用样式与正文通过 iframe 隔离 |
-| 表格布局 | 保留嵌套表格、宽高、对齐、单元格间距、跨行跨列、`col[span]`、表头关联；不强加单元格 padding |
-| 文本和容器 | 支持常用 HTML5 语义容器、图注、引用、注音、双向文本和软换行；保留隐藏预览内容的 `hidden` 属性 |
-| 列表 | 保留有序列表起始编号、倒序和单项编号 |
-| 图片 | 支持远程图片、单个 `img[src]` 的 data URI、常见 MIME CID 内嵌图片、`picture/source`、常规 URL 的 `srcset/sizes` 和图片热区 |
-| 固定尺寸 | 保留显式图片高度，避免将邮件中的 1×20 等占位图片压成自然比例；未声明高度的图片提供响应式兜底 |
-| 链接 | 外部链接及图片热区在新窗口打开；片段链接滚动到当前邮件的对应锚点 |
-| 高度 | 自动容纳正文外边距；百分比高度的短邮件可从长邮件回缩；折叠内容和图片加载后重新测量 |
-| 内容识别 | 完整 HTML 或以标签开始的 HTML 片段不会因内部代码示例而误判成 Markdown；保留历史 Markdown/front matter 支持 |
-| MIME | HTML alternative 优先；新收取的 `text/plain` 保留字面内容；导入 EML 使用原始字节按声明字符集解码，验证了 GB18030、UTF-8、8bit、quoted-printable 和 base64 图片 |
+| Sender styles | Head `<style>`, inline styles, media queries, `style[media]`, body classes and supported legacy body color attributes |
+| Tables | Nested layouts, explicit dimensions, alignment, cell spacing, row/column spans, `col[span]`, and table header associations; no blanket cell-padding override |
+| Content | Common semantic sections, figures/captions, quotations, ruby text, bidirectional text attributes, soft breaks, and hidden preheaders |
+| Lists | Ordered-list start, reversal, and individual item values |
+| Images | Remote images, `img[src]` data URIs, parsed MIME CID images, `picture/source`, ordinary URL `srcset/sizes`, and image maps |
+| Image dimensions | Explicit heights are preserved for spacer/cropped images; images without a height receive a responsive fallback |
+| Links | External links and image-map areas open outside the reader with `noopener noreferrer`; fragment links scroll within the message |
+| Height | The iframe expands for content and body margins, shrinks after long messages, and remeasures after images, fonts, or disclosure widgets change |
+| MIME fixtures | GB18030 and UTF-8; 8bit and quoted-printable parts; HTML alternatives and base64 CID images |
 
-## 仍有边界
+The HTML renderer uses `ResizeObserver` and explicit remeasurement for `<details>` toggles. It resets the iframe height before measuring to avoid retaining an earlier long message's height through percentage-height sender styles.
 
-- 当前白名单不显示脚本、表单、嵌套 iframe、内联 SVG、音视频和外链 `<link>` 样式表。远程图片中的 SVG 与内联 SVG 属于不同情况。
-- Outlook 专用 VML、AMP 邮件和依赖脚本的交互模板不在支持范围内；有标准 HTML 后备内容的模板依靠后备内容显示。
-- DOMPurify 的默认 URI 检查会过滤以 `data:` 开始的 `srcset`；常规 URL 的响应式图片和 `img src="data:…"` 已验证。相对资源 URL 没有发送者网页的 base 上下文，不保证能找到资源。
-- 历史正文没有单独保存 MIME 类型，仍需启发式识别。新的 SMTP/EML 纯文本正文会先转义为 HTML，避免将其中的标签、标题或星号误作格式。
-- 本次也确认了已有的 EML 导入流程未保存普通附件；CID 图片由 MIME 解析器内嵌到正文，能正常显示。普通附件导入属于独立的已有缺口。
+## Sanitization and boundaries
 
-## 验证方式
+The HTML iframe enables `allow-same-origin`, `allow-popups`, and `allow-popups-to-escape-sandbox`; it does **not** enable scripts. DOMPurify removes elements and attributes outside the allowlist, including scripts, inline event handlers, forms, nested iframes, `<base>`, and refresh metadata.
 
-- `npm run test --workspace=frontend`：包括正文格式识别等单元测试。
-- `npm --prefix backend test`：包括 MIME 编码、CID、alternative 和纯文本保真测试。
-- `npm run dev --workspace=frontend` 后打开 `/tests/html-email.browser.html`：执行 14 项真实浏览器布局和组件回归检查，无额外测试依赖。
-- 已在 Chrome 执行浏览器检查；未据此承诺其他浏览器引擎的完全一致性。
+- Inline SVG, audio/video, and external `<link>` stylesheets are not in the HTML allowlist. SVG loaded as an image is a separate case from inline SVG markup.
+- Outlook-specific VML, AMP email, and script-dependent templates are outside the supported rendering path. A standard HTML fallback may still render.
+- DOMPurify filters `data:` candidates in `srcset`; ordinary URL candidates and `img src="data:…"` are covered by fixtures.
+- Relative resource URLs lack the sender website's original base context. Their resolution is not guaranteed.
+- Sender layout and colors are preserved; HTML messages are not automatically recolored for dark mode.
+- Remote images may be fetched by the browser. The renderer does not provide an image proxy or a remote-image approval control.
+- Browser policy, deployed response headers, network availability, and the sender's CSS can still affect output. See [security.ts](../backend/src/middleware/security.ts) for the API/full-image response policy; separately served frontends also have their own server configuration.
 
-参考：[HTML 图片规范](https://html.spec.whatwg.org/multipage/images.html)、[HTML 列表与分组元素](https://html.spec.whatwg.org/multipage/grouping-content.html)、[hidden 属性](https://html.spec.whatwg.org/multipage/interaction.html#the-hidden-attribute)、[CID URL（RFC 2392）](https://www.rfc-editor.org/rfc/rfc2392.html)、[MailParser 行为](https://nodemailer.com/extras/mailparser)。
+### EML is not a complete backup format here
+
+The current [EML import route](../backend/src/routes/email.ts) stores the body and message metadata but does **not** save ordinary attachments as attachment records. CID images embedded into the parsed HTML can still display.
+
+The export route writes message headers and the stored body; it does not construct a multipart message containing attachment files. Do not use EML import/export as a promise of lossless migration or a replacement for backing up the application data volumes.
+
+## Verification
+
+Run unit tests from the repository root:
+
+```bash
+npm run test --workspace=frontend
+npm --prefix backend test
+```
+
+Relevant tests are [mail-content.test.mjs](../frontend/tests/mail-content.test.mjs) for format inference and [parse-email-file.test.ts](../backend/tests/parse-email-file.test.ts) for MIME decoding, CID content, alternative selection, and plain-text fidelity.
+
+The [browser harness](../frontend/tests/html-email.browser.mjs) currently contains **14 checks** using real layout and the production `EmailBody` component. It covers narrow tables, sender CSS, sanitization, responsive images, links, content switching, and height changes.
+
+```bash
+npm run dev --workspace=frontend
+```
+
+Open `/tests/html-email.browser.html` on the Vite server and inspect its PASS/FAIL output. The page ends with a summary and sets `document.body.dataset.testStatus` to `passed` or `failed`. These browser checks are separate from the Node test command and require no additional test framework.
+
+When changing rendering, add a small fixture for the observed failure and rerun the browser harness in the target engine. A successful run in Chrome does not establish identical results in other engines.
