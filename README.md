@@ -25,6 +25,10 @@ A self-hosted web mail client that also provides SSO and OAuth 2.0 for your apps
 <details>
 <summary>More screenshots.</summary>
 
+**Space Gray · list view · compact sidebar.**
+
+![HostID inbox in Space Gray with list view and a compact sidebar](./docs/screenshots/inbox-space-gray-list.png)
+
 **Compose.**
 
 ![Writing an email in HostID](./docs/screenshots/compose.png)

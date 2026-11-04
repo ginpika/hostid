@@ -25,6 +25,10 @@
 <details>
 <summary>更多截图。</summary>
 
+**深空灰主题 · 列表模式 · 侧边栏收起。**
+
+![HostID 深空灰主题：侧边栏收起的列表模式](./docs/screenshots/inbox-space-gray-list.png)
+
 **撰写邮件。**
 
 ![在 HostID 中撰写邮件](./docs/screenshots/compose.png)
