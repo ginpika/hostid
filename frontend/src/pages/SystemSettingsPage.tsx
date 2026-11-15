@@ -80,6 +80,12 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
   }, [])
 
   const grouped = useMemo(() => GROUPS.map(g => ({ ...g, items: settings.filter(s => s.group === g.id) })), [settings])
+  // Use saved settings; an empty password input keeps the existing secret.
+  const usesSmtpRelay = Boolean(
+    settings.find(s => s.key === 'smtpRelayHost')?.value &&
+    settings.find(s => s.key === 'smtpRelayUser')?.value &&
+    settings.find(s => s.key === 'smtpRelayPass')?.configured
+  )
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -203,6 +209,22 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
               <fieldset key={g.id} className={embedded ? 'admin-panel-settings-group rounded-lg border p-6 space-y-4' : 'rounded-lg border p-6 space-y-4'}
                 style={{ borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-secondary)' }}>
                 <legend className="px-2 text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>{t(g.label)}</legend>
+                {g.id === 'smtp' && (
+                  <div role="status" className="col-span-full rounded-lg border p-3"
+                    style={{ borderColor: 'var(--color-border-primary)', backgroundColor: 'var(--color-bg-tertiary)' }}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>{t('settingsSmtpDeliveryMode')}</span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+                        style={{ backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-accent-primary)' }}>
+                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {t(usesSmtpRelay ? 'settingsSmtpDeliveryRelay' : 'settingsSmtpDeliveryDirect')}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--color-text-tertiary)' }}>
+                      {t(usesSmtpRelay ? 'settingsSmtpDeliveryRelayHint' : 'settingsSmtpDeliveryDirectHint')}
+                    </p>
+                  </div>
+                )}
                 {g.items.map(renderField)}
               </fieldset>
             ))}

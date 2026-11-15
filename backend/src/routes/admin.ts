@@ -4,14 +4,13 @@
  * 仅限管理员用户访问
  */
 import { Router, Request, Response, NextFunction } from 'express'
-import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import { prisma } from '../lib/prisma'
 import { asyncHandler } from '../middleware/error'
 import { getJwtSecret } from '../config/secrets'
-import { getSettingsView, updateSettings } from '../services/settings'
+import { getSettings, getSettingsView, updateSettings } from '../services/settings'
 
 const router = Router()
-const prisma = new PrismaClient()
 
 interface AuthRequest extends Request {
   userId?: string
@@ -57,7 +56,8 @@ router.get('/tables', auth, adminOnly, asyncHandler(async (req: AuthRequest, res
       { name: 'Email', count: await prisma.email.count() },
       { name: 'Attachment', count: await prisma.attachment.count() },
       { name: 'EmailAttachment', count: await prisma.emailAttachment.count() },
-      { name: 'OAuthProvider', count: await prisma.oAuthProvider.count() }
+      { name: 'OAuthProvider', count: await prisma.oAuthProvider.count() },
+      { name: 'Passkey', count: await prisma.passkey.count() }
     ]
   })
 }))
@@ -164,6 +164,27 @@ router.get('/tables/:tableName', auth, adminOnly, asyncHandler(async (req: AuthR
       })
       break
 
+    case 'passkey':
+      columns = ['id', 'userId', 'name', 'credentialId', 'deviceType', 'backedUp', 'counter', 'lastUsedAt', 'createdAt']
+      total = await prisma.passkey.count()
+      data = await prisma.passkey.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          userId: true,
+          name: true,
+          credentialId: true,
+          deviceType: true,
+          backedUp: true,
+          counter: true,
+          lastUsedAt: true,
+          createdAt: true
+        }
+      })
+      break
+
     default:
       return res.status(400).json({ error: 'Unknown table' })
   }
@@ -204,6 +225,10 @@ router.delete('/tables/:tableName/:id', auth, adminOnly, asyncHandler(async (req
       await prisma.oAuthProvider.delete({ where: { id } })
       break
 
+    case 'passkey':
+      await prisma.passkey.delete({ where: { id } })
+      break
+
     default:
       return res.status(400).json({ error: 'Unknown table' })
   }
@@ -234,6 +259,24 @@ router.put('/settings', auth, adminOnly, asyncHandler(async (req: AuthRequest, r
   }
   res.set('Cache-Control', 'no-store')
   res.json({ settings: getSettingsView() })
+}))
+
+/**
+ * 管理员登录服务：Passkey 开关读取与更新
+ */
+router.get('/passkey', auth, adminOnly, asyncHandler(async (_req: AuthRequest, res: Response) => {
+  res.set('Cache-Control', 'no-store')
+  res.json({ enabled: getSettings().passkeyEnabled })
+}))
+
+router.put('/passkey', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { enabled } = req.body ?? {}
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'enabled must be a boolean' })
+  }
+  await updateSettings({ passkeyEnabled: enabled })
+  res.set('Cache-Control', 'no-store')
+  res.json({ enabled: getSettings().passkeyEnabled })
 }))
 
 export default router

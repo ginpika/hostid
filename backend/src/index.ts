@@ -7,6 +7,7 @@ import express from 'express'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
 import authRoutes from './routes/auth'
+import passkeyRoutes from './routes/passkey'
 import emailRoutes from './routes/email'
 import attachmentRoutes from './routes/attachment'
 import adminRoutes from './routes/admin'
@@ -38,6 +39,7 @@ app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser())
 
 app.use('/api/setup', setupRoutes)
+app.use('/api/auth/passkeys', passkeyRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/emails', emailRoutes)
 app.use('/api/attachments', attachmentRoutes)

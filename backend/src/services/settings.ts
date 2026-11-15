@@ -20,7 +20,7 @@ interface SettingDef {
   min?: number
   max?: number
   /** 环境变量值转换（如 SESSION_TTL 单位） */
-  group: 'site' | 'mail' | 'smtp' | 'turnstile' | 'sso'
+  group: 'site' | 'mail' | 'smtp' | 'turnstile' | 'sso' | 'auth'
 }
 
 export const SETTING_DEFS = {
@@ -42,7 +42,8 @@ export const SETTING_DEFS = {
   /** 会话有效期（秒） */
   sessionTtl: { type: 'number', env: 'SESSION_TTL', default: 604800, min: 300, max: 31536000, group: 'sso' },
   ssoRateMax: { type: 'number', env: 'SSO_RATE_MAX', default: 180, min: 1, max: 100000, group: 'sso' },
-  ssoRateWindowMs: { type: 'number', env: 'SSO_RATE_WINDOW_MS', default: 60000, min: 1000, max: 86400000, group: 'sso' }
+  ssoRateWindowMs: { type: 'number', env: 'SSO_RATE_WINDOW_MS', default: 60000, min: 1000, max: 86400000, group: 'sso' },
+  passkeyEnabled: { type: 'boolean', env: 'PASSKEY_ENABLED', default: false, group: 'auth' }
 } as const satisfies Record<string, SettingDef>
 
 export type SettingKey = keyof typeof SETTING_DEFS

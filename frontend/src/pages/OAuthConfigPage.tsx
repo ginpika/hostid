@@ -4,7 +4,7 @@
  * 支持添加、编辑、删除和启用/禁用服务商
  */
 import { useState, useEffect } from 'react'
-import { Key, Plus, Trash2, Edit, Power, PowerOff, X, Check } from 'lucide-react'
+import { Key, Plus, Trash2, Edit, Power, PowerOff, X, Check, Fingerprint } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useI18n } from '../i18n/I18nContext'
 
@@ -58,6 +58,8 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
     userinfoUrl: ''
   })
   const [saving, setSaving] = useState(false)
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false)
+  const [passkeySaving, setPasskeySaving] = useState(false)
 
   useEffect(() => {
     fetchProviders()
@@ -67,22 +69,57 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('/api/admin/oauth/providers', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (res.ok) {
-        const data = await res.json()
+      const headers = { Authorization: `Bearer ${token}` }
+      const [providersRes, passkeyRes] = await Promise.all([
+        fetch('/api/admin/oauth/providers', { headers }),
+        fetch('/api/admin/passkey', { headers })
+      ])
+      if (providersRes.ok) {
+        const data = await providersRes.json()
         setProviders(data.providers)
         setActiveCount(data.activeCount)
         setMaxActiveProviders(data.maxActiveProviders)
-      } else if (res.status === 403) {
+      } else if (providersRes.status === 403) {
         setError(t('adminAccessDenied'))
+      }
+      if (passkeyRes.ok) {
+        const pkData = await passkeyRes.json()
+        setPasskeyEnabled(Boolean(pkData.enabled))
       }
     } catch (err) {
       console.error('Failed to fetch providers:', err)
       setError(language === 'zh-CN' ? '获取配置失败' : 'Failed to fetch providers')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleTogglePasskey = async () => {
+    if (passkeySaving) return
+    const nextEnabled = !passkeyEnabled
+    setPasskeySaving(true)
+    setError('')
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/admin/passkey', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ enabled: nextEnabled })
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || t('passkeyToggleFailed'))
+      }
+      setPasskeyEnabled(Boolean(data.enabled))
+      setSuccess(data.enabled ? t('passkeyToggleSuccessOn') : t('passkeyToggleSuccessOff'))
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('passkeyToggleFailed'))
+    } finally {
+      setPasskeySaving(false)
     }
   }
 
@@ -306,6 +343,65 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
               {success}
             </div>
           )}
+
+          <div
+            className={embedded ? 'mb-6 p-5 rounded-xl border' : 'mb-6 p-6 rounded-xl border'}
+            style={{
+              backgroundColor: 'var(--color-bg-secondary)',
+              borderColor: passkeyEnabled ? 'var(--color-accent-primary)' : 'var(--color-border-primary)'
+            }}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="w-11 h-11 shrink-0 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--color-accent-muted)', color: 'var(--color-accent-primary)' }}
+                >
+                  <Fingerprint className="w-6 h-6" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <h4 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                      {t('passkeySettingTitle')}
+                    </h4>
+                    <span
+                      className="px-2 py-0.5 rounded text-xs font-medium"
+                      style={{
+                        backgroundColor: passkeyEnabled ? 'rgba(34, 197, 94, 0.1)' : 'var(--color-bg-tertiary)',
+                        color: passkeyEnabled ? '#22c55e' : 'var(--color-text-muted)'
+                      }}
+                    >
+                      {passkeyEnabled ? t('passkeyEnabledStatus') : t('passkeyDisabledStatus')}
+                    </span>
+                  </div>
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
+                    {t('passkeySettingDescription')}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={passkeyEnabled}
+                aria-label={t('passkeySettingTitle')}
+                onClick={handleTogglePasskey}
+                disabled={loading || passkeySaving}
+                className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+                style={{
+                  backgroundColor: passkeyEnabled ? 'var(--color-accent-primary)' : 'var(--color-bg-tertiary)',
+                  border: '1px solid var(--color-border-primary)',
+                  outlineColor: 'var(--color-accent-primary)'
+                }}
+              >
+                <span
+                  className="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                  style={{
+                    transform: passkeyEnabled ? 'translateX(22px)' : 'translateX(3px)'
+                  }}
+                />
+              </button>
+            </div>
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-12">

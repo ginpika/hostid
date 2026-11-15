@@ -205,7 +205,10 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
     }
   }
 
-  res.json({ providers: result })
+  res.json({
+    providers: result,
+    passkeyEnabled: getSettings().passkeyEnabled
+  })
 }))
 
 router.get('/:provider', asyncHandler(async (req: Request, res: Response) => {

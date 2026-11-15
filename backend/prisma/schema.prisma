@@ -25,6 +25,7 @@ model User {
   oauthApps         OAuthApp[]
   refreshTokens     RefreshToken[]
   identities        UserIdentity[]
+  passkeys          Passkey[]
 }
 
 model Email {
@@ -139,4 +140,24 @@ model UserIdentity {
   @@unique([provider, subject])
   @@index([userId])
   @@map("user_identities")
+}
+
+model Passkey {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      Int       @default(0)
+  name         String
+  deviceType   String    @default("multiDevice")
+  backedUp     Boolean   @default(false)
+  transports   String?
+  aaguid       String?
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("passkeys")
 }

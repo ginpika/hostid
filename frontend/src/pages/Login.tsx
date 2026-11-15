@@ -5,12 +5,14 @@
  */
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Lock, ArrowRight, LogOut, User, Key } from 'lucide-react'
+import { Lock, ArrowRight, LogOut, User, Key, Fingerprint } from 'lucide-react'
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useDomain } from '../contexts/DomainContext'
 import AuthPage, { AuthHeader, AuthLoading } from '../components/AuthPage'
 import { encryptPassword } from '../utils/rsa'
+import { formatWebAuthnError } from '../utils/passkey'
 
 interface LocalUser {
   id: string
@@ -28,6 +30,7 @@ interface OAuthProvider {
 
 interface OAuthStatus {
   providers: Record<string, OAuthProvider>
+  passkeyEnabled?: boolean
 }
 
 type AnimationPhase = 'idle' | 'formFadeOut' | 'heightTransition' | 'cardFadeIn'
@@ -51,8 +54,9 @@ export default function Login() {
   const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('idle')
   const [containerHeight, setContainerHeight] = useState<number | null>(null)
   const [startProgress, setStartProgress] = useState(false)
-  const [oauthStatus, setOauthStatus] = useState<OAuthStatus>({ providers: {} })
+  const [oauthStatus, setOauthStatus] = useState<OAuthStatus>({ providers: {}, passkeyEnabled: false })
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
   const [searchParams] = useSearchParams()
@@ -92,7 +96,7 @@ export default function Login() {
 
   const startAnimationSequence = () => {
     if (formRef.current) {
-      setContainerHeight(LOGIN_FORM_HEIGHT)
+      setContainerHeight(formRef.current.offsetHeight || LOGIN_FORM_HEIGHT)
     }
     setAnimationPhase('formFadeOut')
   }
@@ -179,6 +183,55 @@ export default function Login() {
       }
       setError(errorMessage)
       setLoading(false)
+    }
+  }
+
+  const handlePasskeyLogin = async () => {
+    if (passkeyLoading || loading || oauthLoading) return
+    if (!browserSupportsWebAuthn()) {
+      setError(t('passkeyUnsupported'))
+      return
+    }
+
+    setError('')
+    setPasskeyLoading(true)
+
+    try {
+      const optionsRes = await fetch('/api/auth/passkeys/login/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const optionsPayload = await optionsRes.json()
+      if (!optionsRes.ok) {
+        throw new Error(optionsPayload.error || t('passkeyLoginFailed'))
+      }
+
+      const assertionResponse = await startAuthentication({
+        optionsJSON: optionsPayload.options
+      })
+
+      const verifyRes = await fetch('/api/auth/passkeys/login/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          challengeId: optionsPayload.challengeId,
+          response: assertionResponse
+        })
+      })
+      const verifyPayload = await verifyRes.json()
+      if (!verifyRes.ok) {
+        throw new Error(verifyPayload.error || t('passkeyLoginFailed'))
+      }
+
+      localStorage.setItem('token', verifyPayload.token)
+      setLocalUser(verifyPayload.user)
+      setIsRedirecting(true)
+      setPasskeyLoading(false)
+      startAnimationSequence()
+    } catch (err) {
+      setError(formatWebAuthnError(err, t, language === 'zh-CN', 'passkeyLoginFailed'))
+      setPasskeyLoading(false)
     }
   }
 
@@ -337,7 +390,7 @@ export default function Login() {
               </button>
             </form>
 
-            {Object.entries(oauthStatus.providers).some(([_, p]) => p.enabled) && (
+            {(Object.entries(oauthStatus.providers).some(([_, p]) => p.enabled) || oauthStatus.passkeyEnabled) && (
               <div className="mt-4">
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -397,7 +450,7 @@ export default function Login() {
                               window.location.href = `/api/oauth/${providerId}?redirect=${encodeURIComponent(redirectUrl)}`
                             }, 100)
                           }}
-                          disabled={oauthLoading}
+                          disabled={oauthLoading || passkeyLoading}
                           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 border disabled:cursor-not-allowed"
                           style={{
                             backgroundColor: oauthLoading ? 'var(--color-bg-tertiary)' : 'var(--color-bg-primary)',
@@ -423,6 +476,36 @@ export default function Login() {
                         </button>
                       )
                     })}
+
+                  {oauthStatus.passkeyEnabled && (
+                    <button
+                      type="button"
+                      onClick={handlePasskeyLogin}
+                      disabled={passkeyLoading || oauthLoading || loading}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 border disabled:cursor-not-allowed"
+                      style={{
+                        backgroundColor: passkeyLoading ? 'var(--color-bg-tertiary)' : 'var(--color-bg-primary)',
+                        color: passkeyLoading ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)',
+                        borderColor: passkeyLoading ? 'var(--color-border-secondary)' : 'var(--color-border-primary)',
+                        opacity: passkeyLoading ? 0.7 : 1
+                      }}
+                    >
+                      {passkeyLoading ? (
+                        <>
+                          <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                            <path className="opacity-75" stroke="currentColor" strokeWidth="3" strokeLinecap="round" d="M12 2a10 10 0 0 1 10 10"></path>
+                          </svg>
+                          {t('passkeyLoggingIn')}
+                        </>
+                      ) : (
+                        <>
+                          <Fingerprint className="w-5 h-5" style={{ color: 'var(--color-accent-primary)' }} />
+                          {t('passkeyLogin')}
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}

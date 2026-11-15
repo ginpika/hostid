@@ -6,7 +6,6 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { auth, AuthRequest } from '../middleware/auth'
@@ -17,7 +16,8 @@ import { getPublicKey, decryptPassword } from '../utils/rsa'
 import { getAvatarUrl } from '../utils/avatar'
 import fs from 'fs'
 import { getJwtSecret } from '../config/secrets'
-import { getSettings, getSessionTtlMs } from '../services/settings'
+import { getSettings } from '../services/settings'
+import { getSessionKey, issueAuthSession } from '../services/session'
 
 const router = Router()
 
@@ -67,59 +67,9 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   }
 }
 
-interface SSOSession {
-  id: string
-  userId: string
-  username: string
-  email: string
-  role: string
-  createdAt: number
-  expiresAt: number
-}
-
-function generateSessionId(): string {
-  return crypto.randomBytes(32).toString('hex')
-}
-
 router.get('/public-key', (req: Request, res: Response) => {
   res.json({ publicKey: getPublicKey() })
 })
-
-function getSessionKey(sessionId: string): string {
-  return `sso:session:${sessionId}`
-}
-
-async function createSSOSession(user: { id: string; username: string; email: string; role: string }, req: Request): Promise<string> {
-  const sessionId = generateSessionId()
-  const session: SSOSession = {
-    id: sessionId,
-    userId: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + getSessionTtlMs()
-  }
-  
-  await memoryStore.set(getSessionKey(sessionId), JSON.stringify(session), getSessionTtlMs())
-  return sessionId
-}
-
-function setSSOCookie(res: Response, token: string): void {
-  const cookieOptions: any = {
-    httpOnly: true,
-    secure: getSettings().ssoCookieSecure,
-    sameSite: (getSettings().ssoCookieSameSite as 'strict' | 'lax' | 'none'),
-    path: getSettings().ssoCookiePath,
-    maxAge: getSessionTtlMs()
-  }
-  
-  if (getSettings().ssoCookieDomain) {
-    cookieOptions.domain = getSettings().ssoCookieDomain
-  }
-  
-  res.cookie(getSettings().ssoCookieName, token, cookieOptions)
-}
 
 router.post('/register', asyncHandler(async (req: Request, res: Response) => {
   const { username, password, turnstileToken } = registerSchema.parse(req.body)
@@ -144,30 +94,8 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
   const hashedPassword = await bcrypt.hash(password, 12)
   const user = await prisma.user.create({ data: { email, username, password: hashedPassword } })
 
-  const token = jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: '7d' })
-  
-  const sessionId = await createSSOSession({
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role
-  }, req)
-  const ssoToken = jwt.sign({ sessionId }, getJwtSecret(), { expiresIn: '7d' })
-  setSSOCookie(res, ssoToken)
-
-  res.status(201).json({
-    token,
-    user: { 
-      id: user.id, 
-      email: user.email, 
-      username: user.username, 
-      nickname: user.nickname, 
-      avatar: user.avatar,
-      avatarUrl: getAvatarUrl(user.avatar),
-      language: user.language, 
-      role: user.role 
-    }
-  })
+  const authPayload = await issueAuthSession(res, user)
+  res.status(201).json(authPayload)
 }))
 
 router.post('/login', asyncHandler(async (req: Request, res: Response) => {
@@ -190,30 +118,8 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Invalid credentials', 401)
   }
 
-  const token = jwt.sign({ userId: user.id }, getJwtSecret(), { expiresIn: '7d' })
-  
-  const sessionId = await createSSOSession({
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role
-  }, req)
-  const ssoToken = jwt.sign({ sessionId }, getJwtSecret(), { expiresIn: '7d' })
-  setSSOCookie(res, ssoToken)
-
-  res.json({
-    token,
-    user: { 
-      id: user.id, 
-      email: user.email, 
-      username: user.username, 
-      nickname: user.nickname, 
-      avatar: user.avatar,
-      avatarUrl: getAvatarUrl(user.avatar),
-      language: user.language, 
-      role: user.role 
-    }
-  })
+  const authPayload = await issueAuthSession(res, user)
+  res.json(authPayload)
 }))
 
 router.get('/me', auth, asyncHandler(async (req: AuthRequest, res: Response) => {
