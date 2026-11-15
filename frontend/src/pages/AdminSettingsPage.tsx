@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { AppWindow, Database, KeyRound, Settings2, ShieldCheck, SlidersHorizontal } from 'lucide-react'
+import { AppWindow, Database, KeyRound, Settings2, ShieldCheck, SlidersHorizontal, Users } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import AdminPage from './AdminPage'
+import AdminRolesPage from './AdminRolesPage'
 import OAuthAppsPage from './OAuthAppsPage'
 import OAuthConfigPage from './OAuthConfigPage'
 import SystemSettingsPage from './SystemSettingsPage'
@@ -13,6 +14,7 @@ const TABS = [
   { id: 'general', label: 'systemSettings', icon: SlidersHorizontal, Panel: SystemSettingsPage },
   { id: 'providers', label: 'settingsLoginProviders', icon: KeyRound, Panel: OAuthConfigPage },
   { id: 'apps', label: 'settingsAuthorizedApps', icon: AppWindow, Panel: OAuthAppsPage },
+  { id: 'admins', label: 'settingsAdminAccounts', icon: Users, Panel: AdminRolesPage },
   { id: 'database', label: 'admin', icon: Database, Panel: AdminPage }
 ] as const
 

@@ -5,10 +5,41 @@
  */
 import { Router, Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import { asyncHandler } from '../middleware/error'
+import { AppError, asyncHandler } from '../middleware/error'
 import { getJwtSecret } from '../config/secrets'
 import { getSettings, getSettingsView, updateSettings } from '../services/settings'
+import { getAvatarUrl } from '../utils/avatar'
+
+const USER_SUMMARY_SELECT = {
+  id: true,
+  email: true,
+  username: true,
+  nickname: true,
+  avatar: true,
+  role: true,
+  createdAt: true
+} as const
+
+function formatUserSummary(user: {
+  id: string
+  email: string
+  username: string
+  nickname: string | null
+  avatar: string | null
+  role: string
+  createdAt: Date
+}) {
+  return {
+    ...user,
+    avatarUrl: getAvatarUrl(user.avatar)
+  }
+}
+
+const updateUserRoleSchema = z.object({
+  role: z.enum(['admin', 'user'])
+})
 
 const router = Router()
 
@@ -277,6 +308,92 @@ router.put('/passkey', auth, adminOnly, asyncHandler(async (req: AuthRequest, re
   await updateSettings({ passkeyEnabled: enabled })
   res.set('Cache-Control', 'no-store')
   res.json({ enabled: getSettings().passkeyEnabled })
+}))
+
+/**
+ * 管理员列表与用户权限调整（按指定用户 ID 提权为管理员 / 降级为普通用户）
+ */
+router.get('/admins', auth, adminOnly, asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const admins = await prisma.user.findMany({
+    where: { role: 'admin' },
+    orderBy: [{ createdAt: 'asc' }],
+    select: USER_SUMMARY_SELECT
+  })
+
+  res.set('Cache-Control', 'no-store')
+  res.json({
+    admins: admins.map(formatUserSummary),
+    total: admins.length
+  })
+}))
+
+router.get('/users/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.params.id.trim()
+  if (!userId) {
+    throw new AppError('User ID is required', 400)
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: USER_SUMMARY_SELECT
+  })
+  if (!user) {
+    throw new AppError('User not found', 404)
+  }
+
+  res.set('Cache-Control', 'no-store')
+  res.json({ user: formatUserSummary(user) })
+}))
+
+router.patch('/users/:id/role', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const targetId = req.params.id.trim()
+  if (!targetId) {
+    throw new AppError('User ID is required', 400)
+  }
+
+  const parsed = updateUserRoleSchema.safeParse(req.body)
+  if (!parsed.success) {
+    throw new AppError('Role must be "admin" or "user"', 400)
+  }
+  const { role } = parsed.data
+
+  const result = await prisma.$transaction(async (tx) => {
+    const target = await tx.user.findUnique({
+      where: { id: targetId },
+      select: USER_SUMMARY_SELECT
+    })
+
+    if (!target) {
+      throw new AppError('User not found', 404)
+    }
+
+    if (role === 'user') {
+      if (target.id === req.userId) {
+        throw new AppError('Cannot demote your own account', 400)
+      }
+      if (target.role === 'admin') {
+        const adminCount = await tx.user.count({ where: { role: 'admin' } })
+        if (adminCount <= 1) {
+          throw new AppError('Cannot demote the last remaining administrator', 400)
+        }
+      }
+    }
+
+    if (target.role === role) {
+      return { user: formatUserSummary(target), changed: false }
+    }
+
+    const updated = await tx.user.update({
+      where: { id: target.id },
+      data: { role },
+      select: USER_SUMMARY_SELECT
+    })
+
+    return { user: formatUserSummary(updated), changed: true }
+  })
+
+  res.set('Cache-Control', 'no-store')
+  res.json(result)
 }))
 
 export default router

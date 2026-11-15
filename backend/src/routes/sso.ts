@@ -184,10 +184,10 @@ router.post('/verify', ssoLimiter, asyncHandler(async (req: Request, res: Respon
     return
   }
   
-  // 从数据库获取最新的用户头像
+  // 从数据库获取最新的用户信息（含权限与头像）
   const dbUser = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { avatar: true, nickname: true }
+    select: { avatar: true, nickname: true, role: true }
   })
   
   res.json({
@@ -197,7 +197,7 @@ router.post('/verify', ssoLimiter, asyncHandler(async (req: Request, res: Respon
       username: session.username,
       nickname: dbUser?.nickname,
       email: session.email,
-      role: session.role,
+      role: dbUser?.role || session.role,
       avatar: dbUser?.avatar || null,
       avatarUrl: getAvatarUrl(dbUser?.avatar)
     }
@@ -288,10 +288,10 @@ router.get('/session', ssoLimiter, asyncHandler(async (req: Request, res: Respon
     return
   }
   
-  // 从数据库获取最新的用户头像
+  // 从数据库获取最新的用户信息（含权限与头像）
   const dbUser = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { avatar: true, nickname: true }
+    select: { avatar: true, nickname: true, role: true }
   })
   
   res.json({
@@ -301,7 +301,7 @@ router.get('/session', ssoLimiter, asyncHandler(async (req: Request, res: Respon
       username: session.username,
       nickname: dbUser?.nickname,
       email: session.email,
-      role: session.role,
+      role: dbUser?.role || session.role,
       avatar: dbUser?.avatar || null,
       avatarUrl: getAvatarUrl(dbUser?.avatar)
     }
