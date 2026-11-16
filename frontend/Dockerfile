@@ -1,4 +1,5 @@
-FROM node:26-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797 AS builder
+# The frontend emits static assets, so esbuild can run on the builder's native platform.
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797 AS builder
 
 ARG NODE_OPTIONS=--max-old-space-size=4096
 ENV NODE_OPTIONS=${NODE_OPTIONS}

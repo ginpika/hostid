@@ -63,10 +63,25 @@ wait_healthy "$name"
 with_timeout docker exec -i -e SMOKE_BASE_URL=http://127.0.0.1:3000 -e SMOKE_FULL=true \
   -e SMOKE_RESTART=true "$name" node --input-type=module < "$script_dir/smoke-checks.mjs"
 
-# An independent instance verifies the default empty runtime configuration.
+# An independent instance verifies the default runtime configuration.
 docker run -d --platform "$platform" --name "$empty" --init \
   --cap-drop ALL --security-opt no-new-privileges:true \
   "$image" >/dev/null
 wait_healthy "$empty"
-with_timeout docker exec "$empty" node -e "fetch('http://127.0.0.1:3000/config.js').then(r=>r.text()).then(t=>{if(t !== 'window.__ENV__ = {\"CF_TURNSTILE_SITE_KEY\":\"\"};\\n')process.exit(1)})"
+with_timeout docker exec -i "$empty" node --input-type=module <<'NODE'
+import assert from 'node:assert/strict';
+
+const response = await fetch('http://127.0.0.1:3000/config.js', {
+  signal: AbortSignal.timeout(5000),
+});
+assert.equal(response.status, 200);
+
+const script = await response.text();
+const assignment = script.trim().match(/^window\.__ENV__\s*=\s*(\{.*\});$/s);
+assert.ok(assignment, 'Expected /config.js to assign a JSON object to window.__ENV__');
+const config = JSON.parse(assignment[1]);
+assert.equal(config.CF_TURNSTILE_SITE_KEY, '');
+assert.equal(config.SITE_NAME, 'HostID');
+assert.equal(config.SITE_SLOGAN, 'MAIL WORKSPACE');
+NODE
 echo "Full image checks passed for $platform."
