@@ -748,12 +748,13 @@ button:disabled { cursor: not-allowed; }
 .sidebar-inner { display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0 16px 16px; }
 .sidebar-brand-row { height: 86px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; justify-content: space-between; }
 .sidebar-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; color: var(--color-text-primary); }
-.sidebar-brand > span:last-child { font-size: 22px; font-weight: 750; letter-spacing: -.7px; line-height: 25px; }
-.sidebar-brand small { display: block; margin-top: 1px; font-size: 8px; line-height: 14px; font-weight: 600; letter-spacing: 1.45px; color: var(--color-text-tertiary); }
+.sidebar-brand-text { min-width: 0; overflow: hidden; }
+.sidebar-brand-name { display: block; font-size: 22px; font-weight: 750; letter-spacing: -.7px; line-height: 25px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-brand small { display: block; margin-top: 1px; font-size: 8px; line-height: 14px; font-weight: 600; letter-spacing: 1.45px; color: var(--color-text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brand-mark { display: block; flex-shrink: 0; object-fit: contain; }
 .brand-mark-tile { background: #fff; }
 .sidebar-brand-icon { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 36px; height: 36px; background: transparent; }
-.sidebar-close { width: 28px; height: 28px; }
+.sidebar-close { width: 28px; height: 28px; flex-shrink: 0; }
 .sidebar-compose-wrap { padding: 0 0 24px; }
 .sidebar-compose { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; border: 1px solid color-mix(in srgb, var(--color-accent-primary) 80%, #fff); border-radius: 11px; color: var(--color-accent-text); background: linear-gradient(115deg, color-mix(in srgb, var(--color-accent-primary) 85%, #fff), var(--color-accent-primary)); box-shadow: 0 4px 10px color-mix(in srgb, var(--color-accent-primary) 14%, transparent), inset 0 1px 0 #ffffff20; font-size: 13px; font-weight: 600; transition: filter 150ms, box-shadow 150ms; }
 .sidebar-compose:hover { filter: brightness(1.06); box-shadow: 0 6px 16px color-mix(in srgb, var(--color-accent-primary) 20%, transparent); }

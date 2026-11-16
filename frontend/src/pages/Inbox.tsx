@@ -5,6 +5,7 @@ import { Search, X, Mail, MailOpen, CheckSquare, Trash2, ChevronLeft, ChevronRig
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useConfig } from '../contexts/ConfigContext'
 import '../styles/classic-mailbox.css'
 import EmailList, { type Email } from '../components/EmailList'
 import EmailDetail from '../components/EmailDetail'
@@ -28,6 +29,7 @@ export default function InboxPage() {
   const { t, language } = useI18n()
   const { openCompose } = useCompose()
   const { layout } = useTheme()
+  const { siteName } = useConfig()
   const classic = layout === 'classic'
   const zh = language === 'zh-CN'
   const { layoutMode } = useOutletContext<{ layoutMode: 'split' | 'list' }>()
@@ -351,7 +353,7 @@ export default function InboxPage() {
           <div className="mail-resizer" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={zh ? '调整邮件列表宽度' : 'Resize message list'} aria-valuemin={widthBounds.min} aria-valuemax={widthBounds.max} aria-valuenow={measuredListWidth} onPointerDown={startResize} onPointerMove={event => { if (dragRef.current) updateWidth(dragRef.current.width + event.clientX - dragRef.current.x) }} onPointerUp={endResize} onPointerCancel={endResize} onLostPointerCapture={endResize} onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { event.preventDefault(); updateWidth(event.key === 'Home' ? widthBounds.min : event.key === 'End' ? widthBounds.max : measuredListWidth + (event.key === 'ArrowLeft' ? -20 : 20)) } }}><span /></div>
           <section className="mail-reading-panel" aria-label={zh ? '邮件阅读区' : 'Message reader'}>
             {selectedEmail && wideScreen ? <EmailDetail key={selectedEmail.id} embedded emailId={selectedEmail.id} onClose={() => setSelectedEmail(null)} onDelete={refreshAfterAction} onRestore={refreshAfterAction} onArchive={refreshAfterAction} onToggleStar={toggleStar} onRead={markRead} onFeedback={notify} onReply={email => composeFrom(email, 'reply')} onReplyAll={email => composeFrom(email, 'replyAll')} onForward={email => composeFrom(email, 'forward')} /> : classic ? <div className="classic-reader-empty"><Mail className="w-16 h-16 mb-4" /><p>{t('selectEmailToView')}</p></div> : <div className="mail-reader-empty">
-              <BrandMark size={180} className="mail-reader-logo" label="HostID" />
+              <BrandMark size={180} className="mail-reader-logo" label={siteName} />
               <h2>{zh ? '欢迎回来，我的朋友！' : 'Welcome back, my friend!'}</h2>
             </div>}
           </section>

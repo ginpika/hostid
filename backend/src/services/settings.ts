@@ -24,6 +24,8 @@ interface SettingDef {
 }
 
 export const SETTING_DEFS = {
+  siteName: { type: 'string', default: 'HostID', group: 'site' },
+  siteSlogan: { type: 'string', default: 'MAIL WORKSPACE', group: 'site' },
   siteUrl: { type: 'string', env: 'FRONTEND_URL', default: '', group: 'site' },
   corsAllowedOrigins: { type: 'string', env: 'CORS_ALLOWED_ORIGINS', default: '', group: 'site' },
   ssoLoginPageUrl: { type: 'string', env: 'SSO_LOGIN_PAGE_URL', default: '', group: 'site' },
@@ -84,8 +86,19 @@ function parseValue(key: SettingKey, raw: unknown): string | number | boolean {
   }
 }
 
+const MAX_SITE_NAME_LENGTH = 64
+const MAX_SITE_SLOGAN_LENGTH = 120
+
 function validateString(key: SettingKey, value: string): void {
   if (!value) return
+  if (key === 'siteName') {
+    if (/[\r\n]/.test(value)) throw new Error('siteName cannot contain line breaks')
+    if (value.length > MAX_SITE_NAME_LENGTH) throw new Error(`siteName must be at most ${MAX_SITE_NAME_LENGTH} characters`)
+  }
+  if (key === 'siteSlogan') {
+    if (/[\r\n]/.test(value)) throw new Error('siteSlogan cannot contain line breaks')
+    if (value.length > MAX_SITE_SLOGAN_LENGTH) throw new Error(`siteSlogan must be at most ${MAX_SITE_SLOGAN_LENGTH} characters`)
+  }
   const urlKeys: SettingKey[] = ['siteUrl', 'ssoLoginPageUrl']
   if (urlKeys.includes(key)) {
     let url: URL
@@ -134,6 +147,15 @@ export function getSettings(): Settings {
 /** 规范化后的站点地址（无结尾斜杠，可能为空字符串） */
 export function getSiteUrl(): string {
   return getSettings().siteUrl.replace(/\/$/, '')
+}
+
+/** 公开站点品牌设置（用于网页 title 与左上角 Logo 标题）；siteName 留空时回退为 HostID */
+export function getSiteBranding(): { siteName: string; siteSlogan: string } {
+  const s = getSettings()
+  return {
+    siteName: s.siteName.trim() || 'HostID',
+    siteSlogan: s.siteSlogan.trim()
+  }
 }
 
 /** SSO 登录页：未配置时为 站点地址 + /login（站点地址为空则为相对路径 /login） */

@@ -8,6 +8,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Shield, X, User, ExternalLink } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
+import { useConfig } from '../contexts/ConfigContext'
 import AuthPage, { AuthHeader, AuthLoading } from '../components/AuthPage'
 import BrandMark from '../components/BrandMark'
 import '../styles/oauth-authorize.css'
@@ -32,9 +33,10 @@ interface AuthorizeData {
 
 function AuthorizeHeader() {
   const { t } = useI18n()
+  const { siteName } = useConfig()
   return (
     <div className="text-center mb-8">
-      <BrandMark size={100} className="mx-auto w-[100px] h-[100px]" label="HostID" />
+      <BrandMark size={100} className="mx-auto w-[100px] h-[100px]" label={siteName} />
       <h1 className="sr-only">{t('authorizeApp')}</h1>
     </div>
   )

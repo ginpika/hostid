@@ -11,7 +11,7 @@ import { I18nProvider } from './i18n/I18nContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ComposeProvider } from './contexts/ComposeContext'
 import { DomainProvider } from './contexts/DomainContext'
-import { ConfigProvider } from './contexts/ConfigContext'
+import { ConfigProvider, useConfig } from './contexts/ConfigContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Inbox from './pages/Inbox'
@@ -32,9 +32,10 @@ import AuthPage, { AuthHeader, AuthLoading } from './components/AuthPage'
 const PUBLIC_ROUTES = ['/setup', '/login', '/register', '/tos', '/sso/info', '/oauth/callback', '/oauth/register', '/oauth2/authorize']
 
 function AuthPending() {
+  const { siteName } = useConfig()
   return (
     <AuthPage>
-      <AuthHeader title="HostID" />
+      <AuthHeader title={siteName} />
       <AuthLoading />
     </AuthPage>
   )

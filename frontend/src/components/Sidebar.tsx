@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useCompose } from '../contexts/ComposeContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useConfig } from '../contexts/ConfigContext'
 import BrandMark from './BrandMark'
 import { isTopModal, restoreModalFocus } from '../lib/modalStack'
 
@@ -15,6 +16,7 @@ export default function Sidebar({ isOpen, onClose, currentFolder, pinned, onTogg
   const { t, language } = useI18n()
   const { openCompose } = useCompose()
   const { layout } = useTheme()
+  const { siteName, siteSlogan } = useConfig()
   const classic = layout === 'classic'
   const { pathname } = useLocation()
   const navigate = useNavigate()
@@ -113,7 +115,10 @@ export default function Sidebar({ isOpen, onClose, currentFolder, pinned, onTogg
             {!desktop && <button className="mail-icon-button" onClick={onClose} aria-label={t('close')}><X size={20} /></button>}
           </div>
         </div> : <div className="sidebar-brand-row">
-          <a href="/" className="sidebar-brand" onClick={event => { event.preventDefault(); navigate('/'); onClose() }} aria-label="HostID"><span className="sidebar-brand-icon"><BrandMark size={36} /></span>{wide && <span>HostID<small>MAIL WORKSPACE</small></span>}</a>
+          <a href="/" className="sidebar-brand" onClick={event => { event.preventDefault(); navigate('/'); onClose() }} aria-label={siteName}>
+            <span className="sidebar-brand-icon"><BrandMark size={36} /></span>
+            {wide && <span className="sidebar-brand-text"><span className="sidebar-brand-name" title={siteName}>{siteName}</span>{siteSlogan && <small title={siteSlogan}>{siteSlogan}</small>}</span>}
+          </a>
           {wide && <button className="mail-icon-button sidebar-close" onClick={desktop ? togglePin : onClose} aria-label={desktop ? pinned ? t('unpinSidebar') : t('pinSidebar') : t('close')} title={desktop ? pinned ? t('unpinSidebar') : t('pinSidebar') : t('close')}>{desktop ? pinned ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} /> : <X size={19} />}</button>}
         </div>}
         {!classic && !wide && <button ref={expandButtonRef} className="mail-icon-button mx-auto mb-3" aria-label={t('expandSidebar')} title={t('expandSidebar')} onClick={expandSidebar}><PanelLeftOpen size={17} /></button>}

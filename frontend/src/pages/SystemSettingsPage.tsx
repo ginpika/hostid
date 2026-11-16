@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Settings, Save } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
+import { useConfig } from '../contexts/ConfigContext'
 import { translations } from '../i18n/translations'
 
 type TKey = keyof typeof translations['zh-CN']
@@ -42,6 +43,7 @@ const inputStyle = {
 
 export default function SystemSettingsPage({ embedded = false }: { embedded?: boolean }) {
   const { t, language } = useI18n()
+  const { setSiteBranding } = useConfig()
   const Heading = embedded ? 'h3' : 'h2'
   const [settings, setSettings] = useState<SettingView[]>([])
   const [form, setForm] = useState<Record<string, string | number | boolean | null>>({})
@@ -103,7 +105,14 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
           payload[s.key] = v
         }
       }
-      applyView(await request('PUT', payload))
+      const updated = await request('PUT', payload)
+      applyView(updated)
+      const nextSiteName = updated.find(s => s.key === 'siteName')?.value
+      const nextSiteSlogan = updated.find(s => s.key === 'siteSlogan')?.value
+      setSiteBranding({
+        siteName: typeof nextSiteName === 'string' ? nextSiteName : undefined,
+        siteSlogan: typeof nextSiteSlogan === 'string' ? nextSiteSlogan : undefined
+      })
       setSuccess(t('settingsSaved'))
     } catch (err) {
       setError(`${t('settingsSaveFailed')}: ${err instanceof Error ? err.message : String(err)}`)
@@ -149,9 +158,14 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
         </div>
       )
     } else {
+      const placeholder = s.key === 'siteSlogan'
+        ? t('settingSiteSloganPlaceholder')
+        : s.default !== '' ? String(s.default) : undefined
+      const maxLength = s.key === 'siteName' ? 64 : s.key === 'siteSlogan' ? 120 : undefined
       control = (
         <input id={id} type={s.type === 'number' ? 'number' : 'text'} value={String(value ?? '')}
-          placeholder={s.default !== '' ? String(s.default) : undefined}
+          placeholder={placeholder}
+          maxLength={maxLength}
           onChange={e => setForm({ ...form, [s.key]: s.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value })}
           className="w-full px-3 py-2 rounded-lg border text-sm font-mono" style={inputStyle} />
       )

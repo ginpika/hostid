@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import { Globe, Loader2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
+import { useConfig } from '../contexts/ConfigContext'
 import BrandMark from './BrandMark'
 import ThemeSelector from './ThemeSelector'
+import '../styles/auth-page.css'
 
-export function AuthToolbar({ style }: { style?: CSSProperties }) {
+export function AuthToolbar({ style, inline = false }: { style?: CSSProperties; inline?: boolean }) {
   const { t, language, setLanguage } = useI18n()
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
   const languageMenuRef = useRef<HTMLDivElement>(null)
@@ -25,7 +27,7 @@ export function AuthToolbar({ style }: { style?: CSSProperties }) {
   }
 
   return (
-    <div className="flex justify-end mb-6 gap-2 items-center relative z-50" style={style}>
+    <div className={`flex justify-end shrink-0 ${inline ? '' : 'mb-6'} gap-2 items-center relative z-50`} style={style}>
       <ThemeSelector />
       <div
         className="relative"
@@ -77,10 +79,11 @@ export function AuthToolbar({ style }: { style?: CSSProperties }) {
 }
 
 export function AuthHeader({ title, description, children }: { title: string; description?: string; children?: ReactNode }) {
+  const { siteName } = useConfig()
   return (
     <div className="text-center mb-8">
       <div className="inline-flex items-center justify-center mb-4">
-        <BrandMark size={100} className="w-[100px] h-[100px]" label="HostID" />
+        <BrandMark size={100} className="w-[100px] h-[100px]" label={siteName} />
       </div>
       <h1 className="text-2xl font-bold break-words" style={{ color: 'var(--color-text-primary)' }}>{title}</h1>
       {description && <p className="mt-2 break-words" style={{ color: 'var(--color-text-tertiary)' }}>{description}</p>}
@@ -101,15 +104,35 @@ export function AuthLoading({ message }: { message?: string }) {
 
 interface AuthPageProps {
   children: ReactNode
+  aside?: ReactNode
+  desktopHeader?: ReactNode
   footer?: ReactNode
+  split?: boolean
+  compact?: boolean
+  cardRef?: RefObject<HTMLDivElement>
   cardStyle?: CSSProperties
+  asideStyle?: CSSProperties
   toolbarStyle?: CSSProperties
   footerStyle?: CSSProperties
 }
 
 /** Shared login card for every step of authentication and initial setup. */
-export default function AuthPage({ children, footer, cardStyle, toolbarStyle, footerStyle }: AuthPageProps) {
+export default function AuthPage({
+  children,
+  aside,
+  desktopHeader,
+  footer,
+  split,
+  compact = false,
+  cardRef,
+  cardStyle,
+  asideStyle,
+  toolbarStyle,
+  footerStyle
+}: AuthPageProps) {
   const { t } = useI18n()
+  const hasSplitShell = split ?? Boolean(aside)
+  const isSplitCard = hasSplitShell && !compact
   const footerContent = footer === undefined ? (
     <Link to="/tos" className="text-sm hover:underline transition-colors" style={{ color: 'var(--color-text-muted)' }}>
       {t('tosAndPrivacy')}
@@ -117,13 +140,40 @@ export default function AuthPage({ children, footer, cardStyle, toolbarStyle, fo
   ) : footer
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--color-bg-primary)' }}>
-      <div className="w-full max-w-md relative flex flex-col items-center">
-        <div className="w-full p-8 rounded-2xl shadow-lg" style={{ backgroundColor: 'var(--color-bg-secondary)', ...cardStyle }}>
-          <AuthToolbar style={toolbarStyle} />
-          {children}
+    <div className="auth-viewport">
+      <div className={`auth-shell relative ${hasSplitShell ? 'auth-shell--split' : ''}`}>
+        <div
+          ref={cardRef}
+          className={`auth-card ${isSplitCard ? 'auth-card--split' : ''}`}
+          style={cardStyle}
+        >
+          {aside && !compact && (
+            <aside className="auth-split-aside" style={asideStyle}>
+              {aside}
+            </aside>
+          )}
+          <div className={isSplitCard ? 'auth-split-main' : 'auth-single-main'}>
+            {isSplitCard ? (
+              <>
+                <div className="auth-split-top">
+                  {desktopHeader}
+                  <AuthToolbar style={toolbarStyle} inline />
+                </div>
+                <div className="auth-split-body">{children}</div>
+              </>
+            ) : (
+              <>
+                <AuthToolbar style={toolbarStyle} />
+                {children}
+              </>
+            )}
+          </div>
         </div>
-        {footerContent != null && <div className="mt-8 text-center transition-all ease-out" style={footerStyle}>{footerContent}</div>}
+        {footerContent != null && (
+          <div className={`${isSplitCard ? 'mt-5' : 'mt-8'} text-center transition-all ease-out`} style={footerStyle}>
+            {footerContent}
+          </div>
+        )}
       </div>
     </div>
   )

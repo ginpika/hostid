@@ -16,7 +16,7 @@ import { getPublicKey, decryptPassword } from '../utils/rsa'
 import { getAvatarUrl } from '../utils/avatar'
 import fs from 'fs'
 import { getJwtSecret } from '../config/secrets'
-import { getSettings } from '../services/settings'
+import { getSettings, getSiteBranding } from '../services/settings'
 import { getSessionKey, issueAuthSession } from '../services/session'
 
 const router = Router()
@@ -226,6 +226,11 @@ router.patch('/language', auth, asyncHandler(async (req: AuthRequest, res: Respo
 
 router.get('/domain', (req: Request, res: Response) => {
   res.json({ domain: getSettings().mailDomain })
+})
+
+router.get('/site', (_req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store')
+  res.json(getSiteBranding())
 })
 
 router.post('/avatar', auth, avatarUpload.single('avatar'), asyncHandler(async (req: AuthRequest, res: Response) => {

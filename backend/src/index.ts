@@ -21,7 +21,7 @@ import { startSMTPServer } from './smtp'
 import setupRoutes from './routes/setup'
 import { initRSAKeys } from './utils/rsa'
 import { mountWebFrontend, serveConfigScript } from './web'
-import { initSettings, getSettings, getSsoLoginPageUrl } from './services/settings'
+import { initSettings, getSettings, getSiteBranding, getSsoLoginPageUrl } from './services/settings'
 import { assertSecurityConfig } from './config/secrets'
 import { createCorsMiddleware, createHelmetMiddleware } from './middleware/security'
 
@@ -61,8 +61,8 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' })
 })
 
-// 前端运行时配置（Turnstile site key 来自系统设置）；分离部署时由 nginx 反代到这里
-serveConfigScript(app, () => getSettings().turnstileSiteKey)
+// 前端运行时配置（Turnstile site key 与站点品牌来自系统设置）；分离部署时由 nginx 反代到这里
+serveConfigScript(app, () => getSettings().turnstileSiteKey, getSiteBranding)
 
 if (process.env.HOSTID_WEB_ROOT) {
   mountWebFrontend(app, process.env.HOSTID_WEB_ROOT, '', { serveConfig: false })

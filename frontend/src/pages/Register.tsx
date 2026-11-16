@@ -12,14 +12,6 @@ import { useDomain } from '../contexts/DomainContext'
 import AuthPage, { AuthHeader, AuthLoading } from '../components/AuthPage'
 import Turnstile from '../components/Turnstile'
 
-declare global {
-  interface Window {
-    __ENV__?: {
-      CF_TURNSTILE_SITE_KEY?: string
-    }
-  }
-}
-
 const CF_TURNSTILE_SITE_KEY = window.__ENV__?.CF_TURNSTILE_SITE_KEY || import.meta.env.CF_TURNSTILE_SITE_KEY || ''
 
 export default function Register() {
