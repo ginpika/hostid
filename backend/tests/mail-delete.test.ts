@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { access, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -44,14 +44,16 @@ test('soft deletion is retry-safe and only explicit trash deletion removes mail 
       { ...base, id: 'keep-me' },
       { ...base, id: 'someone-elses-mail', folder: 'TRASH', userId: 'someone-else' }
     ] })
-    const unusedFile = join(directory, 'unused.txt')
-    const sharedFile = join(directory, 'shared.txt')
+    // 与真实数据一致：附件文件位于上传目录，filename 即磁盘文件名；服务端只信任 filename，不信任 path 列
+    const unusedFile = join(directory, 'uploads', 'unused.txt')
+    const sharedFile = join(directory, 'uploads', 'shared.txt')
+    await mkdir(join(directory, 'uploads'), { recursive: true })
     await writeFile(unusedFile, 'unused after delete')
     await writeFile(sharedFile, 'still in use')
-    const attachmentBase = { filename: 'test.txt', originalName: 'test.txt', mimeType: 'text/plain', size: 12 }
+    const attachmentBase = { originalName: 'test.txt', mimeType: 'text/plain', size: 12 }
     await prisma.attachment.createMany({ data: [
-      { ...attachmentBase, id: 'unused', path: unusedFile },
-      { ...attachmentBase, id: 'shared', path: sharedFile }
+      { ...attachmentBase, id: 'unused', filename: 'unused.txt', path: unusedFile },
+      { ...attachmentBase, id: 'shared', filename: 'shared.txt', path: sharedFile }
     ] })
     await prisma.emailAttachment.createMany({ data: [
       { id: 'link-1', emailId: 'delete-me', attachmentId: 'unused' },

@@ -3,54 +3,19 @@
  * 管理 OAuth 登录服务商的添加、编辑和删除
  * 仅限管理员用户访问
  */
-import { Router, Request, Response, NextFunction } from 'express'
-import { PrismaClient } from '@prisma/client'
-import jwt from 'jsonwebtoken'
+import { Router, Response } from 'express'
+import type { OAuthProvider, Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { asyncHandler } from '../middleware/error'
+import { prisma } from '../lib/prisma'
+import { adminGuard, AuthRequest } from '../middleware/auth'
+import { AppError, asyncHandler } from '../middleware/error'
 import { encrypt, maskSecret } from '../services/encryption'
-import { clearProviderCache } from './oauthClient'
-import { getJwtSecret } from '../config/secrets'
+import { invalidateProviderConfig } from '../services/oauth-provider-registry'
 
 const router = Router()
-const prisma = new PrismaClient()
 
-interface AuthRequest extends Request {
-  userId?: string
-}
-
-
-const auth = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1]
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-
-    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
-
-const adminOnly = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { role: true }
-    })
-
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' })
-    }
-
-    next()
-  } catch (error) {
-    return res.status(500).json({ error: 'Internal server error' })
-  }
-}
+/** 登录页最多展示 / 允许同时启用的第三方登录数量 */
+const MAX_ACTIVE_PROVIDERS = 3
 
 const createProviderSchema = z.object({
   provider: z.string().min(1),
@@ -73,7 +38,7 @@ const updateProviderSchema = z.object({
   userinfoUrl: z.string().url().optional()
 })
 
-const transformProvider = (provider: any) => ({
+const toOAuthProviderDto = (provider: OAuthProvider) => ({
   id: provider.id,
   provider: provider.provider,
   displayName: provider.displayName,
@@ -89,23 +54,23 @@ const transformProvider = (provider: any) => ({
 })
 
 // GET all OAuth providers
-router.get('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/providers', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const providers = await prisma.oAuthProvider.findMany({
     orderBy: { createdAt: 'asc' }
   })
 
-  // 登录页最多展示 3 个启用的提供商
+  // 启用数量上限见 MAX_ACTIVE_PROVIDERS
   const activeCount = providers.filter(p => p.isActive).length
 
   res.json({
-    providers: providers.map(transformProvider),
+    providers: providers.map(toOAuthProviderDto),
     activeCount,
-    maxActiveProviders: 3
+    maxActiveProviders: MAX_ACTIVE_PROVIDERS
   })
 }))
 
 // GET single OAuth provider
-router.get('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/providers/:id', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
 
   const provider = await prisma.oAuthProvider.findUnique({
@@ -113,14 +78,14 @@ router.get('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthReque
   })
 
   if (!provider) {
-    return res.status(404).json({ error: 'Provider not found' })
+    throw new AppError('Provider not found', 404)
   }
 
-  res.json(transformProvider(provider))
+  res.json(toOAuthProviderDto(provider))
 }))
 
 // POST create new OAuth provider
-router.post('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/providers', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = createProviderSchema.parse(req.body)
 
   // Check if provider already exists
@@ -129,7 +94,7 @@ router.post('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest,
   })
 
   if (existing) {
-    return res.status(400).json({ error: 'Provider already exists' })
+    throw new AppError('Provider already exists', 400)
   }
 
   const provider = await prisma.oAuthProvider.create({
@@ -145,13 +110,13 @@ router.post('/providers', auth, adminOnly, asyncHandler(async (req: AuthRequest,
     }
   })
 
-  clearProviderCache(data.provider)
+  invalidateProviderConfig(data.provider)
 
-  res.status(201).json(transformProvider(provider))
+  res.status(201).json(toOAuthProviderDto(provider))
 }))
 
 // PUT update OAuth provider
-router.put('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.put('/providers/:id', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
   const data = updateProviderSchema.parse(req.body)
 
@@ -160,10 +125,10 @@ router.put('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthReque
   })
 
   if (!existing) {
-    return res.status(404).json({ error: 'Provider not found' })
+    throw new AppError('Provider not found', 404)
   }
 
-  const updateData: any = {}
+  const updateData: Prisma.OAuthProviderUpdateInput = {}
 
   if (data.displayName) updateData.displayName = data.displayName
   if (data.clientId) updateData.clientId = data.clientId
@@ -177,13 +142,13 @@ router.put('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthReque
     data: updateData
   })
 
-  clearProviderCache(provider.provider)
+  invalidateProviderConfig(provider.provider)
 
-  res.json(transformProvider(provider))
+  res.json(toOAuthProviderDto(provider))
 }))
 
 // DELETE OAuth provider
-router.delete('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/providers/:id', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
 
   const existing = await prisma.oAuthProvider.findUnique({
@@ -191,20 +156,20 @@ router.delete('/providers/:id', auth, adminOnly, asyncHandler(async (req: AuthRe
   })
 
   if (!existing) {
-    return res.status(404).json({ error: 'Provider not found' })
+    throw new AppError('Provider not found', 404)
   }
 
   await prisma.oAuthProvider.delete({
     where: { id }
   })
 
-  clearProviderCache(existing.provider)
+  invalidateProviderConfig(existing.provider)
 
   res.json({ success: true })
 }))
 
 // PATCH toggle OAuth provider active status
-router.patch('/providers/:id/toggle', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.patch('/providers/:id/toggle', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
 
   const existing = await prisma.oAuthProvider.findUnique({
@@ -212,7 +177,7 @@ router.patch('/providers/:id/toggle', auth, adminOnly, asyncHandler(async (req: 
   })
 
   if (!existing) {
-    return res.status(404).json({ error: 'Provider not found' })
+    throw new AppError('Provider not found', 404)
   }
 
   if (!existing.isActive) {
@@ -220,11 +185,11 @@ router.patch('/providers/:id/toggle', auth, adminOnly, asyncHandler(async (req: 
       where: { isActive: true }
     })
 
-    if (activeCount >= 3) {
+    if (activeCount >= MAX_ACTIVE_PROVIDERS) {
       return res.status(400).json({ 
-        error: 'Maximum 3 active OAuth providers allowed',
+        error: `Maximum ${MAX_ACTIVE_PROVIDERS} active OAuth providers allowed`,
         activeCount,
-        maxAllowed: 3
+        maxAllowed: MAX_ACTIVE_PROVIDERS
       })
     }
   }
@@ -234,9 +199,9 @@ router.patch('/providers/:id/toggle', auth, adminOnly, asyncHandler(async (req: 
     data: { isActive: !existing.isActive }
   })
 
-  clearProviderCache(provider.provider)
+  invalidateProviderConfig(provider.provider)
 
-  res.json(transformProvider(provider))
+  res.json(toOAuthProviderDto(provider))
 }))
 
 export default router

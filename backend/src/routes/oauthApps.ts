@@ -3,65 +3,26 @@
  * 管理 OAuth 授权应用的创建、编辑和密钥重置
  * 仅限管理员用户访问
  */
-import { Router, Request, Response, NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
+import { Router, Response } from 'express'
+import type { OAuthApp, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import { asyncHandler } from '../middleware/error'
+import { adminGuard, AuthRequest } from '../middleware/auth'
+import { AppError, asyncHandler } from '../middleware/error'
 import { maskSecret } from '../services/encryption'
-import { getJwtSecret } from '../config/secrets'
 import {
   generateClientId,
   generateClientSecret,
-  encryptClientSecret,
-  decryptClientSecret
+  encryptClientSecret
 } from '../services/oauth2'
 
 const router = Router()
-
-interface AuthRequest extends Request {
-  userId?: string
-}
-
-
-const auth = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1]
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' })
-    }
-
-    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string }
-    req.userId = decoded.userId
-    next()
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid token' })
-  }
-}
-
-const adminOnly = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { role: true }
-    })
-
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' })
-    }
-
-    next()
-  } catch (error) {
-    return res.status(500).json({ error: 'Internal server error' })
-  }
-}
 
 const createAppSchema = z.object({
   name: z.string().min(1).max(100),
   redirectUris: z.array(z.string().url()).min(1),
   description: z.string().max(500).optional(),
   homepage: z.string().url().optional(),
-  scope: z.string().optional(),
   isConfidential: z.boolean().optional()
 })
 
@@ -70,17 +31,24 @@ const updateAppSchema = z.object({
   redirectUris: z.array(z.string().url()).min(1).optional(),
   description: z.string().max(500).optional(),
   homepage: z.string().url().optional(),
-  scope: z.string().optional(),
   isConfidential: z.boolean().optional()
 })
 
-// Transform OAuth App for API response (mask secret)
-const transformApp = (app: any, includeSecret = false) => ({
+function parseRedirectUris(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+const toOAuthAppDto = (app: OAuthApp & { user?: { id: string; username: string; email: string } }) => ({
   id: app.id,
   name: app.name,
   clientId: app.clientId,
-  clientSecret: includeSecret ? decryptClientSecret(app.clientSecret) : maskSecret(app.clientSecret),
-  redirectUris: JSON.parse(app.redirectUris),
+  clientSecret: maskSecret(app.clientSecret),
+  redirectUris: parseRedirectUris(app.redirectUris),
   description: app.description,
   homepage: app.homepage,
   isConfidential: app.isConfidential,
@@ -91,7 +59,7 @@ const transformApp = (app: any, includeSecret = false) => ({
 })
 
 // GET all OAuth Apps
-router.get('/', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const apps = await prisma.oAuthApp.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
@@ -102,12 +70,12 @@ router.get('/', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Resp
   })
 
   res.json({
-    apps: apps.map(app => transformApp(app))
+    apps: apps.map(app => toOAuthAppDto(app))
   })
 }))
 
 // GET single OAuth App
-router.get('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/:id', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
 
   const app = await prisma.oAuthApp.findUnique({
@@ -120,14 +88,14 @@ router.get('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: R
   })
 
   if (!app) {
-    return res.status(404).json({ error: 'OAuth App not found' })
+    throw new AppError('OAuth App not found', 404)
   }
 
-  res.json(transformApp(app))
+  res.json(toOAuthAppDto(app))
 }))
 
 // POST create new OAuth App
-router.post('/', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = createAppSchema.parse(req.body)
 
   const clientId = generateClientId()
@@ -153,14 +121,14 @@ router.post('/', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Res
 
   // 返回完整的 clientSecret（仅在创建时显示一次）
   res.status(201).json({
-    ...transformApp(app),
+    ...toOAuthAppDto(app),
     clientSecret, // 显示明文密钥
     secretWarning: 'This secret is shown only once. Save it immediately!'
   })
 }))
 
 // PUT update OAuth App
-router.put('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.put('/:id', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
   const data = updateAppSchema.parse(req.body)
 
@@ -169,10 +137,10 @@ router.put('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: R
   })
 
   if (!existing) {
-    return res.status(404).json({ error: 'OAuth App not found' })
+    throw new AppError('OAuth App not found', 404)
   }
 
-  const updateData: any = {}
+  const updateData: Prisma.OAuthAppUpdateInput = {}
 
   if (data.name) updateData.name = data.name
   if (data.redirectUris) updateData.redirectUris = JSON.stringify(data.redirectUris)
@@ -190,11 +158,11 @@ router.put('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: R
     }
   })
 
-  res.json(transformApp(app))
+  res.json(toOAuthAppDto(app))
 }))
 
 // DELETE OAuth App
-router.delete('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/:id', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
 
   const existing = await prisma.oAuthApp.findUnique({
@@ -202,7 +170,7 @@ router.delete('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res
   })
 
   if (!existing) {
-    return res.status(404).json({ error: 'OAuth App not found' })
+    throw new AppError('OAuth App not found', 404)
   }
 
   await prisma.oAuthApp.delete({
@@ -213,7 +181,7 @@ router.delete('/:id', auth, adminOnly, asyncHandler(async (req: AuthRequest, res
 }))
 
 // POST reset client secret
-router.post('/:id/reset-secret', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/:id/reset-secret', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
 
   const existing = await prisma.oAuthApp.findUnique({
@@ -221,7 +189,7 @@ router.post('/:id/reset-secret', auth, adminOnly, asyncHandler(async (req: AuthR
   })
 
   if (!existing) {
-    return res.status(404).json({ error: 'OAuth App not found' })
+    throw new AppError('OAuth App not found', 404)
   }
 
   const newClientSecret = generateClientSecret()
@@ -240,14 +208,14 @@ router.post('/:id/reset-secret', auth, adminOnly, asyncHandler(async (req: AuthR
 
   // 返回新的 clientSecret
   res.json({
-    ...transformApp(app),
+    ...toOAuthAppDto(app),
     clientSecret: newClientSecret,
     secretWarning: 'This secret is shown only once. Save it immediately!'
   })
 }))
 
 // PATCH toggle OAuth App active status
-router.patch('/:id/toggle', auth, adminOnly, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.patch('/:id/toggle', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params
 
   const existing = await prisma.oAuthApp.findUnique({
@@ -255,7 +223,7 @@ router.patch('/:id/toggle', auth, adminOnly, asyncHandler(async (req: AuthReques
   })
 
   if (!existing) {
-    return res.status(404).json({ error: 'OAuth App not found' })
+    throw new AppError('OAuth App not found', 404)
   }
 
   const app = await prisma.oAuthApp.update({
@@ -268,7 +236,7 @@ router.patch('/:id/toggle', auth, adminOnly, asyncHandler(async (req: AuthReques
     }
   })
 
-  res.json(transformApp(app))
+  res.json(toOAuthAppDto(app))
 }))
 
 export default router

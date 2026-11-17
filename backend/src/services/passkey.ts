@@ -3,7 +3,6 @@
  * 遵循 WebAuthn Level 2/3 标准，兼容 macOS 密码 App / iCloud 钥匙串 / Touch ID 及跨设备通行密钥
  */
 import crypto from 'crypto'
-import { Request } from 'express'
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -31,6 +30,13 @@ export interface WebAuthnContext {
   rpID: string
   rpName: string
   expectedOrigin: string
+}
+
+/** 结构化请求视图，使 Passkey 服务不依赖 Express Request 类型 */
+export interface WebAuthnRequestSource {
+  headers: Record<string, string | string[] | undefined>
+  protocol?: string
+  get(name: string): string | string[] | undefined
 }
 
 interface StoredRegistrationChallenge {
@@ -84,7 +90,7 @@ function isLoopbackHostname(hostname: string): boolean {
  * 解析当前请求的 WebAuthn RP ID 与 Expected Origin
  * 兼容 Vite 开发代理 (changeOrigin: true 导致 Host=localhost:3001 而 Origin=http://localhost:3000) 及 Nginx 反向代理
  */
-export function resolveWebAuthnContext(req: Pick<Request, 'headers' | 'get' | 'protocol'>): WebAuthnContext {
+export function resolveWebAuthnContext(req: WebAuthnRequestSource): WebAuthnContext {
   const settings = getSettings()
   const configuredOrigins = new Set<string>()
 
@@ -100,7 +106,7 @@ export function resolveWebAuthnContext(req: Pick<Request, 'headers' | 'get' | 'p
   }
 
   const forwardedHost = getHeaderFirstValue(req.headers['x-forwarded-host'])
-  const rawHost = forwardedHost || req.get('host') || 'localhost'
+  const rawHost = forwardedHost || getHeaderFirstValue(req.get('host')) || 'localhost'
   const hostUrl = parseOriginUrl(`http://${rawHost}`)
   const requestHostname = hostUrl?.hostname || 'localhost'
 
@@ -149,7 +155,7 @@ export function resolveWebAuthnContext(req: Pick<Request, 'headers' | 'get' | 'p
   }
 }
 
-export function parseTransports(raw: string | null | undefined): string[] | undefined {
+function parseTransports(raw: string | null | undefined): string[] | undefined {
   if (!raw) return undefined
   try {
     const parsed = JSON.parse(raw)
@@ -162,7 +168,7 @@ export function parseTransports(raw: string | null | undefined): string[] | unde
   }
 }
 
-export function inferPasskeyDefaultName(aaguid?: string, userAgent?: string): string {
+function inferPasskeyDefaultName(aaguid?: string, userAgent?: string): string {
   const normalizedAaguid = aaguid?.toLowerCase()
   if (normalizedAaguid && WELL_KNOWN_AAGUID_NAMES[normalizedAaguid]) {
     return WELL_KNOWN_AAGUID_NAMES[normalizedAaguid]
@@ -187,7 +193,7 @@ function getAuthenticationChallengeKey(challengeId: string): string {
 
 export async function createRegistrationOptionsForUser(
   userId: string,
-  req: Pick<Request, 'headers' | 'get' | 'protocol'>,
+  req: WebAuthnRequestSource,
   authenticatorMode: AuthenticatorMode = 'platform'
 ): Promise<{ challengeId: string; options: PublicKeyCredentialCreationOptionsJSON }> {
   const user = await prisma.user.findUnique({
@@ -328,7 +334,7 @@ export async function verifyRegistrationForUser(params: {
 }
 
 export async function createAuthenticationOptions(
-  req: Pick<Request, 'headers' | 'get' | 'protocol'>
+  req: WebAuthnRequestSource
 ): Promise<{ challengeId: string; options: PublicKeyCredentialRequestOptionsJSON }> {
   if (!getSettings().passkeyEnabled) {
     throw new AppError('Passkey login is disabled', 403)
@@ -419,6 +425,60 @@ export async function verifyAuthentication(params: {
     user: passkey.user,
     passkeyId: passkey.id
   }
+}
+
+const PASSKEY_VIEW_SELECT = {
+  id: true,
+  credentialId: true,
+  name: true,
+  deviceType: true,
+  backedUp: true,
+  transports: true,
+  aaguid: true,
+  lastUsedAt: true,
+  createdAt: true
+} as const
+
+export async function listPasskeysForUser(userId: string) {
+  const passkeys = await prisma.passkey.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    select: PASSKEY_VIEW_SELECT
+  })
+  return passkeys.map(formatPasskeyRecord)
+}
+
+export async function renamePasskeyForUser(userId: string, passkeyId: string, name: string) {
+  const existing = await prisma.passkey.findUnique({
+    where: { id: passkeyId },
+    select: { id: true, userId: true }
+  })
+
+  if (!existing || existing.userId !== userId) {
+    throw new AppError('Passkey not found', 404)
+  }
+
+  const updated = await prisma.passkey.update({
+    where: { id: existing.id },
+    data: { name },
+    select: PASSKEY_VIEW_SELECT
+  })
+
+  return formatPasskeyRecord(updated)
+}
+
+export async function deletePasskeyForUser(userId: string, passkeyId: string): Promise<string> {
+  const existing = await prisma.passkey.findUnique({
+    where: { id: passkeyId },
+    select: { id: true, userId: true, credentialId: true }
+  })
+
+  if (!existing || existing.userId !== userId) {
+    throw new AppError('Passkey not found', 404)
+  }
+
+  await prisma.passkey.delete({ where: { id: existing.id } })
+  return existing.credentialId
 }
 
 export function formatPasskeyRecord(record: {

@@ -5,14 +5,10 @@
  */
 import multer from 'multer'
 import path from 'path'
-import fs from 'fs'
 import { Request } from 'express'
-
-const AVATAR_DIR = path.join(process.cwd(), 'avatars')
-
-if (!fs.existsSync(AVATAR_DIR)) {
-  fs.mkdirSync(AVATAR_DIR, { recursive: true })
-}
+import { AppError, } from './error'
+import type { AuthRequest } from './auth'
+import { AVATAR_DIR } from '../config/paths'
 
 const MIME_EXT: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -28,7 +24,7 @@ const avatarStorage = multer.diskStorage({
     cb(null, AVATAR_DIR)
   },
   filename: (req, file, cb) => {
-    const userId = (req as any).userId
+    const userId = (req as AuthRequest).userId
     // 扩展名由 MIME 类型决定，不信任客户端文件名
     const ext = MIME_EXT[file.mimetype] || ''
     cb(null, `${userId}${ext}`)
@@ -37,18 +33,11 @@ const avatarStorage = multer.diskStorage({
 
 const avatarFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8')
-  
-  const allowedMimeTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp'
-  ]
-  
-  if (allowedMimeTypes.includes(file.mimetype)) {
+
+  if (file.mimetype in MIME_EXT) {
     cb(null, true)
   } else {
-    cb(new Error(`File type ${file.mimetype} is not allowed. Only images are permitted.`))
+    cb(new AppError(`File type ${file.mimetype} is not allowed. Only images are permitted.`, 400))
   }
 }
 
@@ -71,8 +60,4 @@ export const getAvatarPath = (filename: string): string | null => {
   const resolved = path.resolve(root, base)
   if (!resolved.startsWith(root + path.sep)) return null
   return resolved
-}
-
-export const getAvatarDir = (): string => {
-  return AVATAR_DIR
 }

@@ -29,36 +29,3 @@ export function getAvatarUrl(avatar: string | null | undefined): string | null {
   // 没有配置站点地址 时返回相对路径
   return `/api/auth/avatar/${avatar}`
 }
-
-/**
- * 用户信息接口（带 avatarUrl 字段）
- */
-export interface UserWithAvatarUrl {
-  id: string
-  username: string
-  email: string
-  nickname?: string | null
-  avatar?: string | null
-  avatarUrl?: string | null
-  role: string
-  language?: string
-  githubId?: number | null
-  [key: string]: any
-}
-
-/**
- * 转换用户对象，添加 avatarUrl 字段
- * @param user - 用户对象
- * @returns 添加了 avatarUrl 字段的用户对象
- */
-export function transformUserAvatar(user: UserWithAvatarUrl): UserWithAvatarUrl {
-  if (!user) {
-    return user
-  }
-
-  const avatarUrl = getAvatarUrl(user.avatar)
-  return {
-    ...user,
-    avatarUrl
-  }
-}

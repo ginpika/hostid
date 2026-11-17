@@ -1,82 +1,72 @@
 /**
- * 邓件路由
+ * 邮件路由
  * 处理邮件列表查询、发送、删除、恢复和归档
- * 包含附件处理、AI 摘要生成和外部邮件发送
+ * 路由只负责 HTTP 适配（参数解析/校验 → 调用服务 → 响应）；
+ * 发信落库与外部投递在 services/mail-delivery，附件生命周期在 services/attachment
  */
-import { Router, Response, NextFunction, Request } from 'express'
+import { Router, Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import { auth, AuthRequest } from '../middleware/auth'
-import { AppError } from '../middleware/error'
-import { generateSummary } from '../services/ai'
-import { sendEmail } from '../services/mailer'
-import { upload } from '../middleware/upload'
-import fs from 'fs'
-import path from 'path'
-import multer from 'multer'
+import { AppError, asyncHandler } from '../middleware/error'
+import { upload, emlUpload } from '../middleware/upload'
 import { parseEmailFile } from '../lib/parse-email-file'
 import { getParsedEmailBody } from '../lib/parsed-email-body'
+import { extractAddresses } from '../lib/mail-addresses'
 import { buildEmailListWhere, getEmailPagination, parseEmailListQuery } from '../lib/mail-list-query'
-import { getSettings } from '../services/settings'
+import { EMAIL_WITH_ATTACHMENTS_INCLUDE, toEmailDto } from '../lib/email-dto'
+import {
+  FOLDER_ARCHIVED,
+  FOLDER_INBOX,
+  FOLDER_TRASH,
+  MAILBOX_FOLDERS,
+  type MailboxFolder
+} from '../lib/domain-constants'
+import { deliverOutgoingEmail } from '../services/mail-delivery'
+import { deleteAttachmentIfUnreferenced, removeStoredFile, removeUploadedFiles } from '../services/attachment'
 
 const router = Router()
 
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads')
-
-const usernameRegex = /^[a-zA-Z0-9._]+$/
-
-const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
-}
-
 router.use(auth)
 
-type RecipientType = 'to' | 'cc' | 'bcc'
+// ---------------------------------------------------------------------------
+// 查询辅助
+// ---------------------------------------------------------------------------
 
-interface Recipient {
-  username: string
-  email: string
-  type: RecipientType
+/** 只在“属于当前用户”的范围内查找邮件，不属于则统一 404（不泄露他人邮件是否存在） */
+async function requireOwnedEmail(id: string, userId: string | undefined) {
+  const email = await prisma.email.findFirst({ where: { id, userId } })
+  if (!email) throw new AppError('Email not found', 404)
+  return email
 }
 
-interface AttachmentInfo {
-  id?: string
-  filename: string
-  originalName: string
-  mimeType: string
-  size: number
-  path: string
+async function requireOwnedEmailWithAttachments(id: string, userId: string | undefined) {
+  const email = await prisma.email.findFirst({
+    where: { id, userId },
+    include: EMAIL_WITH_ATTACHMENTS_INCLUDE
+  })
+  if (!email) throw new AppError('Email not found', 404)
+  return email
 }
 
-function parseRecipients(input: string, type: RecipientType = 'to'): Recipient[] {
-  const recipients: Recipient[] = []
-  const parts = input.split(/[,，]/).map(s => s.trim()).filter(s => s)
-  
-  for (const part of parts) {
-    let email: string
-    let username: string
-    
-    if (part.includes('@')) {
-      email = part.toLowerCase()
-      username = part.split('@')[0]
-    } else {
-      username = part
-      email = `${part}@${getSettings().mailDomain}`
-    }
-    
-    if (usernameRegex.test(username)) {
-      recipients.push({ username, email, type })
-    }
+async function moveToFolder(id: string, userId: string | undefined, folder: MailboxFolder) {
+  const email = await requireOwnedEmail(id, userId)
+  return prisma.email.update({ where: { id: email.id }, data: { folder } })
+}
+
+function parseStringList(raw: string | null | undefined): string[] {
+  if (!raw) return []
+  try {
+    const value = JSON.parse(raw)
+    return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
+  } catch {
+    return []
   }
-  
-  return recipients
 }
 
-function recipientsToEmails(recipients: Recipient[]): string[] {
-  return recipients.map(r => r.email)
-}
+// ---------------------------------------------------------------------------
+// 列表 / 详情 / 导出
+// ---------------------------------------------------------------------------
 
 router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
   const query = parseEmailListQuery(req.query)
@@ -90,41 +80,18 @@ router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
     const emails = await tx.email.findMany({
       where: whereCondition,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      include: { 
-        attachments: {
-          include: { attachment: true }
-        }
-      },
+      include: EMAIL_WITH_ATTACHMENTS_INCLUDE,
       skip: (pagination.page - 1) * pagination.limit,
       take: pagination.limit
     })
     return { emails, pagination }
   })
-  
-  const emailsWithAttachments = emails.map(email => ({
-    ...email,
-    attachments: email.attachments.map(ea => ea.attachment)
-  }))
-  
-  res.json({
-    emails: emailsWithAttachments,
-    pagination
-  })
+
+  res.json({ emails: emails.map(toEmailDto), pagination })
 }))
 
 router.get('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const email = await prisma.email.findFirst({
-    where: { id: req.params.id, userId: req.userId },
-    include: { 
-      attachments: {
-        include: { attachment: true }
-      }
-    }
-  })
-
-  if (!email) {
-    throw new AppError('Email not found', 404)
-  }
+  const email = await requireOwnedEmailWithAttachments(req.params.id, req.userId)
 
   if (!email.isRead) {
     await prisma.email.update({
@@ -133,319 +100,115 @@ router.get('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
     })
   }
 
-  res.json({
-    ...email,
-    attachments: email.attachments.map(ea => ea.attachment)
-  })
+  res.json(toEmailDto(email))
 }))
 
 router.get('/:id/export', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const email = await prisma.email.findFirst({
-    where: { id: req.params.id, userId: req.userId },
-    include: {
-      attachments: {
-        include: { attachment: true }
-      }
-    }
-  })
-
-  if (!email) {
-    throw new AppError('Email not found', 404)
-  }
+  const email = await requireOwnedEmail(req.params.id, req.userId)
 
   const fromHeader = email.fromName
     ? `From: "${email.fromName}" <${email.from}>`
     : `From: <${email.from}>`
 
-  let toList: string[] = []
-  try { toList = JSON.parse(email.toList) } catch {}
+  const toList = parseStringList(email.toList)
   const toHeader = toList.length > 0 ? `To: ${toList.join(', ')}` : `To: ${email.to}`
 
-  let ccList: string[] = []
-  try { ccList = JSON.parse(email.ccList || '[]') } catch {}
+  const ccList = parseStringList(email.ccList)
   const ccHeader = ccList.length > 0 ? `Cc: ${ccList.join(', ')}` : ''
-
-  const dateHeader = `Date: ${new Date(email.createdAt).toUTCString()}`
-  const subjectHeader = `Subject: ${email.subject}`
-  const mimeHeader = 'MIME-Version: 1.0'
-  const contentTypeHeader = 'Content-Type: text/html; charset=UTF-8'
 
   const headers = [
     fromHeader,
     toHeader,
     ...(ccHeader ? [ccHeader] : []),
-    dateHeader,
-    subjectHeader,
-    mimeHeader,
-    contentTypeHeader
+    `Date: ${new Date(email.createdAt).toUTCString()}`,
+    `Subject: ${email.subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8'
   ].join('\r\n')
-
-  const emlContent = `${headers}\r\n\r\n${email.body}`
 
   const filename = `${email.subject.replace(/[\\/:*?"<>|]/g, '_') || 'no-subject'}.eml`
   res.setHeader('Content-Type', 'message/rfc822')
   res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`)
-  res.send(emlContent)
+  res.send(`${headers}\r\n\r\n${email.body}`)
 }))
+
+// ---------------------------------------------------------------------------
+// 发送 / 导入
+// ---------------------------------------------------------------------------
+
+/** multipart 表单里同名字段出现一次是字符串、多次是数组，统一成数组 */
+const addressField = z.union([z.string(), z.array(z.string())]).optional()
+  .transform(value => (value === undefined ? [] : Array.isArray(value) ? value : [value]))
+
+const sendEmailSchema = z.object({
+  to: addressField,
+  cc: addressField,
+  bcc: addressField,
+  subject: z.string().default(''),
+  body: z.string().default('')
+})
+
+/** referencedAttachments 以 JSON 字符串（或数组）传入的附件 ID 列表 */
+function parseIdList(raw: unknown): string[] {
+  const value = typeof raw === 'string' ? (() => { try { return JSON.parse(raw) } catch { return [] } })() : raw
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : []
+}
 
 router.post('/', upload.array('files', 10), asyncHandler(async (req: AuthRequest, res: Response) => {
-  const body = req.body
-  const files = req.files as Express.Multer.File[] | undefined
-  
-  let to = body.to
-  let cc = body.cc
-  let bcc = body.bcc
-  let attachments: AttachmentInfo[] = []
-  let referencedAttachmentIds: string[] = []
-  
-  if (typeof body.attachments === 'string') {
-    try {
-      attachments = JSON.parse(body.attachments)
-    } catch (e) {
-      attachments = []
-    }
-  } else if (Array.isArray(body.attachments)) {
-    attachments = body.attachments
-  }
-  
-  if (typeof body.referencedAttachments === 'string') {
-    try {
-      referencedAttachmentIds = JSON.parse(body.referencedAttachments)
-    } catch (e) {
-      referencedAttachmentIds = []
-    }
-  }
-  
-  if (files && files.length > 0) {
-    attachments = files.map(file => ({
-      filename: file.filename,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
-      path: file.path
-    }))
-  }
-  
-  const referencedAttachments = await prisma.attachment.findMany({
-    // 只允许引用当前用户自己邮件中的附件，防止越权获取他人附件
-    where: {
-      id: { in: referencedAttachmentIds.filter((id): id is string => typeof id === 'string') },
-      emails: { some: { email: { userId: req.userId } } }
-    }
-  })
-  
-  const allRecipients: Recipient[] = []
-  
-  if (to) {
-    const toList = Array.isArray(to) ? to : [to]
-    for (const t of toList) {
-      allRecipients.push(...parseRecipients(t, 'to'))
-    }
-  }
-  
-  if (cc) {
-    const ccList = Array.isArray(cc) ? cc : [cc]
-    for (const c of ccList) {
-      allRecipients.push(...parseRecipients(c, 'cc'))
-    }
-  }
-  
-  if (bcc) {
-    const bccList = Array.isArray(bcc) ? bcc : [bcc]
-    for (const b of bccList) {
-      allRecipients.push(...parseRecipients(b, 'bcc'))
-    }
-  }
-  
-  if (allRecipients.length === 0) {
-    throw new AppError('At least one recipient is required', 400)
-  }
-  
-  const user = await prisma.user.findUnique({ where: { id: req.userId } })
-  
-  const summary = await generateSummary(body.body)
-  
-  const toRecipients = allRecipients.filter(r => r.type === 'to')
-  const ccRecipients = allRecipients.filter(r => r.type === 'cc')
-  const bccRecipients = allRecipients.filter(r => r.type === 'bcc')
-  
-  const displayTo = toRecipients.length > 0 
-    ? toRecipients.map(r => r.email).join(', ')
-    : ccRecipients.length > 0 
-      ? ccRecipients[0].email 
-      : bccRecipients[0].email
-  
-  const newAttachmentRecords = await Promise.all(
-    attachments.map(att => 
-      prisma.attachment.create({
-        data: {
-          filename: att.filename,
-          originalName: att.originalName,
-          mimeType: att.mimeType,
-          size: att.size,
-          path: att.path
-        }
-      })
-    )
-  )
-  
-  const allAttachmentIds = [
-    ...newAttachmentRecords.map(a => a.id),
-    ...referencedAttachments.map(a => a.id)
-  ]
-  
-  const allAttachmentRecords = [...newAttachmentRecords, ...referencedAttachments]
-  
-  const email = await prisma.email.create({
-    data: {
-      from: user!.email,
-      fromName: user!.nickname || user!.username || null,
-      to: displayTo,
-      toList: JSON.stringify(toRecipients.map(r => r.email)),
-      ccList: JSON.stringify(ccRecipients.map(r => r.email)),
-      bccList: JSON.stringify(bccRecipients.map(r => r.email)),
-      subject: body.subject,
-      body: body.body,
-      summary,
-      folder: 'SENT',
-      userId: req.userId!,
-      attachments: {
-        create: allAttachmentIds.map(attachmentId => ({
-          attachmentId
-        }))
-      }
-    },
-    include: { 
-      attachments: {
-        include: { attachment: true }
-      }
-    }
-  })
+  const files = (req.files as Express.Multer.File[] | undefined) ?? []
 
-  const allEmails = recipientsToEmails(allRecipients)
-  const localRecipients: string[] = []
-  const externalRecipients: string[] = []
-  
-  for (const recipientEmail of allEmails) {
-    const recipientUser = await prisma.user.findUnique({
-      where: { email: recipientEmail }
-    })
-    
-    if (recipientUser) {
-      localRecipients.push(recipientEmail)
-      const isBcc = bccRecipients.some(r => r.email === recipientEmail)
-      
-      await prisma.email.create({
-        data: {
-          from: user!.email,
-          fromName: user!.nickname || user!.username || null,
-          to: recipientEmail,
-          toList: JSON.stringify(toRecipients.map(r => r.email)),
-          ccList: JSON.stringify(ccRecipients.map(r => r.email)),
-          bccList: isBcc ? JSON.stringify([recipientEmail]) : '[]',
-          subject: body.subject,
-          body: body.body,
-          summary,
-          folder: 'INBOX',
-          isRead: false,
-          userId: recipientUser.id,
-          attachments: {
-            create: allAttachmentIds.map(attachmentId => ({
-              attachmentId
-            }))
-          }
-        }
-      })
-      
-      console.log(`[MAIL] Delivered to local user: ${recipientEmail}`)
-    } else {
-      externalRecipients.push(recipientEmail)
-    }
-  }
-  
-  if (externalRecipients.length > 0) {
-    console.log(`[MAIL] Sending to external recipients: ${externalRecipients.join(', ')}`)
-    
-    const sendResults = await sendEmail({
-      from: user!.email,
-      fromName: user!.nickname || user!.username || undefined,
-      to: toRecipients.filter(r => externalRecipients.includes(r.email)).map(r => r.email),
-      cc: ccRecipients.filter(r => externalRecipients.includes(r.email)).map(r => r.email),
-      bcc: bccRecipients.filter(r => externalRecipients.includes(r.email)).map(r => r.email),
-      subject: body.subject,
-      html: body.body,
-      attachments: allAttachmentRecords.map(att => ({
-        filename: att.originalName,
-        path: att.path,
-        contentType: att.mimeType
-      }))
-    })
-    
-    for (const result of sendResults) {
-      if (result.success) {
-        console.log(`[MAIL] Sent to ${result.recipient}: ${result.messageId}`)
-      } else {
-        console.error(`[MAIL] Failed to send to ${result.recipient}: ${result.error}`)
-      }
-    }
-  }
+  try {
+    const input = sendEmailSchema.parse(req.body ?? {})
 
-  res.status(201).json({
-    ...email,
-    attachments: email.attachments.map(ea => ea.attachment)
-  })
+    // 附件只来自本次 multipart 上传（文件名/路径由服务端生成）或对已有附件的 ID 引用，
+    // 不再信任客户端 JSON 里自带的 path/filename。
+    const email = await deliverOutgoingEmail({
+      senderId: req.userId!,
+      to: input.to,
+      cc: input.cc,
+      bcc: input.bcc,
+      subject: input.subject,
+      body: input.body,
+      uploads: files,
+      referencedAttachmentIds: parseIdList(req.body?.referencedAttachments)
+    })
+
+    res.status(201).json(email)
+  } catch (error) {
+    // 请求失败时，已落盘的上传文件不会有任何记录指向它们，必须清理
+    await removeUploadedFiles(files)
+    throw error
+  }
 }))
-
-const emlUpload = multer({
-  dest: path.join(process.cwd(), 'uploads'),
-  limits: { fileSize: 50 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'message/rfc822' || file.originalname.endsWith('.eml')) {
-      cb(null, true)
-    } else {
-      cb(new Error('Only .eml files are allowed'))
-    }
-  }
-})
 
 router.post('/import', emlUpload.single('file'), asyncHandler(async (req: AuthRequest, res: Response) => {
   if (!req.file) {
     throw new AppError('No file uploaded', 400)
   }
 
-  let parsed: any
-
+  let parsed
   try {
     parsed = await parseEmailFile(req.file.path)
   } catch {
-    fs.unlinkSync(req.file.path)
     throw new AppError('Failed to parse EML file', 400)
+  } finally {
+    await removeStoredFile(req.file.path)
   }
 
-  fs.unlinkSync(req.file.path)
-
-  const fromAddress = parsed.from?.value?.[0]?.address || 'unknown@unknown'
-  const fromName = parsed.from?.value?.[0]?.name || null
-  const toAddress = parsed.to?.value?.[0]?.address || 'unknown@unknown'
-
-  const toList = (parsed.to?.value || []).map((r: any) => r.address)
-  const ccList = (parsed.cc?.value || []).map((r: any) => r.address)
-  const bccList = (parsed.bcc?.value || []).map((r: any) => r.address)
-
-  const subject = parsed.subject || '(No Subject)'
-  const body = getParsedEmailBody(parsed)
+  const [from] = extractAddresses(parsed.from)
+  const toAddresses = extractAddresses(parsed.to)
 
   const email = await prisma.email.create({
     data: {
-      from: fromAddress,
-      fromName,
-      to: toAddress,
-      toList: JSON.stringify(toList),
-      ccList: JSON.stringify(ccList),
-      bccList: JSON.stringify(bccList),
-      subject,
-      body,
-      folder: 'INBOX',
+      from: from?.address || 'unknown@unknown',
+      fromName: from?.name ?? null,
+      to: toAddresses[0]?.address || 'unknown@unknown',
+      toList: JSON.stringify(toAddresses.map(a => a.address)),
+      ccList: JSON.stringify(extractAddresses(parsed.cc).map(a => a.address)),
+      bccList: JSON.stringify(extractAddresses(parsed.bcc).map(a => a.address)),
+      subject: parsed.subject || '(No Subject)',
+      body: getParsedEmailBody(parsed),
+      folder: FOLDER_INBOX,
       userId: req.userId!
     }
   })
@@ -453,51 +216,33 @@ router.post('/import', emlUpload.single('file'), asyncHandler(async (req: AuthRe
   res.status(201).json(email)
 }))
 
+// ---------------------------------------------------------------------------
+// 删除 / 状态流转
+// ---------------------------------------------------------------------------
+
 router.delete('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const permanent = req.query.permanent === 'true'
-  if (req.query.permanent !== undefined && req.query.permanent !== 'true' && req.query.permanent !== 'false') {
+  const mode = req.query.permanent
+  if (mode !== undefined && mode !== 'true' && mode !== 'false') {
     throw new AppError('Invalid deletion mode', 400)
   }
-  const email = await prisma.email.findFirst({
-    where: { id: req.params.id, userId: req.userId },
-    include: { 
-      attachments: {
-        include: { attachment: true }
-      }
-    }
-  })
+  const permanent = mode === 'true'
 
-  if (!email) {
-    throw new AppError('Email not found', 404)
-  }
+  const email = await requireOwnedEmailWithAttachments(req.params.id, req.userId)
 
-  if (permanent && email.folder !== 'TRASH') {
+  if (permanent && email.folder !== FOLDER_TRASH) {
     throw new AppError('Move this email to trash before permanently deleting it', 409)
   }
 
   // The caller must explicitly request permanent deletion. Retrying a normal
   // DELETE after a lost response must never turn a move-to-trash into a purge.
   if (permanent) {
-    for (const ea of email.attachments) {
-      const otherReferences = await prisma.emailAttachment.count({
-        where: { 
-          attachmentId: ea.attachmentId,
-          emailId: { not: email.id }
-        }
-      })
-      
-      if (otherReferences === 0) {
-        if (fs.existsSync(ea.attachment.path)) {
-          fs.unlinkSync(ea.attachment.path)
-        }
-        await prisma.attachment.delete({ where: { id: ea.attachmentId } })
-      }
-    }
     await prisma.email.delete({ where: { id: email.id } })
+    // 邮件删除后，不再被任何邮件引用的附件才会被真正清除
+    await Promise.all(email.attachments.map(link => deleteAttachmentIfUnreferenced(link.attachmentId)))
   } else {
     await prisma.email.update({
       where: { id: email.id },
-      data: { folder: 'TRASH' }
+      data: { folder: FOLDER_TRASH }
     })
   }
 
@@ -505,102 +250,43 @@ router.delete('/:id', asyncHandler(async (req: AuthRequest, res: Response) => {
 }))
 
 router.post('/:id/restore', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const email = await prisma.email.findFirst({
-    where: { id: req.params.id, userId: req.userId }
-  })
-
-  if (!email) {
-    throw new AppError('Email not found', 404)
-  }
-
-  const updated = await prisma.email.update({
-    where: { id: email.id },
-    data: { folder: 'INBOX' }
-  })
-
-  res.json(updated)
-}))
-
-router.patch('/:id/read', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { isRead } = req.body
-  
-  const email = await prisma.email.findFirst({
-    where: { id: req.params.id, userId: req.userId }
-  })
-
-  if (!email) {
-    throw new AppError('Email not found', 404)
-  }
-
-  const updated = await prisma.email.update({
-    where: { id: email.id },
-    data: { isRead: isRead ?? true }
-  })
-
-  res.json(updated)
-}))
-
-router.patch('/:id/star', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { isStarred } = req.body
-  console.log('[STAR] Request received:', { id: req.params.id, isStarred, userId: req.userId })
-  
-  const email = await prisma.email.findFirst({
-    where: { id: req.params.id, userId: req.userId }
-  })
-
-  if (!email) {
-    throw new AppError('Email not found', 404)
-  }
-
-  const updated = await prisma.email.update({
-    where: { id: email.id },
-    data: { isStarred: isStarred ?? !email.isStarred }
-  })
-  
-  console.log('[STAR] Updated email:', { id: updated.id, isStarred: updated.isStarred })
-
-  res.json(updated)
-}))
-
-router.patch('/:id/folder', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { folder } = req.body
-  
-  const validFolders = ['INBOX', 'SENT', 'TRASH', 'ARCHIVED']
-  if (!folder || !validFolders.includes(folder)) {
-    throw new AppError('Invalid folder', 400)
-  }
-
-  const email = await prisma.email.findFirst({
-    where: { id: req.params.id, userId: req.userId }
-  })
-
-  if (!email) {
-    throw new AppError('Email not found', 404)
-  }
-
-  const updated = await prisma.email.update({
-    where: { id: email.id },
-    data: { folder }
-  })
-
-  res.json(updated)
+  res.json(await moveToFolder(req.params.id, req.userId, FOLDER_INBOX))
 }))
 
 router.post('/:id/archive', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const email = await prisma.email.findFirst({
-    where: { id: req.params.id, userId: req.userId }
-  })
+  res.json(await moveToFolder(req.params.id, req.userId, FOLDER_ARCHIVED))
+}))
 
-  if (!email) {
-    throw new AppError('Email not found', 404)
-  }
+const folderSchema = z.object({
+  folder: z.enum(MAILBOX_FOLDERS, { errorMap: () => ({ message: 'Invalid folder' }) })
+})
 
-  const updated = await prisma.email.update({
+router.patch('/:id/folder', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { folder } = folderSchema.parse(req.body ?? {})
+  res.json(await moveToFolder(req.params.id, req.userId, folder))
+}))
+
+const readSchema = z.object({ isRead: z.boolean().optional() })
+const starSchema = z.object({ isStarred: z.boolean().optional() })
+
+router.patch('/:id/read', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { isRead } = readSchema.parse(req.body ?? {})
+  const email = await requireOwnedEmail(req.params.id, req.userId)
+
+  res.json(await prisma.email.update({
     where: { id: email.id },
-    data: { folder: 'ARCHIVED' }
-  })
+    data: { isRead: isRead ?? true }
+  }))
+}))
 
-  res.json(updated)
+router.patch('/:id/star', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { isStarred } = starSchema.parse(req.body ?? {})
+  const email = await requireOwnedEmail(req.params.id, req.userId)
+
+  res.json(await prisma.email.update({
+    where: { id: email.id },
+    data: { isStarred: isStarred ?? !email.isStarred }
+  }))
 }))
 
 export default router

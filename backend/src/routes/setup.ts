@@ -3,17 +3,26 @@
  * 仅在系统中没有任何用户时允许创建第一个管理员，并写入站点地址和邮件域名
  */
 import { Router, Request, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { asyncHandler } from '../middleware/error'
+import { z } from 'zod'
+import { prisma } from '../lib/prisma'
+import { AppError, asyncHandler } from '../middleware/error'
 import { updateSettings, getSettings } from '../services/settings'
+import { ROLE_ADMIN } from '../lib/domain-constants'
 
 const router = Router()
-const prisma = new PrismaClient()
 
-const USERNAME_RE = /^[a-zA-Z0-9._]{3,32}$/
 const MIN_PASSWORD_LENGTH = 12
 const MAX_PASSWORD_LENGTH = 256
+
+const setupSchema = z.object({
+  username: z.string().regex(/^[a-zA-Z0-9._]{3,32}$/, 'Username must be 3-32 characters: letters, digits, dot or underscore'),
+  password: z.string()
+    .min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
+    .max(MAX_PASSWORD_LENGTH, `Password must be at most ${MAX_PASSWORD_LENGTH} characters`),
+  mailDomain: z.string().trim().min(1, 'Mail domain is required'),
+  siteUrl: z.string().optional()
+})
 
 /** 进程内互斥，配合事务内的用户数检查，防止并发初始化 */
 let setupInFlight = false
@@ -28,30 +37,20 @@ router.get('/status', asyncHandler(async (_req: Request, res: Response) => {
 }))
 
 router.post('/', asyncHandler(async (req: Request, res: Response) => {
-  const { username, password, siteUrl, mailDomain } = req.body ?? {}
+  const { username, password, siteUrl, mailDomain } = setupSchema.parse(req.body ?? {})
 
-  if (typeof username !== 'string' || !USERNAME_RE.test(username)) {
-    return res.status(400).json({ error: 'Username must be 3-32 characters: letters, digits, dot or underscore' })
-  }
-  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
-    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` })
-  }
-  if (typeof mailDomain !== 'string' || !mailDomain.trim()) {
-    return res.status(400).json({ error: 'Mail domain is required' })
-  }
-  if (siteUrl !== undefined && typeof siteUrl !== 'string') {
-    return res.status(400).json({ error: 'Invalid site URL' })
-  }
-
-  if (setupInFlight) return res.status(409).json({ error: 'Setup already in progress' })
+  if (setupInFlight) throw new AppError('Setup already in progress', 409)
   setupInFlight = true
   try {
-    if (!(await needsSetup())) return res.status(409).json({ error: 'Setup has already been completed' })
+    if (!(await needsSetup())) throw new AppError('Setup has already been completed', 409)
 
     try {
-      await updateSettings({ mailDomain: mailDomain.trim().toLowerCase(), ...(siteUrl ? { siteUrl: siteUrl.trim().replace(/\/+$/, '') } : {}) })
+      await updateSettings({
+        mailDomain: mailDomain.toLowerCase(),
+        ...(siteUrl ? { siteUrl: siteUrl.trim().replace(/\/+$/, '') } : {})
+      })
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid settings' })
+      throw new AppError(error instanceof Error ? error.message : 'Invalid settings', 400)
     }
 
     const hashedPassword = await bcrypt.hash(password, 12)
@@ -60,11 +59,11 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
     const created = await prisma.$transaction(async tx => {
       if ((await tx.user.count()) !== 0) return null
       return tx.user.create({
-        data: { username, email, password: hashedPassword, role: 'admin' },
+        data: { username, email, password: hashedPassword, role: ROLE_ADMIN },
         select: { id: true, username: true, email: true }
       })
     })
-    if (!created) return res.status(409).json({ error: 'Setup has already been completed' })
+    if (!created) throw new AppError('Setup has already been completed', 409)
 
     console.log(`[Setup] Created initial admin user: ${created.username}`)
     res.status(201).json({ user: created })

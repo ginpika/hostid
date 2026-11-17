@@ -1,11 +1,12 @@
 import type { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../middleware/error'
+import { EMAIL_LIST_FILTERS } from './domain-constants'
 
 const positiveInteger = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER)
 
 const emailListQuerySchema = z.object({
-  folder: z.enum(['INBOX', 'SENT', 'TRASH', 'ARCHIVED', 'STARRED']).default('INBOX'),
+  folder: z.enum(EMAIL_LIST_FILTERS).default('INBOX'),
   q: z.string().trim().max(200).default(''),
   read: z.enum(['unread']).optional(),
   page: positiveInteger.default(1),

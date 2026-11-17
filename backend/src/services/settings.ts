@@ -19,25 +19,54 @@ interface SettingDef {
   options?: readonly string[]
   min?: number
   max?: number
+  validate?: (value: string) => void
   /** 环境变量值转换（如 SESSION_TTL 单位） */
   group: 'site' | 'mail' | 'smtp' | 'turnstile' | 'sso' | 'auth'
 }
 
+const MAX_SITE_NAME_LENGTH = 64
+const MAX_SITE_SLOGAN_LENGTH = 120
+
+const noLineBreaksMaxLength = (name: string, max: number) => (value: string) => {
+  if (/[\r\n]/.test(value)) throw new Error(`${name} cannot contain line breaks`)
+  if (value.length > max) throw new Error(`${name} must be at most ${max} characters`)
+}
+
+const httpUrlValidator = (name: string) => (value: string) => {
+  let url: URL
+  try { url = new URL(value) } catch { throw new Error(`${name} must be an absolute http(s) URL`) }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(`${name} must be an absolute http(s) URL`)
+}
+
+const regexValidator = (re: RegExp, message: string) => (value: string) => {
+  if (!re.test(value)) throw new Error(message)
+}
+
 export const SETTING_DEFS = {
-  siteName: { type: 'string', default: 'HostID', group: 'site' },
-  siteSlogan: { type: 'string', default: 'MAIL WORKSPACE', group: 'site' },
-  siteUrl: { type: 'string', env: 'FRONTEND_URL', default: '', group: 'site' },
-  corsAllowedOrigins: { type: 'string', env: 'CORS_ALLOWED_ORIGINS', default: '', group: 'site' },
-  ssoLoginPageUrl: { type: 'string', env: 'SSO_LOGIN_PAGE_URL', default: '', group: 'site' },
-  mailDomain: { type: 'string', env: 'MAIL_DOMAIN', default: 'localhost', group: 'mail' },
+  siteName: { type: 'string', default: 'HostID', group: 'site', validate: noLineBreaksMaxLength('siteName', MAX_SITE_NAME_LENGTH) },
+  siteSlogan: { type: 'string', default: 'MAIL WORKSPACE', group: 'site', validate: noLineBreaksMaxLength('siteSlogan', MAX_SITE_SLOGAN_LENGTH) },
+  siteUrl: { type: 'string', env: 'FRONTEND_URL', default: '', group: 'site', validate: httpUrlValidator('siteUrl') },
+  corsAllowedOrigins: {
+    type: 'string',
+    env: 'CORS_ALLOWED_ORIGINS',
+    default: '',
+    group: 'site',
+    validate: (value: string) => {
+      for (const origin of value.split(',').map(o => o.trim()).filter(Boolean)) {
+        try { new URL(origin) } catch { throw new Error(`corsAllowedOrigins contains an invalid origin: ${origin}`) }
+      }
+    }
+  },
+  ssoLoginPageUrl: { type: 'string', env: 'SSO_LOGIN_PAGE_URL', default: '', group: 'site', validate: httpUrlValidator('ssoLoginPageUrl') },
+  mailDomain: { type: 'string', env: 'MAIL_DOMAIN', default: 'localhost', group: 'mail', validate: regexValidator(/^[a-z0-9.-]+$/i, 'mailDomain is invalid') },
   smtpRelayHost: { type: 'string', env: 'SMTP_HOST', default: '', group: 'smtp' },
   smtpRelayPort: { type: 'number', env: 'SMTP_OUT_PORT', default: 25, min: 1, max: 65535, group: 'smtp' },
   smtpRelayUser: { type: 'string', env: 'SMTP_USER', default: '', group: 'smtp' },
   smtpRelayPass: { type: 'string', env: 'SMTP_PASS', default: '', secret: true, group: 'smtp' },
-  turnstileSiteKey: { type: 'string', env: 'CF_TURNSTILE_SITE_KEY', default: '', group: 'turnstile' },
+  turnstileSiteKey: { type: 'string', env: 'CF_TURNSTILE_SITE_KEY', default: '', group: 'turnstile', validate: regexValidator(/^[a-zA-Z0-9_-]*$/, 'turnstileSiteKey is invalid') },
   turnstileSecretKey: { type: 'string', env: 'CF_TURNSTILE_SECRET_KEY', default: '', secret: true, group: 'turnstile' },
   ssoCookieDomain: { type: 'string', env: 'SSO_COOKIE_DOMAIN', default: '', group: 'sso' },
-  ssoCookieName: { type: 'string', env: 'SSO_COOKIE_NAME', default: 'sso_token', group: 'sso' },
+  ssoCookieName: { type: 'string', env: 'SSO_COOKIE_NAME', default: 'sso_token', group: 'sso', validate: regexValidator(/^[A-Za-z0-9_-]+$/, 'ssoCookieName is invalid') },
   ssoCookiePath: { type: 'string', env: 'SSO_COOKIE_PATH', default: '/', group: 'sso' },
   ssoCookieSecure: { type: 'boolean', env: 'SSO_COOKIE_SECURE', default: false, group: 'sso' },
   ssoCookieSameSite: { type: 'enum', env: 'SSO_COOKIE_SAMESITE', default: 'lax', options: ['strict', 'lax', 'none'], group: 'sso' },
@@ -86,33 +115,9 @@ function parseValue(key: SettingKey, raw: unknown): string | number | boolean {
   }
 }
 
-const MAX_SITE_NAME_LENGTH = 64
-const MAX_SITE_SLOGAN_LENGTH = 120
-
 function validateString(key: SettingKey, value: string): void {
   if (!value) return
-  if (key === 'siteName') {
-    if (/[\r\n]/.test(value)) throw new Error('siteName cannot contain line breaks')
-    if (value.length > MAX_SITE_NAME_LENGTH) throw new Error(`siteName must be at most ${MAX_SITE_NAME_LENGTH} characters`)
-  }
-  if (key === 'siteSlogan') {
-    if (/[\r\n]/.test(value)) throw new Error('siteSlogan cannot contain line breaks')
-    if (value.length > MAX_SITE_SLOGAN_LENGTH) throw new Error(`siteSlogan must be at most ${MAX_SITE_SLOGAN_LENGTH} characters`)
-  }
-  const urlKeys: SettingKey[] = ['siteUrl', 'ssoLoginPageUrl']
-  if (urlKeys.includes(key)) {
-    let url: URL
-    try { url = new URL(value) } catch { throw new Error(`${key} must be an absolute http(s) URL`) }
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(`${key} must be an absolute http(s) URL`)
-  }
-  if (key === 'corsAllowedOrigins') {
-    for (const origin of value.split(',').map(o => o.trim()).filter(Boolean)) {
-      try { new URL(origin) } catch { throw new Error(`corsAllowedOrigins contains an invalid origin: ${origin}`) }
-    }
-  }
-  if (key === 'mailDomain' && !/^[a-z0-9.-]+$/i.test(value)) throw new Error('mailDomain is invalid')
-  if (key === 'turnstileSiteKey' && !/^[a-zA-Z0-9_-]*$/.test(value)) throw new Error('turnstileSiteKey is invalid')
-  if (key === 'ssoCookieName' && !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('ssoCookieName is invalid')
+  def(key).validate?.(value)
 }
 
 /** 数据库中的原始值（已解密） */
