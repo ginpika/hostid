@@ -1,0 +1,1348 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HostID</title>
+    <script>
+      ;(function () {
+        try {
+          var mode = localStorage.getItem('hostid.shell.scheme')
+          if (mode !== 'light' && mode !== 'dark' && mode !== 'system') mode = 'system'
+          var dark =
+            mode === 'dark' ||
+            (mode === 'system' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var scheme = dark ? 'dark' : 'light'
+          var root = document.documentElement
+          root.dataset.schemeMode = mode
+          root.dataset.scheme = scheme
+          root.style.colorScheme = scheme
+        } catch (e) {}
+      })()
+    </script>
+    <style>
+      /* ============================================================================
+       * HostID 桌面启动台 —— 适配 HostID 现代工作空间与认证卡片设计语言
+       * ========================================================================= */
+      :root {
+        --bg-canvas: #f4f6fa;
+        --bg-surface: #ffffff;
+        --bg-subtle: #edf1f7;
+        --bg-hover: #f4f7fc;
+        --border-primary: #e4e9f1;
+        --border-secondary: #d5deea;
+        --text-primary: #202b40;
+        --text-secondary: #526078;
+        --text-tertiary: #627188;
+        --text-muted: #8490a4;
+        --accent-primary: #286cde;
+        --accent-hover: #1e5cc5;
+        --accent-muted: rgba(40, 108, 222, 0.08);
+        --accent-text: #ffffff;
+        --danger: #dc4545;
+        --danger-soft: rgba(239, 68, 68, 0.09);
+        --success: #16a34a;
+        --success-soft: rgba(22, 163, 74, 0.1);
+        --edge-line: rgba(20, 40, 70, 0.12);
+        --shell-radius: 20px;
+        --card-shadow: 0 12px 36px -12px rgba(20, 40, 70, 0.12), 0 2px 8px rgba(20, 40, 70, 0.04);
+        --pop-shadow: 0 14px 36px -8px rgba(20, 40, 70, 0.18), 0 4px 12px rgba(20, 40, 70, 0.06);
+      }
+
+      :root[data-scheme='dark'] {
+        --bg-canvas: #0a0a0a;
+        --bg-surface: #141414;
+        --bg-subtle: #1a1a1a;
+        --bg-hover: #1f1f1f;
+        --border-primary: #262626;
+        --border-secondary: #333333;
+        --text-primary: #e5e5e5;
+        --text-secondary: #b3b3b3;
+        --text-tertiary: #999999;
+        --text-muted: #858585;
+        --accent-primary: #00d98a;
+        --accent-hover: #00c47a;
+        --accent-muted: rgba(0, 217, 138, 0.11);
+        --accent-text: #0a0a0a;
+        --danger: #f87171;
+        --danger-soft: rgba(239, 68, 68, 0.14);
+        --success: #00d98a;
+        --success-soft: rgba(0, 217, 138, 0.12);
+        --edge-line: rgba(255, 255, 255, 0.14);
+        --card-shadow: 0 18px 44px -12px rgba(0, 0, 0, 0.58), 0 2px 8px rgba(0, 0, 0, 0.25);
+        --pop-shadow: 0 18px 44px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      button,
+      input {
+        font-family: inherit;
+      }
+
+      button {
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--text-primary);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button:not(:disabled) {
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--accent-primary);
+        outline-offset: 2px;
+      }
+
+      /* ------------------------------------------------ 窗缘缩放热区 */
+      #rz {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        pointer-events: none;
+      }
+      #rz i {
+        position: absolute;
+        pointer-events: auto;
+      }
+      #rz i[data-dir='North'] { top: 0; left: 0; right: 0; height: 5px; cursor: ns-resize; }
+      #rz i[data-dir='South'] { bottom: 0; left: 0; right: 0; height: 5px; cursor: ns-resize; }
+      #rz i[data-dir='West'] { top: 0; bottom: 0; left: 0; width: 5px; cursor: ew-resize; }
+      #rz i[data-dir='East'] { top: 0; bottom: 0; right: 0; width: 5px; cursor: ew-resize; }
+      #rz i[data-dir='NorthWest'] { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+      #rz i[data-dir='NorthEast'] { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+      #rz i[data-dir='SouthWest'] { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+      #rz i[data-dir='SouthEast'] { bottom: 0; right: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+
+      /* ------------------------------------------------ 壳容器 */
+      .shell {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        border-radius: var(--shell-radius);
+        overflow: hidden;
+        background: var(--bg-canvas);
+        color: var(--text-primary);
+      }
+
+      body:not(.is-maximized) .shell::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 2147483640;
+        border-radius: var(--shell-radius);
+        box-shadow: inset 0 0 0 1px var(--edge-line);
+        pointer-events: none;
+      }
+
+      body.is-maximized .shell,
+      body.is-mac .shell {
+        border-radius: 0;
+      }
+      body.is-mac .shell::after {
+        content: none;
+      }
+      body.is-mac #rz {
+        display: none;
+      }
+
+      /* ------------------------------------------------ 过渡模糊遮罩 */
+      .veil {
+        position: absolute;
+        inset: 0;
+        z-index: 70;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: inherit;
+        background: color-mix(in srgb, var(--bg-canvas) 60%, transparent);
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.55s ease, backdrop-filter 0.55s ease;
+      }
+      .veil--on {
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .veil-spinner {
+        width: 28px;
+        height: 28px;
+        border: 2.5px solid var(--border-secondary);
+        border-top-color: var(--accent-primary);
+        border-radius: 999px;
+        animation: veil-spin 0.8s linear infinite;
+      }
+      @keyframes veil-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* ------------------------------------------------ 顶栏 */
+      .topbar {
+        position: absolute;
+        inset: 0 0 auto;
+        z-index: 61;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 48px;
+        padding: 0 16px;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .topbar-drag {
+        flex: 1;
+        align-self: stretch;
+        pointer-events: auto;
+      }
+
+      .toolbar-btn {
+        pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--text-tertiary);
+        font-size: 12px;
+        font-weight: 500;
+        transition: background 150ms ease, color 150ms ease;
+      }
+      .toolbar-btn:hover {
+        background: var(--accent-muted);
+        color: var(--accent-primary);
+      }
+      .toolbar-btn--icon {
+        width: 34px;
+        padding: 0;
+      }
+      .toolbar-btn svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .win-controls {
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 4px;
+      }
+      .wbtn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border: 1px solid var(--border-primary);
+        border-radius: 50%;
+        background: var(--bg-surface);
+        color: var(--text-tertiary);
+        transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+      }
+      .wbtn:hover {
+        background: var(--bg-subtle);
+        border-color: var(--border-secondary);
+        color: var(--text-primary);
+      }
+      .wbtn--close:hover {
+        background: var(--danger-soft);
+        border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+        color: var(--danger);
+      }
+      .wbtn svg {
+        width: 12px;
+        height: 12px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      body.is-mac .win-controls { display: none; }
+
+      /* ------------------------------------------------ 主舞台（HostID Split Workspace Card） */
+      .stage-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px 36px;
+      }
+
+      .launcher-card {
+        width: 100%;
+        max-width: 840px;
+        display: grid;
+        grid-template-columns: 310px minmax(0, 1fr);
+        border: 1px solid var(--border-primary);
+        border-radius: 16px;
+        background: var(--bg-surface);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+      }
+
+      /* 左侧品牌区：对标 auth-split-aside */
+      .launcher-aside {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 36px 28px;
+        border-right: 1px solid var(--border-primary);
+        background:
+          radial-gradient(
+            circle at 50% 42%,
+            var(--accent-muted),
+            transparent 70%
+          ),
+          color-mix(in srgb, var(--bg-canvas) 45%, var(--bg-surface));
+      }
+
+      .brand-logo {
+        width: 76px;
+        height: 76px;
+        object-fit: contain;
+        margin-bottom: 14px;
+      }
+      .brand-title {
+        font-size: 26px;
+        font-weight: 750;
+        letter-spacing: -0.03em;
+        line-height: 1.2;
+        color: var(--text-primary);
+      }
+      .brand-slogan {
+        margin-top: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 1.6px;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+      .brand-desc {
+        margin-top: 12px;
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: var(--text-secondary);
+        max-width: 220px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 18px;
+        max-width: 100%;
+        padding: 5px 12px;
+        border: 1px solid var(--border-primary);
+        border-radius: 999px;
+        background: var(--bg-surface);
+        color: var(--text-tertiary);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .status-pill span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .status-dot {
+        flex: none;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent-primary);
+      }
+      body[data-phase='error'] .status-pill {
+        border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      body[data-phase='error'] .status-dot {
+        background: var(--danger);
+      }
+      body[data-phase='connecting'] .status-dot,
+      body[data-phase='entering'] .status-dot {
+        animation: pulse-dot 1.1s ease-in-out infinite;
+      }
+      @keyframes pulse-dot {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.25; }
+      }
+
+      /* 右侧连接与实例区 */
+      .launcher-main {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        padding: 32px 34px;
+        min-width: 0;
+      }
+
+      .main-head h2 {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        color: var(--text-primary);
+      }
+      .main-head p {
+        margin-top: 3px;
+        font-size: 13px;
+        color: var(--text-tertiary);
+      }
+
+      /* 回到当前运行实例横幅 */
+      .resume-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, var(--border-primary));
+        border-radius: 12px;
+        background: var(--accent-muted);
+      }
+      .resume-meta {
+        flex: 1;
+        min-width: 0;
+      }
+      .resume-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--accent-primary);
+      }
+      .resume-url {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* 会话失效横幅 */
+      .notice {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 10px 10px 14px;
+        border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+        border-radius: 10px;
+        background: var(--danger-soft);
+        font-size: 12.5px;
+      }
+      .notice-text {
+        flex: 1;
+        min-width: 0;
+        color: var(--danger);
+      }
+      .notice-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--danger);
+        font-size: 16px;
+      }
+      .notice-close:hover {
+        background: color-mix(in srgb, var(--danger) 14%, transparent);
+      }
+
+      /* 连接表单：对标 auth-input-group */
+      .connect-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .input-row {
+        display: flex;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .input-group {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        height: 42px;
+        border: 1px solid var(--border-primary);
+        border-radius: 10px;
+        background: var(--bg-canvas);
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+      }
+      .input-group:hover {
+        border-color: var(--border-secondary);
+      }
+      .input-group:focus-within {
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-muted);
+      }
+      .input-group svg {
+        flex: none;
+        width: 16px;
+        height: 16px;
+        margin-left: 12px;
+        color: var(--text-muted);
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .input-control {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        padding: 0 12px;
+        border: 0;
+        background: transparent;
+        color: var(--text-primary);
+        font-size: 13.5px;
+        outline: none;
+      }
+      .input-control::placeholder {
+        color: var(--text-muted);
+      }
+
+      .btn {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 42px;
+        padding: 0 18px;
+        border: 1px solid var(--border-primary);
+        border-radius: 10px;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: background 150ms ease, border-color 150ms ease, filter 150ms ease;
+      }
+      .btn:not(:disabled):hover {
+        background: var(--bg-hover);
+        border-color: var(--border-secondary);
+      }
+      .btn:disabled {
+        opacity: 0.48;
+        cursor: not-allowed;
+      }
+      .btn--primary {
+        border-color: color-mix(in srgb, var(--accent-primary) 85%, #fff);
+        background: linear-gradient(115deg, color-mix(in srgb, var(--accent-primary) 88%, #fff), var(--accent-primary));
+        color: var(--accent-text);
+        box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+      }
+      .btn--primary:not(:disabled):hover {
+        border-color: var(--accent-hover);
+        background: var(--accent-hover);
+        filter: brightness(1.03);
+      }
+      .btn--sm {
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+      .btn--danger-ghost {
+        border-color: transparent;
+        background: transparent;
+        color: var(--danger);
+      }
+      .btn--danger-ghost:not(:disabled):hover {
+        background: var(--danger-soft);
+        border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+      }
+
+      .quick-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .quick-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 26px;
+        padding: 0 10px;
+        border: 1px solid var(--border-primary);
+        border-radius: 999px;
+        background: var(--bg-canvas);
+        color: var(--text-tertiary);
+        font-size: 11.5px;
+        transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+      }
+      .quick-chip:hover {
+        border-color: var(--accent-primary);
+        color: var(--accent-primary);
+        background: var(--accent-muted);
+      }
+      .quick-chip svg {
+        width: 12px;
+        height: 12px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* 已保存的实例列表 */
+      .saved-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 6px;
+        border-top: 1px solid var(--border-primary);
+      }
+      .section-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: var(--text-tertiary);
+      }
+      .instance-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 210px;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+      .instance-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border: 1px solid var(--border-primary);
+        border-radius: 11px;
+        background: var(--bg-canvas);
+        transition: border-color 150ms ease, background 150ms ease;
+      }
+      .instance-row:hover {
+        border-color: var(--border-secondary);
+        background: var(--bg-hover);
+      }
+      .instance-row.is-active {
+        border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-primary));
+      }
+      .instance-connect {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+      }
+      .instance-avatar {
+        flex: none;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: var(--accent-muted);
+        color: var(--accent-primary);
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .instance-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .instance-meta {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .instance-title-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+      .instance-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .instance-host {
+        font-size: 11.5px;
+        color: var(--text-tertiary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .instance-tag {
+        flex: none;
+        padding: 1px 6px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 600;
+        background: var(--accent-muted);
+        color: var(--accent-primary);
+      }
+      .instance-actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--text-muted);
+        transition: background 150ms ease, color 150ms ease;
+      }
+      .icon-btn:hover {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+      }
+      .icon-btn--danger:hover {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+      .icon-btn svg {
+        width: 14px;
+        height: 14px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* ------------------------------------------------ 悬浮通知 */
+      .toasts {
+        position: fixed;
+        left: 50%;
+        top: 20px;
+        z-index: 2147483646;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        max-width: min(540px, 82vw);
+        pointer-events: none;
+        transform: translateX(-50%);
+      }
+      .toast {
+        padding: 9px 15px;
+        border: 1px solid var(--border-primary);
+        border-left: 3px solid var(--accent-primary);
+        border-radius: 10px;
+        background: var(--bg-surface);
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: var(--pop-shadow);
+        opacity: 0;
+        transform: translateY(-6px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      .toast--on {
+        opacity: 1;
+        transform: none;
+      }
+      .toast[data-kind='error'] {
+        border-left-color: var(--danger);
+      }
+
+      @media (max-width: 820px) {
+        .launcher-card {
+          max-width: 480px;
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .launcher-aside {
+          border-right: 0;
+          border-bottom: 1px solid var(--border-primary);
+          padding: 26px 24px 22px;
+        }
+        .launcher-main {
+          padding: 24px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body data-phase="idle">
+    <div class="shell">
+      <div class="veil" id="veil" aria-hidden="true">
+        <span class="veil-spinner"></span>
+      </div>
+
+      <header class="topbar">
+        <div class="topbar-drag" data-tauri-drag-region></div>
+        <button class="toolbar-btn" type="button" id="lang-btn" title="切换语言">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="lucide.svg#globe" /></svg>
+          <span id="lang-label">中文</span>
+        </button>
+        <button
+          class="toolbar-btn toolbar-btn--icon"
+          type="button"
+          id="appearance-btn"
+          title="外观：跟随系统"
+          aria-label="外观：跟随系统"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <use id="appearance-icon" href="lucide.svg#appearance-system" />
+          </svg>
+        </button>
+        <div class="win-controls">
+          <button class="wbtn wbtn--minimize" type="button" id="win-min" title="最小化" aria-label="最小化">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="lucide.svg#minimize" /></svg>
+          </button>
+          <button class="wbtn wbtn--maximize" type="button" id="win-max" title="最大化" aria-label="最大化">
+            <svg viewBox="0 0 24 24" aria-hidden="true" id="win-max-icon"><use href="lucide.svg#maximize" /></svg>
+          </button>
+          <button class="wbtn wbtn--close" type="button" id="win-close" title="关闭" aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="lucide.svg#close" /></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="stage-scroll">
+        <section class="launcher-card" aria-label="HostID 启动台">
+          <aside class="launcher-aside">
+            <img class="brand-logo" src="logo-128x128.png" width="76" height="76" alt="HostID" draggable="false" />
+            <h1 class="brand-title">HostID</h1>
+            <p class="brand-slogan" id="brand-slogan">MAIL WORKSPACE</p>
+            <p class="brand-desc" id="brand-desc">自托管邮箱与统一身份工作台，运行在自己的域名下。</p>
+            <div class="status-pill" role="status">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span id="detail">准备就绪</span>
+            </div>
+          </aside>
+
+          <div class="launcher-main">
+            <div class="main-head">
+              <h2 id="main-title">连接 HostID 实例</h2>
+              <p id="main-sub">输入已部署的 HostID 站点或本地开发地址，连接后保留同源会话与完整主题体验。</p>
+            </div>
+
+            <div class="resume-card" id="resume-card" hidden>
+              <div class="resume-meta">
+                <div class="resume-label" id="resume-label">当前实例仍在运行</div>
+                <div class="resume-url" id="resume-url"></div>
+              </div>
+              <button id="resume-btn" class="btn btn--sm btn--primary" type="button">回到实例</button>
+            </div>
+
+            <form class="connect-form" id="connect-form">
+              <div class="input-row">
+                <label class="input-group">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="lucide.svg#server" /></svg>
+                  <input
+                    id="instance-url"
+                    class="input-control"
+                    type="text"
+                    inputmode="url"
+                    placeholder="https://mail.example.com"
+                    spellcheck="false"
+                    aria-label="HostID 实例地址"
+                  />
+                </label>
+                <button id="connect-btn" class="btn btn--primary" type="submit">连接</button>
+              </div>
+              <div class="quick-row">
+                <button type="button" class="quick-chip" id="quick-local">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><use href="lucide.svg#server" /></svg>
+                  <span id="quick-local-label">本地开发 (localhost:3000)</span>
+                </button>
+              </div>
+            </form>
+
+            <div class="saved-section" id="saved-section" hidden>
+              <div class="section-label" id="saved-label">已保存的实例</div>
+              <div class="instance-list" id="instance-list"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="rz" aria-hidden="true">
+      <i data-dir="North"></i>
+      <i data-dir="South"></i>
+      <i data-dir="West"></i>
+      <i data-dir="East"></i>
+      <i data-dir="NorthWest"></i>
+      <i data-dir="NorthEast"></i>
+      <i data-dir="SouthWest"></i>
+      <i data-dir="SouthEast"></i>
+    </div>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <script>
+      const { invoke } = window.__TAURI__.core
+      const { listen } = window.__TAURI__.event
+
+      const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform)
+      document.body.classList.toggle('is-mac', isMac)
+      const winCmd = (cmd, args) => invoke(`plugin:window|${cmd}`, args).catch(() => {})
+
+      /* ------------------------------------------------------------ 双语与文案 */
+      const LANG_KEY = 'hostid.shell.lang'
+      let lang = 'zh-CN'
+      try {
+        const storedLang = localStorage.getItem(LANG_KEY)
+        if (storedLang === 'en-US' || storedLang === 'zh-CN') lang = storedLang
+        else if (typeof navigator !== 'undefined' && navigator.language && !navigator.language.startsWith('zh')) {
+          lang = 'en-US'
+        }
+      } catch (e) {}
+
+      const COPY = {
+        'zh-CN': {
+          langLabel: '中文',
+          brandDesc: '自托管邮箱与统一身份工作台，运行在自己的域名下。',
+          mainTitle: '连接 HostID 实例',
+          mainSub: '输入已部署的 HostID 站点或本地开发地址，连接后保留同源会话与完整主题体验。',
+          resumeLabel: '当前实例仍在运行',
+          resumeBtn: '回到实例',
+          connect: '连接',
+          connectingBtn: '连接中…',
+          quickLocal: '本地开发 (localhost:3000)',
+          savedLabel: '已保存的实例',
+          refreshSession: '检测状态',
+          runningTag: '运行中',
+          unauthFallback: '未登录 · 点击连接',
+          schemeNames: { system: '跟随系统', light: '浅色', dark: '深色' },
+          phases: {
+            idle: '准备就绪',
+            connecting: '正在连接实例…',
+            entering: '正在进入 HostID…',
+            returning: '正在返回启动台…',
+            error: '连接失败',
+          },
+        },
+        'en-US': {
+          langLabel: 'EN',
+          brandDesc: 'Self-hosted email & unified identity workspace running on your own domain.',
+          mainTitle: 'Connect to HostID',
+          mainSub: 'Enter a deployed HostID site or local dev server URL. Sessions and themes stay scoped to each instance.',
+          resumeLabel: 'Instance running in background',
+          resumeBtn: 'Return to Instance',
+          connect: 'Connect',
+          connectingBtn: 'Connecting…',
+          quickLocal: 'Local Dev (localhost:3000)',
+          savedLabel: 'Saved Instances',
+          refreshSession: 'Check status',
+          runningTag: 'Active',
+          unauthFallback: 'Not signed in · Click to open',
+          schemeNames: { system: 'System', light: 'Light', dark: 'Dark' },
+          phases: {
+            idle: 'Ready',
+            connecting: 'Connecting…',
+            entering: 'Opening HostID…',
+            returning: 'Returning to launcher…',
+            error: 'Connection failed',
+          },
+        },
+      }
+
+      const t = (key) => (COPY[lang] && COPY[lang][key]) || COPY['zh-CN'][key]
+
+      function applyLanguage() {
+        document.documentElement.lang = lang
+        document.getElementById('lang-label').textContent = t('langLabel')
+        document.getElementById('brand-desc').textContent = t('brandDesc')
+        document.getElementById('main-title').textContent = t('mainTitle')
+        document.getElementById('main-sub').textContent = t('mainSub')
+        document.getElementById('resume-label').textContent = t('resumeLabel')
+        document.getElementById('resume-btn').textContent = t('resumeBtn')
+        document.getElementById('quick-local-label').textContent = t('quickLocal')
+        document.getElementById('saved-label').textContent = t('savedLabel')
+      }
+
+      document.getElementById('lang-btn').addEventListener('click', () => {
+        lang = lang === 'zh-CN' ? 'en-US' : 'zh-CN'
+        try { localStorage.setItem(LANG_KEY, lang) } catch (e) {}
+        applyLanguage()
+        applyScheme(schemeMode)
+        if (lastState) render(lastState)
+      })
+
+      /* ------------------------------------------------------------ 外观切换 */
+      const SCHEME_KEY = 'hostid.shell.scheme'
+      const NEXT_SCHEME = { system: 'light', light: 'dark', dark: 'system' }
+      const appearanceBtn = document.getElementById('appearance-btn')
+      const appearanceIcon = document.getElementById('appearance-icon')
+      const darkMedia = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null
+
+      function readSchemeMode() {
+        try {
+          const v = localStorage.getItem(SCHEME_KEY)
+          return v === 'light' || v === 'dark' || v === 'system' ? v : 'system'
+        } catch (e) {
+          return 'system'
+        }
+      }
+
+      function applyScheme(mode) {
+        const effective = mode === 'system' ? (darkMedia && darkMedia.matches ? 'dark' : 'light') : mode
+        const root = document.documentElement
+        root.dataset.schemeMode = mode
+        root.dataset.scheme = effective
+        root.style.colorScheme = effective
+        const names = t('schemeNames')
+        const next = NEXT_SCHEME[mode]
+        appearanceIcon.setAttribute('href', 'lucide.svg#appearance-' + mode)
+        appearanceBtn.title = `${names[mode]} → ${names[next]}`
+        appearanceBtn.setAttribute('aria-label', `${names[mode]}`)
+        if (isMac) {
+          winCmd('set_theme', { value: mode === 'system' ? null : effective })
+          winCmd('set_background_color', { value: effective === 'dark' ? '#0a0a0a' : '#f4f6fa' })
+        }
+      }
+
+      let schemeMode = readSchemeMode()
+      applyLanguage()
+      applyScheme(schemeMode)
+
+      appearanceBtn.addEventListener('click', () => {
+        schemeMode = NEXT_SCHEME[schemeMode]
+        try { localStorage.setItem(SCHEME_KEY, schemeMode) } catch (e) {}
+        applyScheme(schemeMode)
+      })
+
+      if (darkMedia && darkMedia.addEventListener) {
+        darkMedia.addEventListener('change', () => {
+          if (schemeMode === 'system') applyScheme('system')
+        })
+      }
+
+      /* ------------------------------------------------------------ 窗口控制 */
+      const winMaxIcon = document.getElementById('win-max-icon')
+
+      function paintMaxIcon(maximized) {
+        document.body.classList.toggle('is-maximized', Boolean(maximized))
+        const use = winMaxIcon.querySelector('use')
+        if (use) use.setAttribute('href', maximized ? 'lucide.svg#restore' : 'lucide.svg#maximize')
+      }
+
+      if (!isMac) {
+        document.getElementById('win-min').addEventListener('click', () => winCmd('minimize'))
+        document.getElementById('win-max').addEventListener('click', async () => {
+          await winCmd('toggle_maximize')
+          paintMaxIcon(await invoke('plugin:window|is_maximized').catch(() => false))
+        })
+        document.getElementById('win-close').addEventListener('click', () => winCmd('close'))
+      }
+
+      const syncWindowState = () => {
+        if (!isMac) {
+          invoke('plugin:window|is_maximized').then(paintMaxIcon).catch(() => {})
+          return
+        }
+        invoke('plugin:window|is_fullscreen')
+          .then((fs) => document.body.classList.toggle('is-fullscreen', Boolean(fs)))
+          .catch(() => {})
+      }
+      syncWindowState()
+      window.addEventListener('resize', syncWindowState)
+
+      if (!isMac) {
+        document.querySelectorAll('#rz i').forEach((handle) => {
+          handle.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            winCmd('start_resize_dragging', { value: handle.dataset.dir })
+          })
+        })
+      }
+
+      /* ------------------------------------------------------------ 悬浮通知 */
+      const toastsEl = document.getElementById('toasts')
+      function toast(text, kind) {
+        if (!toastsEl) return
+        const el = document.createElement('div')
+        el.className = 'toast'
+        if (kind) el.dataset.kind = kind
+        el.textContent = text
+        toastsEl.appendChild(el)
+        while (toastsEl.children.length > 3) toastsEl.firstElementChild.remove()
+        requestAnimationFrame(() => el.classList.add('toast--on'))
+        setTimeout(() => {
+          el.classList.remove('toast--on')
+          setTimeout(() => el.remove(), 300)
+        }, kind === 'error' ? 6000 : 4000)
+      }
+
+      /* ------------------------------------------------------------ 实例连接与状态 */
+      const detailEl = document.getElementById('detail')
+      const veilEl = document.getElementById('veil')
+      const resumeCard = document.getElementById('resume-card')
+      const resumeUrlEl = document.getElementById('resume-url')
+      const resumeBtn = document.getElementById('resume-btn')
+      const connectForm = document.getElementById('connect-form')
+      const instanceInput = document.getElementById('instance-url')
+      const connectBtn = document.getElementById('connect-btn')
+      const quickLocalBtn = document.getElementById('quick-local')
+      const savedSection = document.getElementById('saved-section')
+      const instanceListEl = document.getElementById('instance-list')
+
+      let lastState = null
+      let returningVeilDone = false
+
+      function paintAvatar(el, label, avatarUrl) {
+        el.textContent = ''
+        if (avatarUrl) {
+          const img = document.createElement('img')
+          img.alt = label || ''
+          img.addEventListener('error', () => {
+            img.remove()
+            paintAvatar(el, label, '')
+          })
+          img.src = avatarUrl
+          el.appendChild(img)
+          return
+        }
+        const ch = (label || '').trim().charAt(0).toUpperCase()
+        el.textContent = ch || 'H'
+      }
+
+      function applyVeil(phase) {
+        if (phase === 'entering') {
+          returningVeilDone = false
+          veilEl.classList.add('veil--on')
+          return
+        }
+        if (phase === 'returning') {
+          if (returningVeilDone) return
+          returningVeilDone = true
+          veilEl.style.transition = 'none'
+          veilEl.classList.add('veil--on')
+          void veilEl.offsetHeight
+          veilEl.style.transition = ''
+          setTimeout(() => {
+            veilEl.classList.remove('veil--on')
+            invoke('desktop_return_done').catch(() => {})
+          }, 600)
+          return
+        }
+        returningVeilDone = false
+        veilEl.classList.remove('veil--on')
+      }
+
+      function setBusy(busy) {
+        connectBtn.disabled = busy
+        connectBtn.textContent = busy ? t('connectingBtn') : t('connect')
+        resumeBtn.disabled = busy
+        quickLocalBtn.disabled = busy
+      }
+
+      function renderInstances(state) {
+        const list = state.instances || []
+        savedSection.hidden = list.length === 0
+        instanceListEl.textContent = ''
+        const activeBase = state.instance ? state.instance.baseUrl : ''
+
+        for (const item of list) {
+          const row = document.createElement('div')
+          const isActive = Boolean(activeBase && activeBase === item.url)
+          row.className = 'instance-row' + (isActive ? ' is-active' : '')
+
+          const connectTrigger = document.createElement('button')
+          connectTrigger.type = 'button'
+          connectTrigger.className = 'instance-connect'
+
+          const av = document.createElement('span')
+          av.className = 'instance-avatar'
+          paintAvatar(av, item.userName || item.siteName || item.url.replace(/^https?:\/\//, ''), item.userAvatar)
+
+          const meta = document.createElement('span')
+          meta.className = 'instance-meta'
+
+          const titleRow = document.createElement('span')
+          titleRow.className = 'instance-title-row'
+
+          const name = document.createElement('span')
+          name.className = 'instance-name'
+          name.textContent = item.siteName || 'HostID'
+          titleRow.appendChild(name)
+
+          if (isActive) {
+            const tag = document.createElement('span')
+            tag.className = 'instance-tag'
+            tag.textContent = t('runningTag')
+            titleRow.appendChild(tag)
+          }
+
+          const host = document.createElement('span')
+          host.className = 'instance-host'
+          const hostText = item.url.replace(/^https?:\/\//, '')
+          host.textContent = item.userName
+            ? `${hostText} · ${item.userName}`
+            : `${hostText} · ${t('unauthFallback')}`
+
+          meta.append(titleRow, host)
+          connectTrigger.append(av, meta)
+          connectTrigger.addEventListener('click', () => {
+            instanceInput.value = item.url
+            if (isActive) {
+              invoke('desktop_resume_instance').catch((e) => toast(String(e), 'error'))
+            } else {
+              connectTo(item.url)
+            }
+          })
+
+          const actions = document.createElement('div')
+          actions.className = 'instance-actions'
+
+          const refreshBtn = document.createElement('button')
+          refreshBtn.type = 'button'
+          refreshBtn.className = 'icon-btn'
+          refreshBtn.title = t('refreshSession')
+          refreshBtn.setAttribute('aria-label', t('refreshSession'))
+          refreshBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="lucide.svg#refresh" /></svg>'
+          refreshBtn.addEventListener('click', () => {
+            invoke('desktop_refresh_instance', { url: item.url }).catch((e) => toast(String(e), 'error'))
+          })
+
+          const delBtn = document.createElement('button')
+          delBtn.type = 'button'
+          delBtn.className = 'icon-btn icon-btn--danger'
+          delBtn.title = 'Remove'
+          delBtn.setAttribute('aria-label', 'Remove ' + item.url)
+          delBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="lucide.svg#close" /></svg>'
+          delBtn.addEventListener('click', () => {
+            invoke('desktop_remove_instance', { url: item.url })
+              .then(render)
+              .catch((e) => toast(String(e), 'error'))
+          })
+
+          actions.append(refreshBtn, delBtn)
+          row.append(connectTrigger, actions)
+          instanceListEl.appendChild(row)
+        }
+      }
+
+      function render(state) {
+        lastState = state
+        document.body.dataset.phase = state.phase || 'idle'
+        const phases = t('phases')
+        detailEl.textContent = state.detail || phases[state.phase] || state.phase
+
+        if (state.lastUrl && !instanceInput.value) {
+          instanceInput.value = state.lastUrl
+        }
+
+        const hasActive = Boolean(state.instance && state.instance.url)
+        resumeCard.hidden = !hasActive
+        if (hasActive) {
+          const activeMeta = (state.instances || []).find((i) => i.url === state.instance.baseUrl)
+          resumeUrlEl.textContent = activeMeta && activeMeta.siteName
+            ? `${activeMeta.siteName} · ${state.instance.baseUrl.replace(/^https?:\/\//, '')}`
+            : state.instance.url
+        }
+
+        setBusy(state.phase === 'connecting' || state.phase === 'entering')
+        applyVeil(state.phase)
+        renderInstances(state)
+      }
+
+      async function connectTo(url) {
+        setBusy(true)
+        try {
+          await invoke('desktop_connect', { url })
+        } catch (err) {
+          toast(String(err), 'error')
+          setBusy(false)
+        }
+      }
+
+      connectForm.addEventListener('submit', (e) => {
+        e.preventDefault()
+        connectTo(instanceInput.value)
+      })
+
+      quickLocalBtn.addEventListener('click', () => {
+        instanceInput.value = 'http://localhost:3000'
+        connectTo('http://localhost:3000')
+      })
+
+      resumeBtn.addEventListener('click', () => {
+        invoke('desktop_resume_instance').catch((err) => toast(String(err), 'error'))
+      })
+
+      invoke('desktop_state')
+        .then(render)
+        .catch((e) => toast(String(e), 'error'))
+      listen('hostid://status', (event) => render(event.payload))
+    </script>
+  </body>
+</html>

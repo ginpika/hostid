@@ -6,7 +6,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Lock, ArrowRight, LogOut, User, Key, Fingerprint, Eye, EyeOff } from 'lucide-react'
-import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import { useDomain } from '../contexts/DomainContext'
@@ -14,7 +13,7 @@ import { useConfig } from '../contexts/ConfigContext'
 import AuthPage, { AuthHeader, AuthLoading } from '../components/AuthPage'
 import BrandMark from '../components/BrandMark'
 import { encryptPassword } from '../utils/rsa'
-import { formatWebAuthnError } from '../utils/passkey'
+import { authenticateWithPasskey, formatWebAuthnError, isPasskeySupported } from '../utils/passkey'
 
 interface LocalUser {
   id: string
@@ -239,7 +238,7 @@ export default function Login() {
 
   const handlePasskeyLogin = async () => {
     if (passkeyLoading || loading || oauthLoading) return
-    if (!browserSupportsWebAuthn()) {
+    if (!isPasskeySupported()) {
       setError(t('passkeyUnsupported'))
       return
     }
@@ -257,9 +256,7 @@ export default function Login() {
         throw new Error(optionsPayload.error || t('passkeyLoginFailed'))
       }
 
-      const assertionResponse = await startAuthentication({
-        optionsJSON: optionsPayload.options
-      })
+      const assertionResponse = await authenticateWithPasskey(optionsPayload.options)
 
       const verifyRes = await fetch('/api/auth/passkeys/login/verify', {
         method: 'POST',

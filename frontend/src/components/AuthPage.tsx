@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
-import { Globe, Loader2 } from 'lucide-react'
+import { Globe, Loader2, LayoutGrid } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useConfig } from '../contexts/ConfigContext'
 import BrandMark from './BrandMark'
 import ThemeSelector from './ThemeSelector'
+import { isDesktopShell, openDesktopHome } from '../lib/desktop'
 import '../styles/auth-page.css'
 
 export function AuthToolbar({ style, inline = false }: { style?: CSSProperties; inline?: boolean }) {
   const { t, language, setLanguage } = useI18n()
+  const desktop = isDesktopShell()
+  const zh = language === 'zh-CN'
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
   const languageMenuRef = useRef<HTMLDivElement>(null)
   const languageButtonRef = useRef<HTMLButtonElement>(null)
@@ -28,6 +31,18 @@ export function AuthToolbar({ style, inline = false }: { style?: CSSProperties; 
 
   return (
     <div className={`flex justify-end shrink-0 ${inline ? '' : 'mb-6'} gap-2 items-center relative z-50`} style={style}>
+      {desktop && (
+        <button
+          type="button"
+          onClick={openDesktopHome}
+          title={zh ? '返回实例启动台' : 'Instances Launcher'}
+          aria-label={zh ? '返回实例启动台' : 'Instances Launcher'}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          <LayoutGrid className="w-4 h-4" aria-hidden="true" />
+        </button>
+      )}
       <ThemeSelector />
       <div
         className="relative"

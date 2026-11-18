@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "remote-instance",
+  "description": "已连接 HostID 远端实例的能力白名单：仅开放窗口外观/控制命令与 Passkey 系统会话桥接。",
+  "windows": ["main"],
+  "local": false,
+  "remote": {
+    "urls": ["http://127.0.0.1:*", "http://localhost:*", "http://*", "https://*"]
+  },
+  "permissions": [
+    "core:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-set-theme",
+    "core:window:allow-set-background-color",
+    "core:window:allow-start-dragging",
+    "core:window:allow-start-resize-dragging",
+    "allow-desktop-passkey-ceremony"
+  ]
+}

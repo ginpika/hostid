@@ -1,11 +1,16 @@
 /** Personal details and account security, styled to match the workspace. */
 import { useState, useEffect, useRef } from 'react'
 import { Save, Loader2, Pencil, X, Shield, Camera, UserRound, KeyRound, Github, Check, ArrowUpRight, AlertCircle, RefreshCw, Upload, Fingerprint, Plus, Trash2, Laptop } from 'lucide-react'
-import { browserSupportsWebAuthn, platformAuthenticatorIsAvailable, startRegistration } from '@simplewebauthn/browser'
 import { useI18n } from '../i18n/I18nContext'
 import { useAuth } from '../contexts/AuthContext'
 import { encryptPassword } from '../utils/rsa'
-import { formatWebAuthnError, notifyUnknownCredential } from '../utils/passkey'
+import {
+  formatWebAuthnError,
+  isPasskeySupported,
+  isPlatformPasskeyAvailable,
+  notifyUnknownCredential,
+  registerWithPasskey
+} from '../utils/passkey'
 import ProfileDialog from '../components/ProfileDialog'
 import ConfirmDialog from '../components/ConfirmDialog'
 import '../styles/profile.css'
@@ -159,10 +164,10 @@ export default function ProfilePage() {
   useEffect(() => {
     void fetchProfile()
     void fetchPasskeys()
-    const supported = browserSupportsWebAuthn()
+    const supported = isPasskeySupported()
     setWebAuthnSupported(supported)
     if (supported) {
-      platformAuthenticatorIsAvailable()
+      isPlatformPasskeyAvailable()
         .then(available => {
           setPlatformAvailable(available)
           setAuthenticatorMode(available ? 'platform' : 'all')
@@ -371,9 +376,7 @@ export default function ProfilePage() {
         throw new Error(optionsPayload.error || 'Failed to prepare passkey registration')
       }
 
-      const registrationResponse = await startRegistration({
-        optionsJSON: optionsPayload.options
-      })
+      const registrationResponse = await registerWithPasskey(optionsPayload.options)
 
       const verifyRes = await fetch('/api/auth/passkeys/register/verify', {
         method: 'POST',

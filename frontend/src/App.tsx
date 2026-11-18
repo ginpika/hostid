@@ -25,11 +25,13 @@ import TosPage from './pages/TosPage'
 import SSOInfoPage from './pages/SSOInfoPage'
 import OAuthCallback from './pages/OAuthCallback'
 import OAuthRegister from './pages/OAuthRegister'
+import PasskeyBridgePage from './pages/PasskeyBridgePage'
 import ComposeModal from './components/ComposeModal'
 import Layout from './components/Layout'
+import DesktopFrame from './components/DesktopFrame'
 import AuthPage, { AuthHeader, AuthLoading } from './components/AuthPage'
 
-const PUBLIC_ROUTES = ['/setup', '/login', '/register', '/tos', '/sso/info', '/oauth/callback', '/oauth/register', '/oauth2/authorize']
+const PUBLIC_ROUTES = ['/setup', '/login', '/register', '/tos', '/sso/info', '/oauth/callback', '/oauth/register', '/oauth2/authorize', '/passkey-bridge']
 
 function AuthPending() {
   const { siteName } = useConfig()
@@ -140,6 +142,7 @@ function AppRoutes() {
           <Route path="/sso/info" element={<SSOInfoPage />} />
           <Route path="/oauth/callback" element={<OAuthCallback />} />
           <Route path="/oauth/register" element={<OAuthRegister />} />
+          <Route path="/passkey-bridge" element={<PasskeyBridgePage />} />
           
           <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
             <Route index element={<Inbox />} />
@@ -171,7 +174,9 @@ export default function App() {
           <DomainProvider>
             <AuthProvider>
               <ComposeProvider>
-                <AppRoutes />
+                <DesktopFrame>
+                  <AppRoutes />
+                </DesktopFrame>
               </ComposeProvider>
             </AuthProvider>
           </DomainProvider>

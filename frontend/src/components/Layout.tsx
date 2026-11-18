@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Menu, Globe, LogOut, ChevronRight, CheckCircle2, AlertCircle, X, Columns2, List } from 'lucide-react'
+import { Menu, Globe, LogOut, ChevronRight, CheckCircle2, AlertCircle, X, Columns2, List, LayoutGrid } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import ThemeSelector from './ThemeSelector'
 import Sidebar, { type Folder } from './Sidebar'
 import type { NoticeType } from '../lib/mailEvents'
 import { useTheme } from '../contexts/ThemeContext'
+import { isDesktopShell, openDesktopHome } from '../lib/desktop'
 import '../styles/classic-shell.css'
 
 export default function Layout() {
@@ -14,6 +15,7 @@ export default function Layout() {
   const { language, setLanguage, t } = useI18n()
   const { pathname } = useLocation()
   const { layout } = useTheme()
+  const desktop = isDesktopShell()
   const classic = layout === 'classic'
   const zh = language === 'zh-CN'
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -68,7 +70,19 @@ export default function Layout() {
             <ChevronRight className="workspace-chevron hidden sm:block" size={14} /></>}
             <h1 className="truncate">{pageLabels[pathname] || t('mail')}</h1>
           </div>
+          {desktop && <div className="desktop-drag-spacer" data-tauri-drag-region />}
           <div className="flex items-center gap-1.5">
+            {desktop && (
+              <button
+                type="button"
+                className={classic ? 'classic-header-button' : 'mail-icon-button'}
+                title={zh ? '返回实例启动台' : 'Instances Launcher'}
+                aria-label={zh ? '返回实例启动台' : 'Instances Launcher'}
+                onClick={openDesktopHome}
+              >
+                <LayoutGrid size={classic ? 16 : 17} />
+              </button>
+            )}
             {folder && <button className="mail-icon-button" aria-label={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} title={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} onClick={toggleMailLayout}>{mailLayoutMode === 'split' ? <List size={17} /> : <Columns2 size={17} />}</button>}
             <ThemeSelector />
             <div className="relative" ref={menuRef}>

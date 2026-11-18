@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-desktop-return-done"
+description = "Enables the desktop_return_done command without any pre-configured scope."
+commands.allow = ["desktop_return_done"]
+
+[[permission]]
+identifier = "deny-desktop-return-done"
+description = "Denies the desktop_return_done command without any pre-configured scope."
+commands.deny = ["desktop_return_done"]

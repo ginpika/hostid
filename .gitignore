@@ -24,6 +24,8 @@ Cargo.lock
 *.pdb
 
 # Tauri
+desktop/target/
+desktop/gen/
 desktop/src-tauri/target/
 desktop/src-tauri/gen/
 desktop/node_modules/

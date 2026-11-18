@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "本地启动台（ui/index.html）能力白名单：开放窗口控制与全部实例管理及 Passkey 命令。",
+  "windows": ["main"],
+  "local": true,
+  "permissions": [
+    "core:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-set-theme",
+    "core:window:allow-set-background-color",
+    "core:window:allow-start-dragging",
+    "core:window:allow-start-resize-dragging",
+    "allow-desktop-state",
+    "allow-desktop-connect",
+    "allow-desktop-resume-instance",
+    "allow-desktop-refresh-instance",
+    "allow-desktop-remove-instance",
+    "allow-desktop-return-done",
+    "allow-desktop-passkey-ceremony"
+  ]
+}
