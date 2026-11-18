@@ -3,11 +3,12 @@
  * 站点 / 邮件 / SMTP 中继 / 人机验证 / SSO
  * 敏感值只写：服务端仅返回打码值，留空表示保持不变
  */
-import { useEffect, useMemo, useState } from 'react'
-import { Settings, Save } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Settings, Save, Upload, RotateCcw, Loader2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useConfig } from '../contexts/ConfigContext'
 import { translations } from '../i18n/translations'
+import BrandMark from '../components/BrandMark'
 
 type TKey = keyof typeof translations['zh-CN']
 type Group = 'site' | 'mail' | 'smtp' | 'turnstile' | 'sso'
@@ -32,6 +33,18 @@ const GROUPS: { id: Group; label: TKey }[] = [
   { id: 'sso', label: 'settingsGroupSso' }
 ]
 
+const MAX_SITE_ICON_BYTES = 2 * 1024 * 1024
+const ALLOWED_ICON_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+  'image/svg+xml'
+])
+const ALLOWED_ICON_EXT_RE = /\.(png|jpe?g|gif|webp|ico|svg)$/i
+
 const labelKey = (key: string) => `setting${key[0].toUpperCase()}${key.slice(1)}` as TKey
 const hintKey = (key: string) => `${labelKey(key)}Hint` as TKey
 
@@ -43,14 +56,17 @@ const inputStyle = {
 
 export default function SystemSettingsPage({ embedded = false }: { embedded?: boolean }) {
   const { t, language } = useI18n()
-  const { setSiteBranding } = useConfig()
+  const { siteIconUrl, setSiteBranding } = useConfig()
   const Heading = embedded ? 'h3' : 'h2'
   const [settings, setSettings] = useState<SettingView[]>([])
   const [form, setForm] = useState<Record<string, string | number | boolean | null>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [siteIconBusy, setSiteIconBusy] = useState<'upload' | 'reset' | null>(null)
+  const [siteIconError, setSiteIconError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const siteIconInputRef = useRef<HTMLInputElement>(null)
 
   const zh = translations['zh-CN'] as Record<string, string>
   const has = (key: string) => key in zh
@@ -89,6 +105,83 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
     settings.find(s => s.key === 'smtpRelayPass')?.configured
   )
 
+  const applySiteIconResponse = (data: { branding?: { siteName?: string; siteSlogan?: string; siteIconUrl?: string }; settings?: SettingView[] }) => {
+    if (Array.isArray(data.settings)) {
+      setSettings(data.settings)
+      const nextSiteIcon = data.settings.find(s => s.key === 'siteIcon')?.value
+      setForm(prev => ({ ...prev, siteIcon: typeof nextSiteIcon === 'string' ? nextSiteIcon : '' }))
+    }
+    if (data.branding) {
+      setSiteBranding(data.branding)
+    }
+  }
+
+  const handleSiteIconSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || siteIconBusy) return
+
+    setSiteIconError('')
+    setError('')
+    setSuccess('')
+
+    if (!ALLOWED_ICON_TYPES.has(file.type) && !ALLOWED_ICON_EXT_RE.test(file.name)) {
+      setSiteIconError(t('settingSiteIconInvalidType'))
+      return
+    }
+    if (file.size > MAX_SITE_ICON_BYTES) {
+      setSiteIconError(t('settingSiteIconTooLarge'))
+      return
+    }
+
+    setSiteIconBusy('upload')
+    try {
+      const body = new FormData()
+      body.append('icon', file)
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/admin/site-icon', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(res.status === 403 ? t('adminAccessDenied') : (data.error || `HTTP ${res.status}`))
+      }
+      applySiteIconResponse(data)
+      setSuccess(t('settingSiteIconSaved'))
+    } catch (err) {
+      setSiteIconError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSiteIconBusy(null)
+    }
+  }
+
+  const handleSiteIconReset = async () => {
+    if (siteIconBusy) return
+    setSiteIconError('')
+    setError('')
+    setSuccess('')
+    setSiteIconBusy('reset')
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/admin/site-icon', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(res.status === 403 ? t('adminAccessDenied') : (data.error || `HTTP ${res.status}`))
+      }
+      applySiteIconResponse(data)
+      setSuccess(t('settingSiteIconResetDone'))
+    } catch (err) {
+      setSiteIconError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSiteIconBusy(null)
+    }
+  }
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -97,6 +190,7 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
     try {
       const payload: Record<string, unknown> = {}
       for (const s of settings) {
+        if (s.key === 'siteIcon') continue
         const v = form[s.key]
         if (s.secret) {
           if (v === null) payload[s.key] = null
@@ -126,6 +220,98 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
     const value = form[s.key]
     const label = has(labelKey(s.key)) ? t(labelKey(s.key)) : s.key
     const hint = has(hintKey(s.key)) ? t(hintKey(s.key)) : ''
+
+    if (s.key === 'siteIcon') {
+      const hasCustomSiteIcon = Boolean(String(s.value || '').trim() || siteIconUrl)
+      return (
+        <div key={s.key} className="col-span-full">
+          <div className="text-sm font-medium mb-1.5 flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+            <label htmlFor={id}>{label}</label>
+            <span
+              className="px-1.5 py-0.5 rounded text-xs"
+              style={hasCustomSiteIcon ? {
+                backgroundColor: 'var(--color-accent-muted)',
+                color: 'var(--color-accent-primary)'
+              } : {
+                backgroundColor: 'var(--color-bg-tertiary)',
+                color: 'var(--color-text-muted)'
+              }}
+            >
+              {hasCustomSiteIcon ? t('settingSiteIconCustom') : t('settingSiteIconDefault')}
+            </span>
+          </div>
+          <div
+            className="rounded-lg border p-4 flex flex-wrap items-center gap-4"
+            style={{
+              backgroundColor: 'var(--color-bg-primary)',
+              borderColor: 'var(--color-border-primary)'
+            }}
+          >
+            <div
+              className="w-14 h-14 rounded-xl border flex items-center justify-center overflow-hidden shrink-0"
+              style={{
+                backgroundColor: 'var(--color-bg-secondary)',
+                borderColor: 'var(--color-border-primary)'
+              }}
+            >
+              <BrandMark size={44} className="w-11 h-11" label={label} />
+            </div>
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <input
+                  ref={siteIconInputRef}
+                  id={id}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp,image/x-icon,image/vnd.microsoft.icon,image/svg+xml,.png,.jpg,.jpeg,.gif,.webp,.ico,.svg"
+                  onChange={handleSiteIconSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  disabled={siteIconBusy !== null || saving}
+                  onClick={() => siteIconInputRef.current?.click()}
+                  className="admin-site-icon-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    borderColor: 'var(--color-border-primary)',
+                    color: 'var(--color-text-primary)'
+                  }}
+                >
+                  {siteIconBusy === 'upload'
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                    : <Upload className="w-3.5 h-3.5" aria-hidden="true" />}
+                  <span>
+                    {siteIconBusy === 'upload'
+                      ? t('settingSiteIconUploading')
+                      : hasCustomSiteIcon ? t('settingSiteIconReplace') : t('settingSiteIconUpload')}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasCustomSiteIcon || siteIconBusy !== null || saving}
+                  onClick={() => void handleSiteIconReset()}
+                  className="admin-site-icon-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: 'var(--color-bg-tertiary)',
+                    borderColor: 'var(--color-border-primary)',
+                    color: 'var(--color-text-secondary)'
+                  }}
+                >
+                  {siteIconBusy === 'reset'
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                    : <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />}
+                  <span>{siteIconBusy === 'reset' ? t('settingSiteIconResetting') : t('settingSiteIconReset')}</span>
+                </button>
+              </div>
+              {hint && <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>{hint}</p>}
+              {siteIconError && (
+                <p role="alert" className="text-xs font-medium" style={{ color: '#ef4444' }}>{siteIconError}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    }
 
     let control: React.ReactNode
     if (s.type === 'boolean') {
@@ -202,7 +388,7 @@ export default function SystemSettingsPage({ embedded = false }: { embedded?: bo
             </Heading>
             <p className={embedded ? 'admin-panel-description' : 'mt-1'} style={{ color: 'var(--color-text-tertiary)' }}>{t('systemSettingsDescription')}</p>
           </div>
-          <button type="submit" disabled={saving || loading}
+          <button type="submit" disabled={saving || loading || siteIconBusy !== null}
             className={embedded ? 'admin-panel-primary-action' : 'flex items-center gap-2 px-4 py-2 rounded-lg font-medium disabled:opacity-60'}
             style={{ backgroundColor: 'var(--color-accent-primary)', color: 'var(--color-accent-text)' }}>
             <Save className="w-4 h-4" />

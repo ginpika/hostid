@@ -30,4 +30,4 @@ npm run dev:desktop
 npm run build:desktop
 ```
 
-连接本地源码开发服务器时，请先启动 `backend` 与 `frontend`（默认 `http://localhost:3000`），再在桌面启动台点击「本地开发 (localhost:3000)」即可直接接入。
+连接本地源码开发服务器时，请先启动 `backend` 与 `frontend`（默认 `http://localhost:3000`），再在桌面启动台输入 `http://localhost:3000` 并连接即可直接接入。

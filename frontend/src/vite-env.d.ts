@@ -10,5 +10,6 @@ interface Window {
     CF_TURNSTILE_SITE_KEY?: string
     SITE_NAME?: string
     SITE_SLOGAN?: string
+    SITE_ICON_URL?: string
   }
 }

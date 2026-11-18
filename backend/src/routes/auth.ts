@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { auth, AuthRequest } from '../middleware/auth'
 import { AppError, asyncHandler } from '../middleware/error'
 import { avatarUpload, getAvatarPath } from '../middleware/avatarUpload'
+import { getSiteIconMimeType, getSiteIconPath } from '../utils/siteIcon'
 import { getPublicKey } from '../utils/rsa'
 import { USERNAME_PATTERN } from '../lib/domain-constants'
 import { getSettings, getSiteBranding } from '../services/settings'
@@ -106,6 +107,27 @@ router.get('/site', (_req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store')
   res.json(getSiteBranding())
 })
+
+router.get('/site-icon/:filename', asyncHandler(async (req: Request, res: Response) => {
+  const filename = req.params.filename
+  const filePath = getSiteIconPath(filename)
+  const mimeType = getSiteIconMimeType(filename)
+  if (!filePath || !mimeType) {
+    throw new AppError('Site icon not found', 404)
+  }
+
+  let data: Buffer
+  try {
+    data = await fs.readFile(filePath)
+  } catch {
+    throw new AppError('Site icon not found', 404)
+  }
+
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+  res.type(mimeType).send(data)
+}))
 
 router.post('/avatar', auth, avatarUpload.single('avatar'), asyncHandler(async (req: AuthRequest, res: Response) => {
   if (!req.file) {

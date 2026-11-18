@@ -1,11 +1,12 @@
 /**
  * 应用配置上下文
- * 提供应用名称、站点品牌设置（站点名称、Slogan）、版本等配置信息
- * 初始值同步读取 window.__ENV__，挂载后从 /api/auth/site 拉取最新配置并同步 document.title
+ * 提供应用名称、站点品牌设置（站点名称、Slogan、图标）、版本等配置信息
+ * 初始值同步读取 window.__ENV__，挂载后从 /api/auth/site 拉取最新配置并同步 document.title 与 favicon
  */
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import appConfig from '../config/app.config.json'
 import {
+  applyDocumentIcon,
   applyDocumentTitle,
   readInitialSiteBranding,
   resolveSiteBranding,
@@ -33,6 +34,7 @@ interface ConfigContextType {
   config: AppConfig
   siteName: string
   siteSlogan: string
+  siteIconUrl: string
   setSiteBranding: (raw: RawSiteBranding) => void
   refreshSiteBranding: () => Promise<void>
   getDisplayName: (language: 'zh-CN' | 'en-US') => string
@@ -46,14 +48,22 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   const [branding, setBranding] = useState<SiteBranding>(() => {
     const initial = readInitialSiteBranding(typeof window !== 'undefined' ? window.__ENV__ : undefined)
     applyDocumentTitle(initial.siteName)
+    applyDocumentIcon(initial.siteIconUrl)
     return initial
   })
 
   const setSiteBranding = useCallback((raw: RawSiteBranding) => {
     versionRef.current += 1
-    const next = resolveSiteBranding(raw)
-    setBranding(next)
-    applyDocumentTitle(next.siteName)
+    setBranding(prev => {
+      const next = resolveSiteBranding({
+        siteName: raw.siteName !== undefined ? raw.siteName : prev.siteName,
+        siteSlogan: raw.siteSlogan !== undefined ? raw.siteSlogan : prev.siteSlogan,
+        siteIconUrl: raw.siteIconUrl !== undefined ? raw.siteIconUrl : prev.siteIconUrl
+      })
+      applyDocumentTitle(next.siteName)
+      applyDocumentIcon(next.siteIconUrl)
+      return next
+    })
   }, [])
 
   const refreshSiteBranding = useCallback(async () => {
@@ -77,6 +87,10 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     applyDocumentTitle(branding.siteName)
   }, [branding.siteName])
 
+  useEffect(() => {
+    applyDocumentIcon(branding.siteIconUrl)
+  }, [branding.siteIconUrl])
+
   const getDisplayName = useCallback((language: 'zh-CN' | 'en-US'): string => {
     return branding.siteName || appConfig.displayName[language] || appConfig.name
   }, [branding.siteName])
@@ -91,6 +105,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
         config: appConfig as AppConfig,
         siteName: branding.siteName,
         siteSlogan: branding.siteSlogan,
+        siteIconUrl: branding.siteIconUrl,
         setSiteBranding,
         refreshSiteBranding,
         getDisplayName,

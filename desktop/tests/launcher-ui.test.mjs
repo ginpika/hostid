@@ -137,7 +137,7 @@ function runLauncherSandbox({
     'win-min', 'win-max', 'win-max-icon', 'win-close',
     'brand-slogan', 'brand-desc', 'detail', 'main-title', 'main-sub',
     'resume-card', 'resume-label', 'resume-url', 'resume-btn',
-    'connect-form', 'instance-url', 'connect-btn', 'quick-local', 'quick-local-label',
+    'connect-form', 'instance-url', 'connect-btn',
     'saved-section', 'saved-label', 'instance-list',
     'toasts',
   ]
@@ -216,7 +216,15 @@ test('HostID desktop launcher uses HostID palette, icons, and omits redundant ac
 
   assert.equal(html.includes('id="account-dock"'), false, 'launcher should not duplicate user management')
   assert.equal(html.includes('id="session-banner"'), false)
+  assert.equal(html.includes('id="quick-local"'), false, 'launcher should not render quick-local shortcut below URL input')
+  assert.equal(html.includes('class="quick-row"'), false)
   assert.equal(html.includes('padding: 0 16px 0 92px'), false, 'macOS titlebar sits above WebView without shifting layout')
+  assert.equal(
+    /(?:^|[,{\s])input:focus-visible\b/.test(html),
+    false,
+    'instance URL input should rely on .input-group:focus-within rather than a global input:focus-visible outline',
+  )
+  assert.match(html, /\.input-control:focus,\s*\.input-control:focus-visible\s*\{\s*outline:\s*none;\s*\}/)
 
   const mainRs = fs.readFileSync(path.join(DESKTOP_DIR, 'src', 'main.rs'), 'utf8')
   assert.ok(mainRs.includes('TitleBarStyle::Transparent'))
@@ -273,10 +281,6 @@ test('HostID launcher connects, resumes, switches language/theme, and manages sa
   sandbox.el('instance-url').value = 'id.example.org'
   await sandbox.el('connect-form').dispatchEvent('submit')
   assert.ok(sandbox.invokes.some((c) => c.cmd === 'desktop_connect' && c.args.url === 'id.example.org'))
-
-  // Quick localhost chip
-  await sandbox.el('quick-local').click()
-  assert.ok(sandbox.invokes.some((c) => c.cmd === 'desktop_connect' && c.args.url === 'http://localhost:3000'))
 
   // Language toggle zh-CN -> en-US
   await sandbox.el('lang-btn').click()

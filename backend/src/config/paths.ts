@@ -13,6 +13,17 @@ for (const dir of [UPLOAD_DIR, AVATAR_DIR]) {
 }
 
 /**
+ * 站点自定义图标目录。
+ * 指定 HOSTID_DATA_DIR 时放入数据目录（便于测试隔离），否则放入 avatars/site-icons（Docker 已挂载持久化卷）。
+ */
+export function getSiteIconDir(): string {
+  if (process.env.HOSTID_DATA_DIR) {
+    return path.join(path.resolve(process.env.HOSTID_DATA_DIR), 'site-icons')
+  }
+  return path.join(AVATAR_DIR, 'site-icons')
+}
+
+/**
  * 附件在磁盘上的绝对路径。只取文件名部分，防止数据库中残留的 `../` 之类的值逃出上传目录。
  */
 export function getAttachmentPath(filename: string): string {

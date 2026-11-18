@@ -9,6 +9,7 @@ import { prisma } from '../lib/prisma'
 import { adminGuard, AuthRequest } from '../middleware/auth'
 import { AppError, asyncHandler } from '../middleware/error'
 import { getSettings, getSettingsView, updateSettings } from '../services/settings'
+import { resetSiteIcon, saveSiteIcon, siteIconUpload } from '../services/siteIcon'
 import { browseTable, deleteTableRow, listTableCounts } from '../services/admin-tables'
 import { USER_SUMMARY_SELECT, changeUserRole } from '../services/user-governance'
 import { getAvatarUrl } from '../utils/avatar'
@@ -79,6 +80,24 @@ router.put('/settings', ...adminGuard, asyncHandler(async (req: AuthRequest, res
   }
   res.set('Cache-Control', 'no-store')
   res.json({ settings: getSettingsView() })
+}))
+
+/**
+ * 站点图标：上传自定义图标或重置为默认图标
+ */
+router.post('/site-icon', ...adminGuard, siteIconUpload.single('icon'), asyncHandler(async (req: AuthRequest, res: Response) => {
+  if (!req.file) {
+    throw new AppError('No icon file uploaded', 400)
+  }
+  const result = await saveSiteIcon(req.file.buffer)
+  res.set('Cache-Control', 'no-store')
+  res.json({ branding: result.branding, settings: result.settings })
+}))
+
+router.delete('/site-icon', ...adminGuard, asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const result = await resetSiteIcon()
+  res.set('Cache-Control', 'no-store')
+  res.json({ branding: result.branding, settings: result.settings })
 }))
 
 /**

@@ -8,6 +8,8 @@
  */
 import { prisma } from '../lib/prisma'
 import { encrypt, decrypt, maskSecret } from './encryption'
+import { removeStoredFile } from './attachment'
+import { getSiteIconPath, getSiteIconUrl, isValidSiteIconFilename } from '../utils/siteIcon'
 
 type SettingType = 'string' | 'number' | 'boolean' | 'enum'
 
@@ -44,7 +46,8 @@ const regexValidator = (re: RegExp, message: string) => (value: string) => {
 
 export const SETTING_DEFS = {
   siteName: { type: 'string', default: 'HostID', group: 'site', validate: noLineBreaksMaxLength('siteName', MAX_SITE_NAME_LENGTH) },
-  siteSlogan: { type: 'string', default: 'MAIL WORKSPACE', group: 'site', validate: noLineBreaksMaxLength('siteSlogan', MAX_SITE_SLOGAN_LENGTH) },
+  siteSlogan: { type: 'string', default: 'Ginpika`s Meil Service', group: 'site', validate: noLineBreaksMaxLength('siteSlogan', MAX_SITE_SLOGAN_LENGTH) },
+  siteIcon: { type: 'string', default: '', group: 'site' },
   siteUrl: { type: 'string', env: 'FRONTEND_URL', default: '', group: 'site', validate: httpUrlValidator('siteUrl') },
   corsAllowedOrigins: {
     type: 'string',
@@ -154,12 +157,13 @@ export function getSiteUrl(): string {
   return getSettings().siteUrl.replace(/\/$/, '')
 }
 
-/** 公开站点品牌设置（用于网页 title 与左上角 Logo 标题）；siteName 留空时回退为 HostID */
-export function getSiteBranding(): { siteName: string; siteSlogan: string } {
+/** 公开站点品牌设置（用于网页 title、Favicon 与界面 Logo）；siteName 留空时回退为 HostID */
+export function getSiteBranding(): { siteName: string; siteSlogan: string; siteIconUrl: string } {
   const s = getSettings()
   return {
     siteName: s.siteName.trim() || 'HostID',
-    siteSlogan: s.siteSlogan.trim()
+    siteSlogan: s.siteSlogan.trim(),
+    siteIconUrl: getSiteIconUrl(s.siteIcon)
   }
 }
 
@@ -236,10 +240,21 @@ export type SettingsUpdate = Partial<Record<SettingKey, unknown>>
  * 返回更新后的设置视图（敏感值已打码）
  */
 export async function updateSettings(input: SettingsUpdate): Promise<void> {
+  const previousSiteIcon = getSettings().siteIcon
   const writes: { key: SettingKey; value: string | number | boolean }[] = []
   for (const [rawKey, rawValue] of Object.entries(input)) {
     if (!(rawKey in SETTING_DEFS)) throw new Error(`Unknown setting: ${rawKey}`)
     const key = rawKey as SettingKey
+    if (key === 'siteIcon') {
+      if (rawValue === undefined) continue
+      const text = rawValue === null ? '' : String(rawValue).trim()
+      if (text === previousSiteIcon) continue
+      if (text === '') {
+        writes.push({ key, value: '' })
+        continue
+      }
+      throw new Error('siteIcon must be updated via the upload endpoint')
+    }
     if (def(key).secret) {
       if (rawValue === undefined || rawValue === '') continue
       if (rawValue === null) { writes.push({ key, value: '' }); continue }
@@ -253,6 +268,25 @@ export async function updateSettings(input: SettingsUpdate): Promise<void> {
     const data = serialize(key, value)
     return prisma.systemSetting.upsert({ where: { key }, create: { key, ...data }, update: data })
   }))
+  await reload()
+
+  if (previousSiteIcon && !getSettings().siteIcon) {
+    const oldPath = getSiteIconPath(previousSiteIcon)
+    if (oldPath) await removeStoredFile(oldPath)
+  }
+}
+
+export async function setSiteIconSetting(filename: string): Promise<void> {
+  const value = filename.trim()
+  if (value && !isValidSiteIconFilename(value)) {
+    throw new Error('Invalid site icon filename')
+  }
+  const data = serialize('siteIcon', value)
+  await prisma.systemSetting.upsert({
+    where: { key: 'siteIcon' },
+    create: { key: 'siteIcon', ...data },
+    update: data
+  })
   await reload()
 }
 

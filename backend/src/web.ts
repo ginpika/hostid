@@ -8,6 +8,7 @@ const SITE_KEY_RE = /^[a-zA-Z0-9_-]*$/
 export interface RuntimeSiteBranding {
   siteName: string
   siteSlogan: string
+  siteIconUrl?: string
 }
 
 /** 前端运行时配置脚本；site key 与站点品牌可为固定值或每次请求读取的 getter（来自系统设置） */
@@ -27,6 +28,7 @@ export function serveConfigScript(
       const branding = siteBranding()
       env.SITE_NAME = branding.siteName
       env.SITE_SLOGAN = branding.siteSlogan
+      env.SITE_ICON_URL = branding.siteIconUrl ?? ''
     }
     res.set('Cache-Control', 'no-store')
     res.type('application/javascript').send(

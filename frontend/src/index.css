@@ -817,7 +817,7 @@ button:disabled { cursor: not-allowed; }
 .mail-empty p { margin-top: 9px; max-width: 260px; line-height: 1.7; font-size: 11px; color: var(--color-text-tertiary); }
 .mail-text-button { font-size: 12px; font-weight: 500; color: var(--color-accent-primary); }
 .mail-reader-empty { display: flex; flex: 1; min-height: 0; align-items: center; justify-content: center; flex-direction: column; gap: 24px; padding: 30px; text-align: center; background: var(--color-bg-secondary); }
-.mail-reader-logo { width: clamp(128px, 15vw, 180px); height: auto; max-width: 100%; }
+.mail-reader-logo { width: clamp(128px, 15vw, 180px); height: auto; max-width: 100%; max-height: clamp(128px, 15vw, 180px); }
 .mail-reader-empty h2 { margin: 0; font-size: 24px; font-weight: 500; line-height: 1.5; color: var(--color-text-primary); }
 .mail-error { display: flex; gap: 8px; align-items: flex-start; padding: 12px 18px; background: #ef44440a; color: #c74444; font-size: 12px; line-height: 1.7; }
 .mail-error > svg { flex-shrink: 0; margin-top: 2px; }
