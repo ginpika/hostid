@@ -106,7 +106,7 @@ Use the existing system-font stack and Lucide icons. Keep icon-only actions name
 
 ## Focus and accessibility
 
-- Preserve visible keyboard focus, the shell's skip link, field labels, and dialog titles.
+- Global CSS disables default browser and `:focus-visible` outlines (`index.css`), while inputs retain their border/ring focus styles and the shell preserves the skip link, field labels, and dialog titles.
 - [modalStack.ts](../frontend/src/lib/modalStack.ts) determines which visible modal owns focus and when its trigger can receive focus again. Reuse it when dialogs can overlap.
 - Escape handling and focus containment belong to the active dialog. Do not let a background dialog consume its keyboard events.
 - Keep failure messages actionable and use the existing `alert`, `status`, `aria-busy`, and selection semantics where appropriate.

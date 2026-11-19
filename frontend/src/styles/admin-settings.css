@@ -126,11 +126,6 @@
   opacity: 1;
 }
 
-.admin-settings-tab:focus-visible {
-  border-radius: 4px;
-  outline-offset: -5px;
-}
-
 .admin-settings-panel {
   min-width: 0;
   padding: 28px;
@@ -139,11 +134,6 @@
 
 .admin-settings-panel[hidden] {
   display: none;
-}
-
-.admin-settings-panel:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: -3px;
 }
 
 .admin-panel,
@@ -230,13 +220,13 @@
   min-width: 0;
   min-height: 38px;
   font-size: 12px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.admin-panel-settings-group input:focus-visible,
-.admin-panel-settings-group select:focus-visible,
-.admin-site-icon-btn:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 2px;
+.admin-panel-settings-group input:not([type='checkbox']):focus,
+.admin-panel-settings-group select:focus {
+  border-color: var(--color-accent-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-accent-muted);
 }
 
 .admin-site-icon-btn:hover:not(:disabled) {
@@ -307,7 +297,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .admin-settings-tab,
-  .admin-panel-primary-action {
+  .admin-panel-primary-action,
+  .admin-panel-settings-group input,
+  .admin-panel-settings-group select {
     transition: none;
   }
 }

@@ -81,6 +81,17 @@
         padding: 0;
       }
 
+      *,
+      *::before,
+      *::after {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      *:focus,
+      *:focus-visible {
+        outline: none;
+      }
+
       [hidden] {
         display: none !important;
       }
@@ -112,11 +123,6 @@
 
       button:not(:disabled) {
         cursor: pointer;
-      }
-
-      button:focus-visible {
-        outline: 2px solid var(--accent-primary);
-        outline-offset: 2px;
       }
 
       /* ------------------------------------------------ 窗缘缩放热区 */

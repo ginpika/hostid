@@ -41,7 +41,7 @@ export default function MailReadingActions({ isStarred, isTrash, isArchived, bus
     return () => document.removeEventListener('mousedown', outside)
   }, [open])
 
-  const iconClass = 'inline-flex shrink-0 items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-accent-primary)] disabled:opacity-40 disabled:cursor-wait'
+  const iconClass = 'inline-flex shrink-0 items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)] disabled:opacity-40 disabled:cursor-wait'
   const items = [
     ...(onReplyAll ? [{ label: t('replyAll'), icon: ReplyAll, action: onReplyAll }] : []),
     ...(onForward ? [{ label: t('forward'), icon: Forward, action: onForward }] : []),

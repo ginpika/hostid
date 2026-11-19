@@ -329,7 +329,7 @@ export default forwardRef<RecipientInputHandle, RecipientInputProps>(function Re
           aria-haspopup="menu"
           aria-expanded={showTypeMenu === recipient.id}
           aria-controls={showTypeMenu === recipient.id ? `${menuPrefix}-${recipient.id}` : undefined}
-          className="ml-1 hover:opacity-70 flex items-center justify-center w-6 h-6 shrink-0 rounded-full focus-visible:outline focus-visible:outline-2"
+          className="ml-1 hover:opacity-70 flex items-center justify-center w-6 h-6 shrink-0 rounded-full"
         >
           <ChevronDown className="w-3 h-3" />
         </button>
@@ -337,7 +337,7 @@ export default forwardRef<RecipientInputHandle, RecipientInputProps>(function Re
           type="button"
           onClick={(e) => handleRemoveClick(e, recipient.id)}
           aria-label={`${t('delete')}: ${recipient.email}`}
-          className="hover:opacity-70 ml-1 shrink-0 flex items-center justify-center w-6 h-6 rounded-full focus-visible:outline focus-visible:outline-2"
+          className="hover:opacity-70 ml-1 shrink-0 flex items-center justify-center w-6 h-6 rounded-full"
         >
           <X className="w-3 h-3" />
         </button>

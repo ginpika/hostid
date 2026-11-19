@@ -386,11 +386,10 @@ export default function OAuthConfigPage({ embedded = false }: { embedded?: boole
                 aria-label={t('passkeySettingTitle')}
                 onClick={handleTogglePasskey}
                 disabled={loading || passkeySaving}
-                className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+                className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50"
                 style={{
                   backgroundColor: passkeyEnabled ? 'var(--color-accent-primary)' : 'var(--color-bg-tertiary)',
-                  border: '1px solid var(--color-border-primary)',
-                  outlineColor: 'var(--color-accent-primary)'
+                  border: '1px solid var(--color-border-primary)'
                 }}
               >
                 <span

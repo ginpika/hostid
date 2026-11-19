@@ -6,7 +6,6 @@
 .design-classic .classic-reader-header-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .design-classic .classic-reader-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 8px; color: var(--color-text-tertiary); transition: background 150ms; }
 .design-classic .classic-reader-icon:hover:not(:disabled) { background: var(--color-bg-tertiary); }
-.design-classic .classic-reader-icon:focus-visible, .design-classic .classic-reader-footer button:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: -2px; }
 .design-classic .classic-reader-icon:disabled { opacity: .4; }
 .design-classic .classic-reader-star { width: 32px; height: 32px; }
 .design-classic .classic-reader-footer { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 4px; padding: 10px 16px; border-top: 1px solid var(--color-border-secondary); background: var(--color-bg-secondary); }

@@ -238,10 +238,11 @@ test('HostID desktop launcher uses HostID palette, icons, and omits redundant ac
   )
   assert.equal(html.includes('padding: 0 16px 0 92px'), false, 'macOS titlebar sits above WebView without shifting layout')
   assert.equal(
-    /(?:^|[,{\s])input:focus-visible\b/.test(html),
+    /(?:^|[,{\s])(?:button|input):focus-visible\b/.test(html),
     false,
-    'instance URL input should rely on .input-group:focus-within rather than a global input:focus-visible outline',
+    'launcher should remove button and input :focus-visible outlines globally',
   )
+  assert.match(html, /\*:focus,\s*\*:focus-visible\s*\{\s*outline:\s*none;\s*\}/)
   assert.match(html, /\.input-control:focus,\s*\.input-control:focus-visible\s*\{\s*outline:\s*none;\s*\}/)
 
   const mainRs = fs.readFileSync(path.join(DESKTOP_DIR, 'src', 'main.rs'), 'utf8')

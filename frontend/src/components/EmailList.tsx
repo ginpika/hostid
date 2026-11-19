@@ -85,7 +85,7 @@ export default function EmailList({ folder, emails, onSelectEmail, selectedEmail
       {isSelectMode && (
         <button type="button" onClick={() => onSelectAll?.(emails.map(email => email.id))}
           aria-pressed={allSelected}
-          className="mail-select-all w-full flex items-center gap-3 px-5 text-left text-xs font-medium border-b hover:bg-[var(--color-bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent-primary)]"
+          className="mail-select-all w-full flex items-center gap-3 px-5 text-left text-xs font-medium border-b hover:bg-[var(--color-bg-hover)]"
           style={{ height: classic ? 37 : SELECT_ALL_ROW_HEIGHT, borderColor: 'var(--color-border-primary)', color: 'var(--color-text-secondary)' }}>
           {allSelected ? <CheckSquare className="w-4 h-4" style={{ color: 'var(--color-accent-primary)' }} /> : <Square className="w-4 h-4" />}
           {t('selectAll')}
@@ -102,7 +102,7 @@ export default function EmailList({ folder, emails, onSelectEmail, selectedEmail
             onClick={() => onSelectEmail(email)} onKeyDown={event => focusRow(event, index)}
             aria-pressed={selected}
             aria-label={`${!email.isRead ? (zh ? '未读，' : 'Unread, ') : ''}${sender}，${email.subject || (zh ? '无主题' : 'No subject')}，${formatDate(email.createdAt)}`}
-            className={`${classic ? `classic-mail-row ${compact ? 'classic-mail-row--compact' : ''}` : ''} group relative w-full block text-left px-5 transition-colors border-b hover:bg-[var(--color-bg-hover)] focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-accent-primary)] ${compact ? 'py-2.5' : 'py-3.5'}`}
+            className={`${classic ? `classic-mail-row ${compact ? 'classic-mail-row--compact' : ''}` : ''} group relative w-full block text-left px-5 transition-colors border-b hover:bg-[var(--color-bg-hover)] ${compact ? 'py-2.5' : 'py-3.5'}`}
             style={{ height: classic ? compact ? 41 : 67 : compact ? EMAIL_ROW_HEIGHT_COMPACT : EMAIL_ROW_HEIGHT,
               borderColor: classic ? 'var(--color-border-secondary)' : 'color-mix(in srgb, var(--color-border-primary) 65%, transparent)',
               backgroundColor: selected ? 'var(--color-accent-muted)' : undefined }}>

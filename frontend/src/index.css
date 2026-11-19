@@ -28,6 +28,18 @@
 
 /* 全局滚动条：细窄、圆角胶囊、主题自适应（Tailwind 风格） */
 @layer base {
+  /* 全局清除焦点描边与触屏点击高亮，避免键盘或触屏交互意外触发轮廓框 */
+  *,
+  *::before,
+  *::after {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  *:focus,
+  *:focus-visible {
+    outline: none;
+  }
+
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--color-scrollbar-thumb) transparent;
@@ -248,12 +260,6 @@ body {
 
 .email-envelope__toggle svg {
   transition: transform 150ms;
-}
-
-.email-envelope__toggle:focus-visible,
-.email-envelope__address-chip:focus-visible {
-  outline: 2px solid var(--color-accent-primary);
-  outline-offset: 3px;
 }
 
 .email-envelope__details {
@@ -717,11 +723,9 @@ body {
 
 /* Mail workspace: quiet chrome, strong type and a focused reading surface. */
 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
-button, input, a { -webkit-tap-highlight-color: transparent; }
-button:focus-visible, a:focus-visible, [role='separator']:focus-visible { outline: 2px solid var(--color-accent-primary); outline-offset: 3px; }
 button:disabled { cursor: not-allowed; }
 .app-shell { display: flex; height: 100vh; height: 100dvh; overflow: hidden; background: var(--color-bg-primary); }
-.app-main { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; outline: none; }
+.app-main { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 .skip-link { position: fixed; left: 16px; top: -80px; z-index: 100; padding: 12px 20px; background: var(--color-bg-secondary); border: 2px solid var(--color-accent-primary); border-radius: 8px; }
 .skip-link:focus { top: 16px; }
 .workspace-topbar { height: 70px; min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 24px 0 8px; }
@@ -805,9 +809,9 @@ button:disabled { cursor: not-allowed; }
 .mail-list-footer { display: flex; align-items: center; justify-content: space-between; min-height: 49px; padding: 7px 16px 7px 23px; border-top: 1px solid var(--color-border-primary); color: var(--color-text-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
 .mail-list-footer .mail-icon-button { width: 30px; height: 30px; }
 .mail-reading-panel { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--color-border-primary); border-radius: 15px; background: var(--color-bg-secondary); }
-.mail-resizer { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 16px; cursor: col-resize; touch-action: none; border-radius: 6px; outline-offset: -3px; }
+.mail-resizer { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 16px; cursor: col-resize; touch-action: none; border-radius: 6px; }
 .mail-resizer span { height: 34px; width: 3px; border-radius: 3px; background: var(--color-border-secondary); opacity: 0; transition: opacity 150ms; }
-.mail-resizer:hover span, .mail-resizer:focus-visible span, .is-resizing .mail-resizer span { opacity: 1; background: var(--color-accent-primary); }
+.mail-resizer:hover span, .is-resizing .mail-resizer span { opacity: 1; background: var(--color-accent-primary); }
 .is-resizing { user-select: none; cursor: col-resize; }
 .is-resizing iframe { pointer-events: none; }
 .mail-workspace--list .mail-list-panel { width: 100%; }
