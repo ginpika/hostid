@@ -1,10 +1,10 @@
 /** A visual appearance picker shared by the mailbox and authentication pages. */
 import { useState, useRef, useEffect, useLayoutEffect, useId, type CSSProperties, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Moon, Palette, Sun, SunMoon, X } from 'lucide-react'
+import { Check, Palette, X } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useI18n } from '../i18n/I18nContext'
-import { getThemeLayout, type ThemeConfig } from '../themes'
+import { getDefaultTheme, getThemeLayout, type ThemeConfig } from '../themes'
 import { isTopModal, restoreModalFocus } from '../lib/modalStack'
 import '../styles/theme-selector.css'
 
@@ -33,7 +33,7 @@ interface PanelPosition { left: number; top: number; width: number; maxHeight: n
 
 export default function ThemeSelector() {
   const { language, t } = useI18n()
-  const { mode, setMode, currentTheme, allThemes, resolvedSystemTheme } = useTheme()
+  const { setMode, currentTheme, allThemes } = useTheme()
   const zh = language === 'zh-CN'
   const [isOpen, setIsOpen] = useState(false)
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 599px)').matches)
@@ -44,9 +44,9 @@ export default function ThemeSelector() {
   const titleId = useId()
   const descriptionId = useId()
   const panelId = useId()
-  const selectedMode = mode === 'system' ? mode : currentTheme.id
+  const selectedMode = currentTheme.id
   const currentName = zh ? currentTheme.name : currentTheme.nameEn
-  const currentLabel = mode === 'system' ? `${zh ? '跟随系统' : 'System'} · ${currentName}` : currentName
+  const currentLabel = currentName
   const close = (restoreFocus = false) => {
     setIsOpen(false)
     if (restoreFocus) requestAnimationFrame(() => restoreModalFocus(triggerRef.current))
@@ -145,7 +145,7 @@ export default function ThemeSelector() {
       next = candidates[0]?.index ?? (direction < 0 ? options.length - 1 : 0)
     }
     const option = options[next]
-    select(option.dataset.theme || 'system')
+    select(option.dataset.theme || getDefaultTheme().id)
     option.focus({ preventScroll: true })
     option.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }
@@ -175,11 +175,6 @@ export default function ThemeSelector() {
           <button type="button" className="appearance-close" aria-label={t('close')} onClick={() => close(true)}><X size={18} /></button>
         </header>
         <div ref={contentRef} className="appearance-content" role="radiogroup" aria-label={t('selectTheme')} onKeyDown={navigateThemes}>
-          <button type="button" role="radio" aria-checked={selectedMode === 'system'} tabIndex={selectedMode === 'system' ? 0 : -1} data-theme="system" className={`appearance-system ${selectedMode === 'system' ? 'is-selected' : ''}`} onClick={() => select('system')}>
-            <span className="appearance-system-art" aria-hidden="true"><SunMoon size={23} strokeWidth={1.6} /></span>
-            <span className="appearance-system-copy"><strong>{zh ? '跟随系统' : 'Match system'}</strong><small>{zh ? '自动切换现代浅色与深色' : 'Auto-switch between Modern light and dark'}</small></span>
-            <span className="appearance-radio-mark" aria-hidden="true">{selectedMode === 'system' && <Check size={11} strokeWidth={3} />}</span>
-          </button>
           {groups.map(group => <section key={group.layout} className={`appearance-section appearance-section--${group.layout}`} aria-label={group.label}>
             <div className="appearance-section-heading"><h3>{group.label}</h3><span>{group.hint}</span></div>
             <div className="appearance-grid">
@@ -188,7 +183,7 @@ export default function ThemeSelector() {
                 const name = zh ? theme.name : theme.nameEn
                 return <button type="button" role="radio" key={theme.id} data-theme={theme.id} aria-label={name} aria-checked={selected} tabIndex={selected ? 0 : -1} className={`appearance-option ${selected ? 'is-selected' : ''}`} title={zh ? theme.description : theme.descriptionEn} onClick={() => select(theme.id)}>
                   <span className="appearance-option-art"><ThemePreview theme={theme} />{selected && <span className="appearance-option-check" aria-hidden="true"><Check size={11} strokeWidth={3} /></span>}</span>
-                  <span className="appearance-option-name">{name}{group.layout === 'classic' && <span aria-hidden="true">{theme.colorScheme === 'dark' ? <Moon size={12} /> : <Sun size={12} />}</span>}</span>
+                  <span className="appearance-option-name">{name}</span>
                 </button>
               })}
             </div>
@@ -198,7 +193,6 @@ export default function ThemeSelector() {
           <span className="appearance-current"><i style={{ backgroundColor: currentTheme.colors.accent.primary }} /><span>{currentLabel}</span></span>
           <span className="appearance-saved" role="status" aria-live="polite" aria-label={`${zh ? '已保存' : 'Saved'}: ${currentLabel}`}><Check size={12} />{zh ? '已保存' : 'Saved'}</span>
         </footer>
-        <span className="sr-only">{zh ? '系统当前为' : 'System appearance:'} {resolvedSystemTheme === 'dark' ? zh ? '深色' : 'dark' : zh ? '浅色' : 'light'}</span>
       </div>
     </div>, document.body)}
   </>

@@ -1,21 +1,18 @@
 /**
  * 主题上下文
- * 管理系统主题和自定义主题切换
- * 支持跟随系统、浅色、深色和多种预设主题
+ * 管理系统预设主题切换，默认采用深空灰浅色主题
  */
-import { createContext, useContext, useEffect, useLayoutEffect, useState, ReactNode } from 'react'
-import { themes, ThemeConfig, ThemeLayout, getThemeLayout, resolveTheme, getThemeClasses } from '../themes'
+import { createContext, useContext, useLayoutEffect, useState, ReactNode } from 'react'
+import { themes, ThemeConfig, ThemeLayout, getDefaultTheme, getThemeLayout, resolveTheme, getThemeClasses } from '../themes'
 import { publishHostAppearance } from '../lib/appearance'
 
-type SystemTheme = 'light' | 'dark'
-type ThemeMode = 'system' | string
+type ThemeMode = string
 
 interface ThemeContextType {
   mode: ThemeMode
   setMode: (mode: ThemeMode) => void
   currentTheme: ThemeConfig
   layout: ThemeLayout
-  resolvedSystemTheme: SystemTheme
   allThemes: ThemeConfig[]
 }
 
@@ -25,28 +22,13 @@ const STORAGE_KEY = 'theme_mode'
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') return 'system'
+    const defaultId = getDefaultTheme().id
+    if (typeof window === 'undefined') return defaultId
     const stored = localStorage.getItem(STORAGE_KEY)
-    return stored || 'system'
+    return resolveTheme(stored || defaultId).id
   })
 
-  const [resolvedSystemTheme, setResolvedSystemTheme] = useState<SystemTheme>(() => {
-    if (typeof window === 'undefined') return 'light'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  })
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    setResolvedSystemTheme(mediaQuery.matches ? 'dark' : 'light')
-
-    const handler = (e: MediaQueryListEvent) => {
-      setResolvedSystemTheme(e.matches ? 'dark' : 'light')
-    }
-    mediaQuery.addEventListener('change', handler)
-    return () => mediaQuery.removeEventListener('change', handler)
-  }, [])
-
-  const currentTheme = resolveTheme(mode, resolvedSystemTheme)
+  const currentTheme = resolveTheme(mode)
   const layout = getThemeLayout(currentTheme)
 
   useLayoutEffect(() => {
@@ -110,13 +92,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const oldClasses = Array.from(root.classList).filter(c => c.startsWith('theme-') || c.startsWith('system-') || c.startsWith('design-'))
     root.classList.remove(...oldClasses)
-    root.classList.add(...getThemeClasses(currentTheme, mode, resolvedSystemTheme))
+    root.classList.add(...getThemeClasses(currentTheme))
     publishHostAppearance(colors.bg.primary)
-  }, [currentTheme, mode, resolvedSystemTheme])
+  }, [currentTheme])
 
   const setMode = (newMode: ThemeMode) => {
-    setModeState(newMode)
-    localStorage.setItem(STORAGE_KEY, newMode)
+    const nextId = resolveTheme(newMode).id
+    setModeState(nextId)
+    localStorage.setItem(STORAGE_KEY, nextId)
   }
 
   return (
@@ -125,7 +108,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setMode,
       currentTheme,
       layout,
-      resolvedSystemTheme,
       allThemes: themes
     }}>
       {children}

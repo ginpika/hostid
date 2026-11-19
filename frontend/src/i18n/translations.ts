@@ -85,10 +85,6 @@ export const translations = {
     connectionFailed: '连接失败',
     
     // Theme
-    lightMode: '浅色模式',
-    darkMode: '深色模式',
-    systemMode: '跟随系统',
-    systemModeDesc: '自动跟随系统设置',
     selectTheme: '选择主题',
     currentTheme: '当前主题',
     moreThemesComing: '更多主题敬请期待',
@@ -547,10 +543,6 @@ export const translations = {
     connectionFailed: 'Connection failed',
     
     // Theme
-    lightMode: 'Light',
-    darkMode: 'Dark',
-    systemMode: 'System',
-    systemModeDesc: 'Follow system settings',
     selectTheme: 'Select Theme',
     currentTheme: 'Current Theme',
     moreThemesComing: 'More themes coming soon',

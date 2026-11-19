@@ -60,7 +60,7 @@ HostID does not depend on a HostID-operated account service. Each instance runs 
 | **Search and filtering** | Search the current folder, filter unread mail, star what matters, archive the rest, and handle messages in batches. |
 | **Composing** | Rich text, Markdown and HTML editing; replies, reply-all, forwarding, CC/BCC, and attachments. |
 | **Drafts** | Drafts are saved on the current device, with attachment recovery. |
-| **Themes and language** | Ten themes, including light, dark, classic and classic-dark, plus system appearance and English / Simplified Chinese. |
+| **Themes and language** | Five light themes (Space Gray by default, Default Blue, Sakura, Lavender, and Classic) plus English / Simplified Chinese. |
 | **Setup and admin** | A first-run setup wizard and an admin interface for system settings, users, OAuth providers and client apps. |
 
 Inbound mail is handled by the built-in SMTP receiver. Outbound mail goes through a configured SMTP relay or directly to the recipient domain's MX server. You can also import and export `.eml` messages; exported files contain headers and body, without attachments.

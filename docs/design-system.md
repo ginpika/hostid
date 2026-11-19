@@ -34,7 +34,7 @@ Use `useTheme()` from the theme context. [lib/theme.ts](../frontend/src/lib/them
 | `--color-accent-muted`, `--color-accent-text` | Selection backgrounds and text on an accent |
 | `--color-code-*`, `--color-pre-*` | Inline code and code blocks |
 
-The `:root` values in `index.css` provide the initial light palette; `ThemeContext` applies the resolved preset. Keep these defaults aligned when changing that palette. Scrollbar colors are derived in CSS from the semantic tokens.
+The `:root` values in `index.css` provide the initial Space Gray light palette; `ThemeContext` applies the resolved preset. Keep these defaults aligned when changing that palette. Scrollbar colors are derived in CSS from the semantic tokens.
 
 For a new surface, reuse the existing components or semantic classes:
 
@@ -57,22 +57,21 @@ Status and destructive-action colors can have their own semantics. Check them ag
 
 ## Theme selection and layout
 
-There are currently **10 presets**, plus the **Match system** selection mode:
+There are currently **5 light presets**:
 
 | Layout | Preset IDs |
 | --- | --- |
-| Modern workspace | `light`, `dark`, `sakura`, `starry-night`, `forest`, `ocean`, `business`, `lavender` |
-| Classic | `classic`, `classic-dark` |
+| Modern workspace | `business` (Space Gray, default), `light` (Default Blue), `sakura` (Sakura), `lavender` (Lavender) |
+| Classic | `classic` (Classic) |
 
-The `layout` field defaults to `workspace`; the two classic presets set it to `classic`. Each preset also declares `colorScheme`. A theme therefore controls both its palette and, where specified, its layout.
+The `layout` field defaults to `workspace`; the classic preset sets it to `classic`. Each preset declares `colorScheme: 'light'`. A theme therefore controls both its palette and, where specified, its layout.
 
-Space Gray (`business`) uses white and light-gray surfaces with a dark-gray accent. Modern `dark` shares the black-gray palette of `classic-dark`, including the `#0a0a0a` background and `#00d98a` neon-green accent, while retaining the modern workspace layout.
+Space Gray (`business`) uses white and light-gray surfaces with a dark-gray accent and serves as the default theme.
 
 - The choice is stored locally under `theme_mode`.
-- An unset choice defaults to `system`, which follows `prefers-color-scheme` and resolves to modern `light` or `dark`.
-- An explicit preset stays selected when the operating system changes appearance.
+- An unset choice defaults to `business` (Space Gray).
 - A saved `sunset` choice resolves to `business`, which replaces that preset.
-- An unknown preset resolves to `getDefaultTheme()`.
+- A legacy `system` value, a removed preset, or an unknown preset resolves to `getDefaultTheme()` (`business`).
 - The provider replaces `theme-*`, `design-*`, and `system-*` classes when applying a theme; consumers should not add competing layout markers.
 
 The appearance picker groups Modern and Classic choices, previews both layouts, and applies a choice immediately. It uses an anchored panel on larger screens and a modal sheet below 600 px. See its source for radio-group navigation, focus restoration, and viewport positioning.
@@ -124,9 +123,9 @@ HTML email is a separate rendering surface. Sender styles are isolated from the 
 
 ## Making and checking a change
 
-1. Change palette values and theme metadata in `themes/index.ts`; keep the initial CSS defaults aligned if the light preset changes.
+1. Change palette values and theme metadata in `themes/index.ts`; keep the initial CSS defaults aligned if the default Space Gray preset changes.
 2. Extend the appropriate modern or classic stylesheet and reuse shared controls.
-3. Check modern light/dark, both classic layouts, one colored preset, and Match system.
+3. Check Space Gray (`business`), Default Blue (`light`), Classic (`classic`), and a tinted preset (`sakura` or `lavender`).
 4. Check narrow screens, long content, keyboard-only use, overlapping dialogs, and reduced motion.
 5. Run the relevant checks from the repository root:
 

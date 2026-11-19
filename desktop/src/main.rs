@@ -34,22 +34,24 @@ const HOME_PATH: &str = "/__hostid_desktop_home";
 const LOGOUT_PATH: &str = "/__hostid_desktop_logout";
 
 /// 进入实例时的过渡遮罩：文档创建（PageLoadEvent::Started）时铺一层高斯模糊 + 转圈，
-/// 页面就绪后渐出并移除，配色匹配 HostID 浅色（#f4f6fa / #286cde）与深色（#0a0a0a / #00d98a）。
+/// 页面就绪后渐出并移除，配色匹配 HostID 保留的浅色主题（默认深空灰 #f5f5f5 / #333333）。
 const ENTER_VEIL_JS: &str = r#"(function () {
   var id = '__hostid_enter_veil__';
   if (document.getElementById(id)) return;
 
-  var dark = false;
+  var palettes = {
+    business: { bg: 'rgba(245,245,245,.62)', ring: 'rgba(31,31,31,.14)', accent: '#333333' },
+    light: { bg: 'rgba(244,246,250,.62)', ring: 'rgba(32,43,64,.14)', accent: '#286cde' },
+    sakura: { bg: 'rgba(254,242,242,.62)', ring: 'rgba(131,24,67,.14)', accent: '#ec4899' },
+    lavender: { bg: 'rgba(250,245,255,.62)', ring: 'rgba(88,28,135,.14)', accent: '#a855f7' },
+    classic: { bg: 'rgba(249,250,251,.62)', ring: 'rgba(17,24,39,.14)', accent: '#0ea5e9' }
+  };
+  var mode = 'business';
   try {
-    var mode = localStorage.getItem('theme_mode');
-    if (mode === 'dark' || mode === 'classic-dark' || mode === 'starry-night' || mode === 'ocean') {
-      dark = true;
-    } else if (!mode || mode === 'system') {
-      dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    }
-  } catch (e) {
-    dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  }
+    var stored = localStorage.getItem('theme_mode');
+    if (stored && palettes[stored]) mode = stored;
+  } catch (e) {}
+  var palette = palettes[mode] || palettes.business;
   var mac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
 
   var style = document.createElement('style');
@@ -62,15 +64,15 @@ const ENTER_VEIL_JS: &str = r#"(function () {
     'position:fixed', 'inset:0', 'z-index:2147483645', 'overflow:hidden',
     'border-radius:' + (mac ? '0' : '20px'),
     'display:flex', 'align-items:center', 'justify-content:center',
-    'background:' + (dark ? 'rgba(10,10,10,.58)' : 'rgba(244,246,250,.62)'),
+    'background:' + palette.bg,
     'backdrop-filter:blur(14px)', '-webkit-backdrop-filter:blur(14px)',
     'opacity:1', 'transition:opacity .55s ease,backdrop-filter .55s ease'
   ].join(';');
   var spinner = document.createElement('span');
   spinner.style.cssText = [
     'width:28px', 'height:28px',
-    'border:2.5px solid ' + (dark ? 'rgba(229,229,229,.16)' : 'rgba(32,43,64,.14)'),
-    'border-top-color:' + (dark ? '#00d98a' : '#286cde'),
+    'border:2.5px solid ' + palette.ring,
+    'border-top-color:' + palette.accent,
     'border-radius:999px', 'animation:hostid-veil-spin .8s linear infinite'
   ].join(';');
   el.appendChild(spinner);
@@ -93,11 +95,20 @@ const ENTER_VEIL_JS: &str = r#"(function () {
 const EXIT_VEIL_JS: &str = r#"(function () {
   var id = '__hostid_exit_veil__';
   if (document.getElementById(id)) return;
-  var dark = document.documentElement.classList.contains('theme-dark') ||
-    document.documentElement.classList.contains('theme-classic-dark') ||
-    document.documentElement.classList.contains('theme-starry-night') ||
-    document.documentElement.classList.contains('theme-ocean') ||
-    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  var palettes = {
+    business: { bg: 'rgba(245,245,245,.62)', ring: 'rgba(31,31,31,.14)', accent: '#333333' },
+    light: { bg: 'rgba(244,246,250,.62)', ring: 'rgba(32,43,64,.14)', accent: '#286cde' },
+    sakura: { bg: 'rgba(254,242,242,.62)', ring: 'rgba(131,24,67,.14)', accent: '#ec4899' },
+    lavender: { bg: 'rgba(250,245,255,.62)', ring: 'rgba(88,28,135,.14)', accent: '#a855f7' },
+    classic: { bg: 'rgba(249,250,251,.62)', ring: 'rgba(17,24,39,.14)', accent: '#0ea5e9' }
+  };
+  var cl = document.documentElement.classList;
+  var mode = 'business';
+  ['light', 'sakura', 'lavender', 'classic'].some(function (k) {
+    if (cl.contains('theme-' + k)) { mode = k; return true; }
+    return false;
+  });
+  var palette = palettes[mode] || palettes.business;
   var mac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
 
   var style = document.createElement('style');
@@ -110,15 +121,15 @@ const EXIT_VEIL_JS: &str = r#"(function () {
     'position:fixed', 'inset:0', 'z-index:2147483645', 'overflow:hidden',
     'border-radius:' + (mac ? '0' : '20px'),
     'display:flex', 'align-items:center', 'justify-content:center',
-    'background:' + (dark ? 'rgba(10,10,10,.58)' : 'rgba(244,246,250,.62)'),
+    'background:' + palette.bg,
     'backdrop-filter:blur(0px)', '-webkit-backdrop-filter:blur(0px)',
     'opacity:0', 'transition:opacity .55s ease,backdrop-filter .55s ease'
   ].join(';');
   var spinner = document.createElement('span');
   spinner.style.cssText = [
     'width:28px', 'height:28px',
-    'border:2.5px solid ' + (dark ? 'rgba(229,229,229,.16)' : 'rgba(32,43,64,.14)'),
-    'border-top-color:' + (dark ? '#00d98a' : '#286cde'),
+    'border:2.5px solid ' + palette.ring,
+    'border-top-color:' + palette.accent,
     'border-radius:999px', 'animation:hostid-veil-spin .8s linear infinite'
   ].join(';');
   el.appendChild(spinner);
