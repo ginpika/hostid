@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Menu, Globe, LogOut, ChevronRight, CheckCircle2, AlertCircle, X, Columns2, List, LayoutGrid } from 'lucide-react'
+import { Menu, Globe, LogOut, ChevronRight, CheckCircle2, AlertCircle, X, Columns2, List, Undo2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import ThemeSelector from './ThemeSelector'
@@ -75,12 +75,13 @@ export default function Layout() {
             {desktop && (
               <button
                 type="button"
-                className={classic ? 'classic-header-button' : 'mail-icon-button'}
+                className={classic ? 'classic-header-button' : 'topbar-text-button'}
                 title={zh ? '返回实例启动台' : 'Instances Launcher'}
-                aria-label={zh ? '返回实例启动台' : 'Instances Launcher'}
+                aria-label={zh ? '返回启动台' : 'Instances Launcher'}
                 onClick={openDesktopHome}
               >
-                <LayoutGrid size={classic ? 16 : 17} />
+                <Undo2 size={classic ? 16 : 17} aria-hidden="true" />
+                <span className="hidden sm:inline">{zh ? '返回启动台' : 'Launcher'}</span>
               </button>
             )}
             {folder && <button className="mail-icon-button" aria-label={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} title={mailLayoutMode === 'split' ? t('listLayout') : t('splitLayout')} onClick={toggleMailLayout}>{mailLayoutMode === 'split' ? <List size={17} /> : <Columns2 size={17} />}</button>}

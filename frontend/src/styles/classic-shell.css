@@ -3,7 +3,7 @@
 .design-classic .app-shell { background: var(--color-bg-primary); }
 .design-classic .workspace-topbar { height: 60px; min-height: 60px; padding: 12px 16px; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border-primary); }
 .design-classic .workspace-topbar h1 { color: var(--color-text-primary); font-size: 18px; font-weight: 600; }
-.design-classic .classic-header-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; border-radius: 8px; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; }
+.design-classic .classic-header-button { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; border-radius: 8px; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; white-space: nowrap; }
 .design-classic .classic-header-button:hover { background: var(--color-bg-tertiary); }
 .design-classic .classic-header-button:disabled { opacity: .5; }
 .design-classic .workspace-sidebar { width: 256px; background: var(--color-bg-secondary); border-right: 1px solid var(--color-border-primary); }

@@ -363,8 +363,50 @@ fn open_launcher_home(app: &AppHandle) {
         status.detail.clear();
         status.clone()
     };
-    let _ = app.emit(STATUS_EVENT, snapshot);
+    let _ = app.emit(STATUS_EVENT, snapshot.clone());
     navigate_launcher(app);
+
+    if let Some(active) = snapshot.instance {
+        let handle = app.clone();
+        std::thread::spawn(move || {
+            let Ok(site) = Site::parse(&active.base_url) else {
+                return;
+            };
+            let Ok(c) = client(&handle) else {
+                return;
+            };
+            let Ok(info) = c.probe_site(&site) else {
+                return;
+            };
+            let Ok(user) = c.current_user(&site) else {
+                return;
+            };
+            let (user_name, user_email, user_avatar) = user_fields(user.as_ref());
+            let before = handle
+                .state::<Shell>()
+                .status
+                .lock()
+                .unwrap()
+                .instances
+                .clone();
+            if let Ok(cfg) = config::update(&handle, |cfg| {
+                cfg.refresh_existing_instance(
+                    site.base(),
+                    info.site_name,
+                    info.site_slogan,
+                    info.site_icon,
+                    user_name,
+                    user_email,
+                    user_avatar,
+                );
+                Ok(())
+            }) {
+                if cfg.instances != before {
+                    sync_config_to_status(&handle, &cfg);
+                }
+            }
+        });
+    }
 }
 
 fn return_to_launcher(app: &AppHandle, notice: Option<&str>) {
@@ -443,6 +485,14 @@ fn start_bg(
     Ok(())
 }
 
+fn user_fields(user: Option<&session::User>) -> (String, String, String) {
+    (
+        user.map(|u| u.display_name().to_string()).unwrap_or_default(),
+        user.and_then(|u| u.email.clone()).unwrap_or_default(),
+        user.and_then(|u| u.avatar_url.clone()).unwrap_or_default(),
+    )
+}
+
 fn save_probed_instance(
     app: &AppHandle,
     site: &Site,
@@ -451,23 +501,28 @@ fn save_probed_instance(
     touch_last_url: bool,
 ) -> Result<config::Config, String> {
     let base = site.base().to_string();
+    let (user_name, user_email, user_avatar) = user_fields(user);
     let cfg = config::update(app, |cfg| {
         if touch_last_url {
             cfg.last_url = base.clone();
         }
+        let site_icon = match info.site_icon.as_ref() {
+            Some(icon) => icon.clone(),
+            None => cfg
+                .instances
+                .iter()
+                .find(|item| item.url == base)
+                .map(|item| item.site_icon.clone())
+                .unwrap_or_default(),
+        };
         cfg.upsert_instance(config::SavedInstance {
             url: base.clone(),
             site_name: info.site_name.clone(),
             site_slogan: info.site_slogan.clone(),
-            user_name: user
-                .map(|u| u.display_name().to_string())
-                .unwrap_or_default(),
-            user_email: user
-                .and_then(|u| u.email.clone())
-                .unwrap_or_default(),
-            user_avatar: user
-                .and_then(|u| u.avatar_url.clone())
-                .unwrap_or_default(),
+            site_icon,
+            user_name,
+            user_email,
+            user_avatar,
             last_connected_at: config::now_unix_secs(),
         });
         Ok(())

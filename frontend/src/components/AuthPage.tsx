@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
-import { Globe, Loader2, LayoutGrid } from 'lucide-react'
+import { Globe, Loader2, Undo2 } from 'lucide-react'
 import { useI18n } from '../i18n/I18nContext'
 import { useConfig } from '../contexts/ConfigContext'
 import BrandMark from './BrandMark'
@@ -40,7 +40,7 @@ export function AuthToolbar({ style, inline = false }: { style?: CSSProperties; 
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--color-bg-tertiary)]"
           style={{ color: 'var(--color-text-secondary)' }}
         >
-          <LayoutGrid className="w-4 h-4" aria-hidden="true" />
+          <Undo2 className="w-4 h-4" aria-hidden="true" />
         </button>
       )}
       <ThemeSelector />

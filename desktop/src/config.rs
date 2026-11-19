@@ -19,6 +19,9 @@ pub struct SavedInstance {
     /// 实例 Slogan（来自 /api/auth/site）
     #[serde(default)]
     pub site_slogan: String,
+    /// 实例站点图标（data URL、HTTP(S) URL，或空表示使用默认 HostID 图标）
+    #[serde(default)]
+    pub site_icon: String,
     /// 最近一次登录该实例的用户名/昵称（空 = 未登录或未获取）
     #[serde(default)]
     pub user_name: String,
@@ -93,6 +96,35 @@ impl Config {
 
     pub fn clear_instance_user(&mut self, url: &str) {
         self.update_instance_user(url, String::new(), String::new(), String::new());
+    }
+
+    pub fn refresh_existing_instance(
+        &mut self,
+        url: &str,
+        site_name: String,
+        site_slogan: String,
+        site_icon: Option<String>,
+        user_name: String,
+        user_email: String,
+        user_avatar: String,
+    ) -> bool {
+        let normalized = url.trim().trim_end_matches('/');
+        let Some(item) = self.instances.iter_mut().find(|item| item.url == normalized) else {
+            return false;
+        };
+        if !site_name.is_empty() {
+            item.site_name = site_name;
+        }
+        if !site_slogan.is_empty() || site_icon.is_some() {
+            item.site_slogan = site_slogan;
+        }
+        if let Some(icon) = site_icon {
+            item.site_icon = icon;
+        }
+        item.user_name = user_name;
+        item.user_email = user_email;
+        item.user_avatar = user_avatar;
+        true
     }
 
     pub fn remove_instance(&mut self, url: &str) -> bool {
@@ -202,5 +234,93 @@ mod tests {
         assert!(cfg.remove_instance("https://a.example.com/"));
         assert_eq!(cfg.last_url, "https://b.example.com");
         assert_eq!(cfg.instances.len(), 1);
+    }
+
+    #[test]
+    fn deserializes_legacy_saved_instance_without_site_icon() {
+        let legacy = r#"{
+            "lastUrl": "https://mail.example.com",
+            "instances": [
+                {
+                    "url": "https://mail.example.com",
+                    "siteName": "Example Mail",
+                    "siteSlogan": "Workspace",
+                    "userName": "",
+                    "userEmail": "",
+                    "userAvatar": "",
+                    "lastConnectedAt": 123
+                }
+            ]
+        }"#;
+        let cfg: Config = serde_json::from_str(legacy).unwrap();
+        assert_eq!(cfg.instances.len(), 1);
+        assert_eq!(cfg.instances[0].site_icon, "");
+    }
+
+    #[test]
+    fn clear_instance_user_preserves_site_icon() {
+        let mut cfg = Config {
+            last_url: "https://mail.example.com".into(),
+            instances: vec![SavedInstance {
+                url: "https://mail.example.com".into(),
+                site_name: "Example Mail".into(),
+                site_slogan: "Private".into(),
+                site_icon: "data:image/png;base64,AAAA".into(),
+                user_name: "Alice".into(),
+                user_email: "alice@example.com".into(),
+                user_avatar: "data:image/png;base64,BBBB".into(),
+                last_connected_at: 100,
+            }],
+        };
+
+        cfg.clear_instance_user("https://mail.example.com/");
+        assert_eq!(cfg.instances[0].user_name, "");
+        assert_eq!(cfg.instances[0].user_email, "");
+        assert_eq!(cfg.instances[0].user_avatar, "");
+        assert_eq!(cfg.instances[0].site_name, "Example Mail");
+        assert_eq!(cfg.instances[0].site_icon, "data:image/png;base64,AAAA");
+    }
+
+    #[test]
+    fn refresh_existing_instance_updates_in_place_and_skips_removed() {
+        let mut cfg = Config {
+            last_url: "https://a.example.com".into(),
+            instances: vec![SavedInstance {
+                url: "https://a.example.com".into(),
+                site_name: "Old Name".into(),
+                site_slogan: "Old Slogan".into(),
+                site_icon: "data:image/png;base64,OLD".into(),
+                user_name: "Alice".into(),
+                user_email: "alice@example.com".into(),
+                user_avatar: "data:image/png;base64,AVATAR".into(),
+                last_connected_at: 100,
+            }],
+        };
+
+        assert!(!cfg.refresh_existing_instance(
+            "https://missing.example.com",
+            "Missing".into(),
+            "".into(),
+            Some("".into()),
+            "".into(),
+            "".into(),
+            "".into(),
+        ));
+        assert_eq!(cfg.instances.len(), 1);
+
+        assert!(cfg.refresh_existing_instance(
+            "https://a.example.com/",
+            "New Name".into(),
+            "".into(),
+            Some("".into()),
+            "".into(),
+            "".into(),
+            "".into(),
+        ));
+        assert_eq!(cfg.instances[0].site_name, "New Name");
+        assert_eq!(cfg.instances[0].site_slogan, "");
+        assert_eq!(cfg.instances[0].site_icon, "");
+        assert_eq!(cfg.instances[0].user_name, "");
+        assert_eq!(cfg.instances[0].user_avatar, "");
     }
 }

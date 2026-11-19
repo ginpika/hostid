@@ -11,6 +11,7 @@ use tauri::{Url, Webview};
 
 pub(super) const DEFAULT_COOKIE: &str = "sso_token";
 const MAX_AVATAR_BYTES: usize = 256 * 1024;
+const MAX_SITE_ICON_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Clone)]
 pub(super) struct Site(Url);
@@ -67,6 +68,8 @@ impl Site {
 pub(super) struct SiteInfo {
     pub(super) site_name: String,
     pub(super) site_slogan: String,
+    /// Some("") = 明确使用默认站点图标；Some(icon) = 自定义站点图标；None = 降级探测未知
+    pub(super) site_icon: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -110,6 +113,7 @@ struct SessionResponse {
 struct RawSiteResponse {
     site_name: Option<String>,
     site_slogan: Option<String>,
+    site_icon_url: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -136,45 +140,7 @@ impl SessionClient {
 
     /// 探测实例可达性并拉取站点品牌信息（兼容生产单镜像与 Vite 本地开发服务）。
     pub(super) fn probe_site(&self, site: &Site) -> Result<SiteInfo, String> {
-        let site_res = self.get(site.url("api/auth/site"), None)?;
-        let site_status = site_res.status();
-        let site_body = read_body_bytes(site_res)?;
-        if site_status.is_success() {
-            if let Ok(parsed) = serde_json::from_slice::<RawSiteResponse>(&site_body) {
-                let site_name = parsed
-                    .site_name
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or_else(|| "HostID".to_string());
-                let site_slogan = parsed
-                    .site_slogan
-                    .map(|s| s.trim().to_string())
-                    .unwrap_or_default();
-                return Ok(SiteInfo {
-                    site_name,
-                    site_slogan,
-                });
-            }
-        }
-
-        let health_res = self.get(site.url("health"), None)?;
-        let health_status = health_res.status();
-        let health_body = read_body_bytes(health_res)?;
-        if health_status.is_success() {
-            if let Ok(health) = serde_json::from_slice::<HealthResponse>(&health_body) {
-                if health.status.as_deref() == Some("ok") {
-                    return Ok(SiteInfo {
-                        site_name: "HostID".to_string(),
-                        site_slogan: String::new(),
-                    });
-                }
-            }
-        }
-
-        if !site_status.is_success() {
-            return Err(format!("无法连接到 HostID 实例（HTTP {site_status}）"));
-        }
-        Err("目标地址未返回有效的 HostID 服务响应，请确认地址是否正确".into())
+        probe_site_with(|target| self.http_for(target), site)
     }
 
     pub(super) fn site_cookies(&self, site: &Site) -> Result<Vec<Cookie<'static>>, String> {
@@ -215,11 +181,13 @@ impl SessionClient {
                 Url::parse(&url)
                     .ok()
                     .and_then(|parsed| {
-                        fetch_avatar_data_url(
+                        fetch_image_data_url(
                             |target| self.http_for(target),
                             site,
                             &parsed,
-                            cookie,
+                            Some(cookie),
+                            MAX_AVATAR_BYTES,
+                            false,
                         )
                     })
                     .unwrap_or(url)
@@ -275,10 +243,75 @@ impl SessionClient {
             &self.http
         }
     }
+}
 
-    fn get(&self, url: Url, cookie: Option<&Cookie<'_>>) -> Result<Response, String> {
-        get_with(self.http_for(&url), url, cookie)
+fn probe_site_with<'a>(
+    client_for: impl Fn(&Url) -> &'a Client,
+    site: &Site,
+) -> Result<SiteInfo, String> {
+    let site_url = site.url("api/auth/site");
+    let site_res = get_with(client_for(&site_url), site_url, None)?;
+    let site_status = site_res.status();
+    let site_body = read_body_bytes(site_res)?;
+    if site_status.is_success() {
+        if let Ok(parsed) = serde_json::from_slice::<RawSiteResponse>(&site_body) {
+            let site_name = parsed
+                .site_name
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| "HostID".to_string());
+            let site_slogan = parsed
+                .site_slogan
+                .map(|s| s.trim().to_string())
+                .unwrap_or_default();
+            let site_icon = match resolve_site_icon_url(site, parsed.site_icon_url.as_deref()) {
+                Some(url) if is_safe_raster_data_url(&url) => Some(url),
+                Some(url) => {
+                    let cached = Url::parse(&url)
+                        .ok()
+                        .and_then(|parsed_url| {
+                            fetch_image_data_url(
+                                &client_for,
+                                site,
+                                &parsed_url,
+                                None,
+                                MAX_SITE_ICON_BYTES,
+                                true,
+                            )
+                        })
+                        .unwrap_or(url);
+                    Some(cached)
+                }
+                None => Some(String::new()),
+            };
+            return Ok(SiteInfo {
+                site_name,
+                site_slogan,
+                site_icon,
+            });
+        }
     }
+
+    let health_url = site.url("health");
+    let health_res = get_with(client_for(&health_url), health_url, None)?;
+    let health_status = health_res.status();
+    let health_body = read_body_bytes(health_res)?;
+    if health_status.is_success() {
+        if let Ok(health) = serde_json::from_slice::<HealthResponse>(&health_body) {
+            if health.status.as_deref() == Some("ok") {
+                return Ok(SiteInfo {
+                    site_name: "HostID".to_string(),
+                    site_slogan: String::new(),
+                    site_icon: None,
+                });
+            }
+        }
+    }
+
+    if !site_status.is_success() {
+        return Err(format!("无法连接到 HostID 实例（HTTP {site_status}）"));
+    }
+    Err("目标地址未返回有效的 HostID 服务响应，请确认地址是否正确".into())
 }
 
 fn build_http_client(no_proxy: bool) -> Result<Client, String> {
@@ -292,6 +325,23 @@ fn build_http_client(no_proxy: bool) -> Result<Client, String> {
     builder
         .build()
         .map_err(|err| format!("无法初始化会话客户端：{err}"))
+}
+
+fn resolve_site_icon_url(site: &Site, site_icon_url: Option<&str>) -> Option<String> {
+    let raw = site_icon_url.map(str::trim).filter(|s| !s.is_empty())?;
+    if is_safe_raster_data_url(raw) {
+        return Some(raw.to_string());
+    }
+    if raw.starts_with("http://") || raw.starts_with("https://") {
+        return Url::parse(raw)
+            .ok()
+            .filter(|url| matches!(url.scheme(), "http" | "https"))
+            .map(|url| url.to_string());
+    }
+    if raw.starts_with('/') && !raw.starts_with("//") {
+        return Some(site.url(raw.trim_start_matches('/')).to_string());
+    }
+    None
 }
 
 fn resolve_avatar_url(
@@ -336,11 +386,13 @@ fn is_safe_raster_data_url(raw: &str) -> bool {
     .any(|prefix| lower.starts_with(prefix))
 }
 
-fn fetch_avatar_data_url<'a>(
+fn fetch_image_data_url<'a>(
     client_for: impl Fn(&Url) -> &'a Client,
     site: &Site,
     initial: &Url,
-    cookie: &Cookie<'_>,
+    cookie: Option<&Cookie<'_>>,
+    max_bytes: usize,
+    allow_svg: bool,
 ) -> Option<String> {
     let mut current = initial.clone();
     for _ in 0..=3 {
@@ -352,8 +404,10 @@ fn fetch_avatar_data_url<'a>(
             .header(ACCEPT, "image/*")
             .header(CACHE_CONTROL, "no-cache")
             .timeout(Duration::from_secs(4));
-        if should_send_avatar_cookie(site, &current) {
-            request = request.header(COOKIE, cookie_pair(cookie));
+        if let Some(c) = cookie {
+            if should_send_avatar_cookie(site, &current) {
+                request = request.header(COOKIE, cookie_pair(c));
+            }
         }
         let response = request.send().ok()?;
         let status = response.status();
@@ -372,13 +426,13 @@ fn fetch_avatar_data_url<'a>(
             .map(|val| val.to_string());
         let mut buf = Vec::new();
         response
-            .take((MAX_AVATAR_BYTES + 1) as u64)
+            .take((max_bytes + 1) as u64)
             .read_to_end(&mut buf)
             .ok()?;
-        if buf.is_empty() || buf.len() > MAX_AVATAR_BYTES {
+        if buf.is_empty() || buf.len() > max_bytes {
             return None;
         }
-        let mime = detect_image_mime(content_type.as_deref(), &buf)?;
+        let mime = detect_image_mime(content_type.as_deref(), &buf, allow_svg)?;
         let encoded = base64::engine::general_purpose::STANDARD.encode(&buf);
         return Some(format!("data:{mime};base64,{encoded}"));
     }
@@ -393,7 +447,35 @@ fn should_send_avatar_cookie(site: &Site, target: &Url) -> bool {
     scheme_ok && domain_matches_host(&normalize_host(site_host), &normalize_host(target_host))
 }
 
-fn detect_image_mime(header: Option<&str>, bytes: &[u8]) -> Option<&'static str> {
+fn is_valid_svg_bytes(bytes: &[u8]) -> bool {
+    if bytes.is_empty() || bytes.contains(&0) {
+        return false;
+    }
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    let trimmed = text.trim_start_matches('\u{feff}').trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    let starts_like_svg =
+        lower.starts_with("<svg") || lower.starts_with("<?xml") || lower.starts_with("<!--");
+    if !starts_like_svg || !lower.contains("<svg") || !lower.contains("</svg") {
+        return false;
+    }
+    const FORBIDDEN: &[&str] = &[
+        "<script",
+        "<foreignobject",
+        "<!entity",
+        "javascript:",
+        "vbscript:",
+        "data:text/html",
+    ];
+    !FORBIDDEN.iter().any(|bad| lower.contains(bad))
+}
+
+fn detect_image_mime(header: Option<&str>, bytes: &[u8], allow_svg: bool) -> Option<&'static str> {
     if let Some(raw) = header {
         let mime = raw
             .split(';')
@@ -408,6 +490,9 @@ fn detect_image_mime(header: Option<&str>, bytes: &[u8]) -> Option<&'static str>
             "image/webp" => return Some("image/webp"),
             "image/avif" => return Some("image/avif"),
             "image/x-icon" | "image/vnd.microsoft.icon" => return Some("image/x-icon"),
+            "image/svg+xml" if allow_svg => {
+                return is_valid_svg_bytes(bytes).then_some("image/svg+xml");
+            }
             "" | "application/octet-stream" => {}
             _ => return None,
         }
@@ -420,6 +505,13 @@ fn detect_image_mime(header: Option<&str>, bytes: &[u8]) -> Option<&'static str>
         Some("image/gif")
     } else if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
         Some("image/webp")
+    } else if bytes.len() >= 22
+        && bytes[0..4] == [0x00, 0x00, 0x01, 0x00]
+        && u16::from_le_bytes([bytes[4], bytes[5]]) > 0
+    {
+        Some("image/x-icon")
+    } else if allow_svg && is_valid_svg_bytes(bytes) {
+        Some("image/svg+xml")
     } else {
         None
     }
@@ -630,5 +722,134 @@ mod tests {
             &cookie,
             &Url::parse("https://evilexample.com/api/sso/session").unwrap()
         ));
+    }
+
+    #[test]
+    fn resolves_and_validates_site_icon_urls() {
+        let site = Site::parse("https://mail.example.com").unwrap();
+        assert_eq!(resolve_site_icon_url(&site, None), None);
+        assert_eq!(resolve_site_icon_url(&site, Some("   ")), None);
+        assert_eq!(
+            resolve_site_icon_url(&site, Some("  /api/auth/site-icon/site-icon-1.png  ")),
+            Some("https://mail.example.com/api/auth/site-icon/site-icon-1.png".to_string())
+        );
+        assert_eq!(
+            resolve_site_icon_url(&site, Some("https://cdn.example.com/logo.svg")),
+            Some("https://cdn.example.com/logo.svg".to_string())
+        );
+        assert_eq!(
+            resolve_site_icon_url(&site, Some("//evil.example.com/logo.png")),
+            None
+        );
+        assert_eq!(
+            resolve_site_icon_url(&site, Some("javascript:alert(1)")),
+            None
+        );
+    }
+
+    #[test]
+    fn detects_site_icon_mime_including_svg_and_ico() {
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>"#;
+        assert_eq!(
+            detect_image_mime(Some("image/svg+xml; charset=utf-8"), svg, true),
+            Some("image/svg+xml")
+        );
+        assert_eq!(
+            detect_image_mime(Some("image/svg+xml"), svg, false),
+            None
+        );
+        let bad_svg = br#"<svg><script>alert(1)</script></svg>"#;
+        assert_eq!(
+            detect_image_mime(Some("image/svg+xml"), bad_svg, true),
+            None
+        );
+
+        let mut ico = vec![0u8; 22];
+        ico[2] = 1;
+        ico[4] = 1;
+        assert_eq!(detect_image_mime(None, &ico, true), Some("image/x-icon"));
+    }
+
+    #[test]
+    fn probe_site_fetches_custom_site_icon_and_handles_default_or_health_fallback() {
+        use std::io::{Read as _, Write as _};
+        use std::net::TcpListener;
+
+        fn serve_once(
+            routes: Vec<(&'static str, &'static str, &'static [u8])>,
+        ) -> (String, std::thread::JoinHandle<()>) {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let addr = listener.local_addr().unwrap();
+            let count = routes.len();
+            let handle = std::thread::spawn(move || {
+                for _ in 0..count {
+                    let (mut stream, _) = listener.accept().unwrap();
+                    let mut buf = [0u8; 2048];
+                    let n = stream.read(&mut buf).unwrap_or(0);
+                    let req = String::from_utf8_lossy(&buf[..n]);
+                    let path = req
+                        .lines()
+                        .next()
+                        .and_then(|line| line.split_whitespace().nth(1))
+                        .unwrap_or("/");
+                    if let Some((_, content_type, body)) =
+                        routes.iter().find(|(p, _, _)| *p == path)
+                    {
+                        let header = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            body.len()
+                        );
+                        let _ = stream.write_all(header.as_bytes());
+                        let _ = stream.write_all(body);
+                    } else {
+                        let _ = stream.write_all(
+                            b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                        );
+                    }
+                }
+            });
+            (format!("http://{addr}"), handle)
+        }
+
+        let client = build_http_client(true).unwrap();
+
+        // 1. Custom SVG icon returned by /api/auth/site
+        let svg_body = br#"<svg xmlns="http://www.w3.org/2000/svg"><rect width="16" height="16"/></svg>"#;
+        let (base1, h1) = serve_once(vec![
+            (
+                "/api/auth/site",
+                "application/json",
+                br#"{"siteName":"Acme Mail","siteSlogan":"Team","siteIconUrl":"/api/auth/site-icon/site-icon-1.svg"}"#,
+            ),
+            ("/api/auth/site-icon/site-icon-1.svg", "image/svg+xml", svg_body),
+        ]);
+        let info1 = probe_site_with(|_| &client, &Site::parse(&base1).unwrap()).unwrap();
+        h1.join().unwrap();
+        assert_eq!(info1.site_name, "Acme Mail");
+        assert_eq!(info1.site_slogan, "Team");
+        assert!(info1
+            .site_icon
+            .as_deref()
+            .is_some_and(|icon| icon.starts_with("data:image/svg+xml;base64,")));
+
+        // 2. Empty siteIconUrl -> explicit Some("") to use default logo
+        let (base2, h2) = serve_once(vec![(
+            "/api/auth/site",
+            "application/json",
+            br#"{"siteName":"HostID","siteSlogan":"","siteIconUrl":""}"#,
+        )]);
+        let info2 = probe_site_with(|_| &client, &Site::parse(&base2).unwrap()).unwrap();
+        h2.join().unwrap();
+        assert_eq!(info2.site_icon, Some(String::new()));
+
+        // 3. Fallback to /health -> site_icon is None (preserve cached)
+        let (base3, h3) = serve_once(vec![
+            ("/api/auth/site", "text/plain", b"not found"),
+            ("/health", "application/json", br#"{"status":"ok"}"#),
+        ]);
+        let info3 = probe_site_with(|_| &client, &Site::parse(&base3).unwrap()).unwrap();
+        h3.join().unwrap();
+        assert_eq!(info3.site_name, "HostID");
+        assert_eq!(info3.site_icon, None);
     }
 }

@@ -135,15 +135,14 @@ function runLauncherSandbox({
   const ids = [
     'veil', 'lang-btn', 'lang-label', 'appearance-btn', 'appearance-icon',
     'win-min', 'win-max', 'win-max-icon', 'win-close',
-    'brand-slogan', 'brand-desc', 'detail', 'main-title', 'main-sub',
-    'resume-card', 'resume-label', 'resume-url', 'resume-btn',
+    'main-title', 'main-sub',
     'connect-form', 'instance-url', 'connect-btn',
     'saved-section', 'saved-label', 'instance-list',
     'toasts',
   ]
   for (const id of ids) {
     const el = makeEl('div', id)
-    if (['resume-card', 'saved-section'].includes(id)) {
+    if (id === 'saved-section') {
       el.hidden = true
     }
     elements.set(id, el)
@@ -197,7 +196,13 @@ function runLauncherSandbox({
     new vm.Script(script).runInContext(ctx)
   }
 
-  return { el: (id) => elements.get(id), doc: documentMock, storage, invokes }
+  return {
+    el: (id) => elements.get(id),
+    doc: documentMock,
+    storage,
+    invokes,
+    emitStatus: (payload) => tauriListeners.get('hostid://status')?.({ payload }),
+  }
 }
 
 test('HostID desktop launcher uses HostID palette, icons, and omits redundant account dock', () => {
@@ -216,8 +221,21 @@ test('HostID desktop launcher uses HostID palette, icons, and omits redundant ac
 
   assert.equal(html.includes('id="account-dock"'), false, 'launcher should not duplicate user management')
   assert.equal(html.includes('id="session-banner"'), false)
+  assert.equal(html.includes('id="resume-card"'), false, 'launcher should not render standalone resume banner')
+  assert.equal(html.includes('id="resume-label"'), false)
+  assert.equal(html.includes('id="resume-url"'), false)
   assert.equal(html.includes('id="quick-local"'), false, 'launcher should not render quick-local shortcut below URL input')
   assert.equal(html.includes('class="quick-row"'), false)
+  assert.equal(html.includes('class="launcher-aside"'), false, 'launcher should omit left-half logo & slogan aside')
+  assert.equal(html.includes('id="brand-slogan"'), false)
+  assert.equal(html.includes('id="brand-desc"'), false)
+  assert.equal(html.includes('grid-template-columns:'), false, 'launcher card should be centered single column')
+  assert.ok(html.includes('class="launcher-stack"'), 'launcher should center logo and card stack')
+  assert.ok(html.includes('class="launcher-logo"'), 'launcher should render a standalone logo above the card')
+  assert.ok(
+    html.indexOf('class="launcher-logo"') < html.indexOf('<section class="launcher-card"'),
+    'standalone logo should appear above launcher-card',
+  )
   assert.equal(html.includes('padding: 0 16px 0 92px'), false, 'macOS titlebar sits above WebView without shifting layout')
   assert.equal(
     /(?:^|[,{\s])input:focus-visible\b/.test(html),
@@ -231,7 +249,7 @@ test('HostID desktop launcher uses HostID palette, icons, and omits redundant ac
   assert.equal(mainRs.includes('TitleBarStyle::Overlay'), false)
 
   const sprite = fs.readFileSync(path.join(DESKTOP_DIR, 'ui', 'lucide.svg'), 'utf8')
-  for (const iconId of ['server', 'refresh', 'appearance-system', 'appearance-light', 'appearance-dark', 'minimize', 'maximize', 'restore', 'close']) {
+  for (const iconId of ['server', 'refresh', 'undo-2', 'appearance-system', 'appearance-light', 'appearance-dark', 'minimize', 'maximize', 'restore', 'close']) {
     assert.ok(sprite.includes(`id="${iconId}"`), `lucide.svg missing ${iconId}`)
   }
 
@@ -256,6 +274,15 @@ test('HostID launcher connects, resumes, switches language/theme, and manages sa
         userAvatar: '',
         lastConnectedAt: 1700000000,
       },
+      {
+        url: 'https://other.example.com',
+        siteName: 'Other Mail',
+        siteSlogan: 'WORK',
+        userName: '',
+        userEmail: '',
+        userAvatar: '',
+        lastConnectedAt: 1699999000,
+      },
     ],
   }
 
@@ -269,23 +296,43 @@ test('HostID launcher connects, resumes, switches language/theme, and manages sa
 
   await flushMicrotasks()
 
-  assert.equal(sandbox.el('resume-card').hidden, false)
   assert.equal(sandbox.el('saved-section').hidden, false)
-  assert.equal(sandbox.el('instance-list').children.length, 1)
+  assert.equal(sandbox.el('instance-list').children.length, 2)
 
-  // Resume active instance
-  await sandbox.el('resume-btn').click()
+  // Active row places "回到实例" directly to the left of the refresh button
+  const activeActions = sandbox.el('instance-list').children[0].children[1]
+  assert.equal(activeActions.children.length, 3)
+  const [rowResumeBtn, activeRefreshBtn, activeDeleteBtn] = activeActions.children
+  assert.equal(rowResumeBtn.id, 'resume-btn')
+  assert.equal(rowResumeBtn.className, 'icon-btn icon-btn--text')
+  assert.ok(rowResumeBtn.innerHTML.includes('lucide.svg#undo-2'))
+  assert.equal(rowResumeBtn.textContent, '回到实例')
+  assert.ok(activeRefreshBtn.innerHTML.includes('lucide.svg#refresh'))
+  assert.ok(activeDeleteBtn.innerHTML.includes('lucide.svg#close'))
+
+  // Inactive row only renders refresh and remove buttons
+  const inactiveActions = sandbox.el('instance-list').children[1].children[1]
+  assert.equal(inactiveActions.children.length, 2)
+  assert.ok(inactiveActions.children[0].innerHTML.includes('lucide.svg#refresh'))
+  assert.ok(inactiveActions.children[1].innerHTML.includes('lucide.svg#close'))
+
+  // Resume active instance via inline row button
+  await rowResumeBtn.click()
   assert.ok(sandbox.invokes.some((c) => c.cmd === 'desktop_resume_instance'))
 
-  // Connect via form
+  // Connect via form disables inline resume button while busy
   sandbox.el('instance-url').value = 'id.example.org'
   await sandbox.el('connect-form').dispatchEvent('submit')
   assert.ok(sandbox.invokes.some((c) => c.cmd === 'desktop_connect' && c.args.url === 'id.example.org'))
+  assert.equal(rowResumeBtn.disabled, true)
 
-  // Language toggle zh-CN -> en-US
+  // Language toggle zh-CN -> en-US updates inline resume button copy
   await sandbox.el('lang-btn').click()
   assert.equal(sandbox.el('lang-label').textContent, 'EN')
   assert.equal(sandbox.el('main-title').textContent, 'Connect to HostID')
+  const enResumeBtn = sandbox.el('instance-list').children[0].children[1].children[0]
+  assert.equal(enResumeBtn.textContent, 'Return to Instance')
+  assert.equal(enResumeBtn.disabled, false)
 
   // Theme cycle system -> light -> dark
   await sandbox.el('appearance-btn').click()
@@ -318,4 +365,114 @@ test('non-macOS launcher queries maximized state on startup', async () => {
 
   assert.equal(sandbox.doc.body.classList.contains('is-mac'), false)
   assert.ok(sandbox.invokes.some((c) => c.cmd === 'plugin:window|is_maximized'))
+})
+
+test('unauthenticated saved instances show site logo with fallback while authenticated instances keep user avatar', async () => {
+  const customSiteIcon = 'data:image/svg+xml;base64,PHN2Zy8+'
+  const customUserAvatar = 'data:image/png;base64,iVBORw0KGgo='
+  const state = {
+    lastUrl: 'https://custom.example.com',
+    phase: 'idle',
+    detail: '',
+    instance: null,
+    instances: [
+      {
+        url: 'https://custom.example.com',
+        siteName: 'Acme Mail',
+        siteSlogan: '',
+        siteIcon: customSiteIcon,
+        userName: '',
+        userEmail: '',
+        userAvatar: '',
+        lastConnectedAt: 1700000003,
+      },
+      {
+        url: 'https://default.example.com',
+        siteName: 'Default Site',
+        siteSlogan: '',
+        siteIcon: '',
+        userName: '',
+        userEmail: '',
+        userAvatar: '',
+        lastConnectedAt: 1700000002,
+      },
+      {
+        url: 'https://unsafe.example.com',
+        siteName: 'Unsafe Icon',
+        siteSlogan: '',
+        siteIcon: 'javascript:alert(1)',
+        userName: '',
+        userEmail: '',
+        userAvatar: 'https://stale-avatar.example.com/u.png',
+        lastConnectedAt: 1700000001,
+      },
+      {
+        url: 'https://signedin.example.com',
+        siteName: 'Signed In',
+        siteSlogan: '',
+        siteIcon: customSiteIcon,
+        userName: 'Alice',
+        userEmail: 'alice@example.com',
+        userAvatar: customUserAvatar,
+        lastConnectedAt: 1700000000,
+      },
+    ],
+  }
+
+  const sandbox = runLauncherSandbox({
+    platform: 'MacIntel',
+    invokeHandler: async (cmd) => (cmd === 'desktop_state' ? state : null),
+  })
+
+  await flushMicrotasks()
+
+  const rows = sandbox.el('instance-list').children
+  assert.equal(rows.length, 4)
+
+  const avatarOf = (row) => row.children[0].children[0]
+
+  // 1. Custom site icon when unauthenticated
+  const customAv = avatarOf(rows[0])
+  assert.equal(customAv.className, 'instance-avatar is-site-logo')
+  assert.equal(customAv.children.length, 1)
+  assert.equal(customAv.children[0].tagName, 'IMG')
+  assert.equal(customAv.children[0].src, customSiteIcon)
+
+  // If custom site icon fails to load, falls back to default HostID logo
+  await customAv.children[0].dispatchEvent('error')
+  assert.equal(customAv.className, 'instance-avatar is-site-logo')
+  assert.equal(customAv.children.length, 1)
+  assert.equal(customAv.children[0].src, 'logo-128x128.png')
+
+  // 2. Default site logo when unauthenticated without custom siteIcon
+  const defaultAv = avatarOf(rows[1])
+  assert.equal(defaultAv.className, 'instance-avatar is-site-logo')
+  assert.equal(defaultAv.children.length, 1)
+  assert.equal(defaultAv.children[0].src, 'logo-128x128.png')
+
+  // 3. Unsafe siteIcon is rejected and stale userAvatar is ignored when logged out
+  const unsafeAv = avatarOf(rows[2])
+  assert.equal(unsafeAv.className, 'instance-avatar is-site-logo')
+  assert.equal(unsafeAv.children[0].src, 'logo-128x128.png')
+
+  // 4. Signed-in instance shows user avatar (not site logo)
+  const signedAv = avatarOf(rows[3])
+  assert.equal(signedAv.className, 'instance-avatar')
+  assert.equal(signedAv.children[0].src, customUserAvatar)
+
+  // Signing out via status update switches the avatar slot to the site logo
+  sandbox.emitStatus({
+    ...state,
+    instances: [
+      {
+        ...state.instances[3],
+        userName: '',
+        userEmail: '',
+        userAvatar: '',
+      },
+    ],
+  })
+  const loggedOutAv = avatarOf(sandbox.el('instance-list').children[0])
+  assert.equal(loggedOutAv.className, 'instance-avatar is-site-logo')
+  assert.equal(loggedOutAv.children[0].src, customSiteIcon)
 })

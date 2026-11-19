@@ -3,8 +3,8 @@
  * 初始化 Express 服务器、SMTP 服务器和各种路由
  * 包含管理员初始化、RSA 密钥生成和 OAuth 配置迁移
  */
+import 'dotenv/config'
 import express from 'express'
-import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
 import authRoutes from './routes/auth'
 import passkeyRoutes from './routes/passkey'
@@ -22,10 +22,9 @@ import setupRoutes from './routes/setup'
 import { initRSAKeys } from './utils/rsa'
 import { mountWebFrontend, serveConfigScript } from './web'
 import { initSettings, getSettings, getSiteBranding, getSsoLoginPageUrl } from './services/settings'
+import { ensureDatabaseReady, ensureDatabaseUrl } from './config/database'
 import { assertSecurityConfig } from './config/secrets'
 import { createCorsMiddleware, createHelmetMiddleware } from './middleware/security'
-
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -71,12 +70,14 @@ if (process.env.HOSTID_WEB_ROOT) {
 app.use(errorHandler)
 
 const startServer = async () => {
+  ensureDatabaseUrl()
   try {
     assertSecurityConfig()
   } catch (error) {
     console.error('[Security]', error instanceof Error ? error.message : error)
     process.exit(1)
   }
+  await ensureDatabaseReady()
   initRSAKeys()
   await initSettings()
 
