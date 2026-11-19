@@ -82,6 +82,6 @@ assert.ok(assignment, 'Expected /config.js to assign a JSON object to window.__E
 const config = JSON.parse(assignment[1]);
 assert.equal(config.CF_TURNSTILE_SITE_KEY, '');
 assert.equal(config.SITE_NAME, 'HostID');
-assert.equal(config.SITE_SLOGAN, 'MAIL WORKSPACE');
+assert.equal(config.SITE_SLOGAN, 'Ginpika`s Meil Service');
 NODE
 echo "Full image checks passed for $platform."
