@@ -1,0 +1,614 @@
+/* Responsive SSO personal center layout: vertical single-column on portrait/mobile, split landscape card on desktop/tablet. */
+
+.sso-desktop-header {
+  display: none;
+}
+
+.sso-mobile-header {
+  display: block;
+}
+
+.sso-mobile-header > div {
+  margin-bottom: 20px;
+}
+
+.sso-mobile-actions {
+  display: block;
+}
+
+.sso-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-wrap: anywhere;
+}
+
+.sso-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sso-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sso-section-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background-color: var(--color-accent-muted);
+  color: var(--color-accent-primary);
+}
+
+.sso-section-title h2 {
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sso-panel-card {
+  padding: 16px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: 12px;
+  background-color: var(--color-bg-primary);
+}
+
+.sso-mobile-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.sso-mobile-identity-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sso-mobile-identity-name {
+  max-width: 100%;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.sso-mobile-identity-handle {
+  max-width: 100%;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.sso-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.sso-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 2px solid var(--color-border-primary);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+}
+
+.sso-avatar--lg {
+  width: 84px;
+  height: 84px;
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 18%);
+}
+
+.sso-avatar--guest {
+  width: 76px;
+  height: 76px;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-tertiary);
+}
+
+.sso-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sso-avatar-dot {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2.5px solid var(--color-bg-secondary);
+  background-color: #16a34a;
+}
+
+.sso-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.sso-status-pill--active {
+  background-color: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  color: #15803d;
+}
+
+.sso-status-pill--inactive {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.24);
+  color: #dc2626;
+}
+
+.sso-status-pill--subtle {
+  background-color: var(--color-accent-muted);
+  border: 1px solid color-mix(in srgb, var(--color-accent-primary) 16%, transparent);
+  color: var(--color-accent-primary);
+}
+
+.sso-kv-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px 18px;
+}
+
+.sso-kv-grid--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sso-field {
+  min-width: 0;
+}
+
+.sso-field--full {
+  grid-column: 1 / -1;
+}
+
+.sso-field dt,
+.sso-field-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.sso-field dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.sso-field--mono dd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.sso-value-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sso-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-primary);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.sso-copy-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--color-text-tertiary);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.sso-copy-btn:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-accent-primary);
+}
+
+.sso-copy-btn.is-copied {
+  color: #16a34a;
+}
+
+.sso-code-box {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: 8px;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.sso-flag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.sso-flag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--color-border-primary);
+  border-radius: 999px;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.sso-flag-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sso-flag-dot--ok {
+  background-color: #22c55e;
+}
+
+.sso-flag-dot--warn {
+  background-color: #eab308;
+}
+
+.sso-flag-dot--danger {
+  background-color: #ef4444;
+}
+
+.sso-flag-dot--info {
+  background-color: #3b82f6;
+}
+
+.sso-hint-note {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-primary);
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.sso-unauth-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.sso-unauth-banner > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #dc2626;
+}
+
+.sso-unauth-banner h3 {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sso-unauth-banner p {
+  margin-top: 4px;
+  color: var(--color-text-tertiary);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.sso-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 10px;
+  background-color: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.sso-alert > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.sso-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sso-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 550;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
+}
+
+.sso-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sso-btn--danger {
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  background-color: rgba(239, 68, 68, 0.09);
+  color: #dc2626;
+}
+
+.sso-btn--danger:hover:not(:disabled) {
+  border-color: rgba(239, 68, 68, 0.35);
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+.sso-quick-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 6px;
+}
+
+.sso-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.sso-quick-link:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-accent-primary);
+}
+
+/* Aside elements (shown inside landscape split card) */
+.sso-aside {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  gap: 20px;
+}
+
+.sso-aside-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sso-aside-brand-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
+.sso-aside-brand-tag {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: var(--color-accent-muted);
+  border: 1px solid color-mix(in srgb, var(--color-accent-primary) 16%, transparent);
+  color: var(--color-accent-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.sso-aside-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.sso-aside-name {
+  max-width: 100%;
+  margin-top: 14px;
+  color: var(--color-text-primary);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.sso-aside-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 4px;
+  color: var(--color-text-tertiary);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.sso-aside-status {
+  margin-top: 14px;
+}
+
+.sso-aside-actions {
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border-primary);
+}
+
+.design-classic .sso-auth-card {
+  border-radius: 12px;
+}
+
+.design-classic .sso-panel-card {
+  border-radius: 10px;
+}
+
+@media (max-width: 380px) {
+  .sso-kv-grid--compact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Landscape PC & landscape tablet personal center split card */
+@media (min-width: 1100px),
+  (min-width: 768px) and (orientation: landscape) and (min-height: 480px) {
+  .sso-auth-shell.auth-shell--split {
+    max-width: 60rem;
+  }
+
+  .sso-auth-card.auth-card--split {
+    max-width: 60rem;
+    min-height: 490px;
+    grid-template-columns: minmax(256px, 34%) minmax(0, 1fr);
+  }
+
+  .sso-auth-card .auth-split-aside {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 28px 24px;
+  }
+
+  .design-classic .sso-auth-card .auth-split-aside {
+    border-start-start-radius: 11px;
+    border-end-start-radius: 11px;
+  }
+
+  .sso-auth-card .auth-split-main {
+    padding: 26px 32px 30px;
+  }
+
+  .sso-auth-card .auth-split-top {
+    align-items: flex-start;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--color-border-primary);
+  }
+
+  .sso-auth-card .auth-split-body {
+    justify-content: flex-start;
+  }
+
+  .sso-auth-card--centered .auth-split-body {
+    justify-content: center;
+  }
+
+  .sso-desktop-header {
+    display: block;
+    min-width: 0;
+  }
+
+  .sso-mobile-header,
+  .sso-mobile-identity,
+  .sso-mobile-actions {
+    display: none;
+  }
+
+  .sso-kv-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) and (orientation: landscape) and (min-height: 480px),
+  (min-width: 1100px) {
+  .sso-auth-card.auth-card--split {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+
+  .sso-auth-card .auth-split-aside {
+    padding: 30px 28px;
+  }
+
+  .sso-auth-card .auth-split-main {
+    padding: 28px 36px 32px;
+  }
+}

@@ -124,6 +124,8 @@ interface AuthPageProps {
   footer?: ReactNode
   split?: boolean
   compact?: boolean
+  shellClassName?: string
+  cardClassName?: string
   cardRef?: RefObject<HTMLDivElement>
   cardStyle?: CSSProperties
   asideStyle?: CSSProperties
@@ -139,6 +141,8 @@ export default function AuthPage({
   footer,
   split,
   compact = false,
+  shellClassName,
+  cardClassName,
   cardRef,
   cardStyle,
   asideStyle,
@@ -156,10 +160,10 @@ export default function AuthPage({
 
   return (
     <div className="auth-viewport">
-      <div className={`auth-shell relative ${hasSplitShell ? 'auth-shell--split' : ''}`}>
+      <div className={`auth-shell relative ${hasSplitShell ? 'auth-shell--split' : ''}${shellClassName ? ` ${shellClassName}` : ''}`}>
         <div
           ref={cardRef}
-          className={`auth-card ${isSplitCard ? 'auth-card--split' : ''}`}
+          className={`auth-card ${isSplitCard ? 'auth-card--split' : ''}${cardClassName ? ` ${cardClassName}` : ''}`}
           style={cardStyle}
         >
           {aside && !compact && (
