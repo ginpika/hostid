@@ -6,6 +6,7 @@
 import { SMTPServer } from 'smtp-server'
 import { simpleParser } from 'mailparser'
 import fs from 'node:fs/promises'
+import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import { prisma } from '../lib/prisma'
 import { extractEmailExcerpt } from '../services/mail-excerpt'
@@ -16,6 +17,74 @@ import { extractAddresses } from '../lib/mail-addresses'
 import { FOLDER_INBOX } from '../lib/domain-constants'
 import { UPLOAD_DIR, toSafeStoredFilename } from '../config/paths'
 import { getSettings } from '../services/settings'
+
+interface ProbeWaiter {
+  matched: boolean
+  resolve: ((matched: boolean) => void) | null
+}
+
+const pendingInboundProbes = new Map<string, ProbeWaiter>()
+let activeSmtpServer: SMTPServer | null = null
+let configuredSmtpPort: number | null = null
+
+/** 注册一次入站 SMTP 诊断探针，用于确认公网 25 端口连接是否实际路由到当前实例 */
+export function trackInboundProbe(ehloHost: string) {
+  const key = ehloHost.trim().toLowerCase()
+  const entry: ProbeWaiter = { matched: false, resolve: null }
+  pendingInboundProbes.set(key, entry)
+
+  return {
+    wait: (timeoutMs = 250) => new Promise<boolean>(resolve => {
+      if (entry.matched) {
+        pendingInboundProbes.delete(key)
+        resolve(true)
+        return
+      }
+      const timer = setTimeout(() => {
+        pendingInboundProbes.delete(key)
+        entry.resolve = null
+        resolve(false)
+      }, timeoutMs)
+      timer.unref?.()
+      entry.resolve = matched => {
+        clearTimeout(timer)
+        pendingInboundProbes.delete(key)
+        resolve(matched)
+      }
+    }),
+    cleanup: () => {
+      entry.resolve = null
+      pendingInboundProbes.delete(key)
+    }
+  }
+}
+
+function notifyInboundProbe(ehloHost: string | false | undefined) {
+  if (!ehloHost) return
+  const key = ehloHost.trim().toLowerCase()
+  const entry = pendingInboundProbes.get(key)
+  if (!entry) return
+  entry.matched = true
+  if (entry.resolve) {
+    entry.resolve(true)
+  }
+}
+
+export function getSmtpPort(): number {
+  const addr = activeSmtpServer?.server.address()
+  if (addr && typeof addr === 'object' && addr.port > 0) {
+    return addr.port
+  }
+  if (configuredSmtpPort !== null && configuredSmtpPort > 0) {
+    return configuredSmtpPort
+  }
+  const envPort = parseInt(process.env.SMTP_PORT || '2525', 10)
+  return Number.isFinite(envPort) && envPort > 0 ? envPort : 2525
+}
+
+export function isSmtpServerListening(): boolean {
+  return Boolean(activeSmtpServer?.server.listening)
+}
 
 /** 将解析出的附件写入上传目录；文件名由服务端生成，发件人提供的名字只作为后缀且经过净化 */
 async function saveInboundAttachment(att: { filename?: string; content: Buffer }) {
@@ -154,6 +223,11 @@ export function createSMTPServer() {
 
     onAuth: (auth, session, callback) => {
       callback(null, { user: auth.username })
+    },
+
+    onClose: (session, callback) => {
+      notifyInboundProbe(session.hostNameAppearsAs)
+      callback()
     }
   })
 
@@ -166,6 +240,14 @@ export function createSMTPServer() {
 
 export function startSMTPServer(port = 25) {
   const server = createSMTPServer()
+  configuredSmtpPort = port
+  activeSmtpServer = server
+
+  server.on('close', () => {
+    if (activeSmtpServer === server) {
+      activeSmtpServer = null
+    }
+  })
 
   server.listen(port, () => {
     console.log(`[SMTP] Server listening on port ${port}`)

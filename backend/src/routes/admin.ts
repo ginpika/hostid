@@ -11,6 +11,7 @@ import { AppError, asyncHandler } from '../middleware/error'
 import { getSettings, getSettingsView, updateSettings } from '../services/settings'
 import { resetSiteIcon, saveSiteIcon, siteIconUpload } from '../services/siteIcon'
 import { browseTable, deleteTableRow, listTableCounts } from '../services/admin-tables'
+import { runMailDiagnostics } from '../services/mail-diagnostics'
 import { USER_SUMMARY_SELECT, changeUserRole } from '../services/user-governance'
 import { getAvatarUrl } from '../utils/avatar'
 import { ROLE_ADMIN, USER_ROLES } from '../lib/domain-constants'
@@ -41,6 +42,10 @@ const tableQuerySchema = z.object({
 
 const updateUserRoleSchema = z.object({
   role: z.enum(USER_ROLES)
+})
+
+const mailCheckSchema = z.object({
+  domain: z.string().trim().max(253).regex(/^[a-z0-9.-]*$/i, 'Invalid domain').optional()
 })
 
 router.get('/tables', ...adminGuard, asyncHandler(async (_req: AuthRequest, res: Response) => {
@@ -168,6 +173,16 @@ router.patch('/users/:id/role', ...adminGuard, asyncHandler(async (req: AuthRequ
 
   res.set('Cache-Control', 'no-store')
   res.json({ user: toUserSummaryDto(user), changed })
+}))
+
+/**
+ * 邮箱与域名可用性检测（25 端口出入站、MX、SPF、DMARC）
+ */
+router.post('/mail-check', ...adminGuard, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { domain } = mailCheckSchema.parse(req.body ?? {})
+  const report = await runMailDiagnostics({ domain: domain || undefined })
+  res.set('Cache-Control', 'no-store')
+  res.json(report)
 }))
 
 export default router

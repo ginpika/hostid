@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
-import { AppWindow, Database, KeyRound, Settings2, ShieldCheck, SlidersHorizontal, Users } from 'lucide-react'
+import { AppWindow, Database, KeyRound, MailCheck, Settings2, ShieldCheck, SlidersHorizontal, Users } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 import AdminPage from './AdminPage'
 import AdminRolesPage from './AdminRolesPage'
+import MailDiagnosticsPage from './MailDiagnosticsPage'
 import OAuthAppsPage from './OAuthAppsPage'
 import OAuthConfigPage from './OAuthConfigPage'
 import SystemSettingsPage from './SystemSettingsPage'
@@ -12,6 +13,7 @@ import '../styles/admin-settings.css'
 
 const TABS = [
   { id: 'general', label: 'systemSettings', icon: SlidersHorizontal, Panel: SystemSettingsPage },
+  { id: 'mail-check', label: 'settingsMailCheck', icon: MailCheck, Panel: MailDiagnosticsPage },
   { id: 'providers', label: 'settingsLoginProviders', icon: KeyRound, Panel: OAuthConfigPage },
   { id: 'apps', label: 'settingsAuthorizedApps', icon: AppWindow, Panel: OAuthAppsPage },
   { id: 'admins', label: 'settingsAdminAccounts', icon: Users, Panel: AdminRolesPage },
@@ -106,7 +108,11 @@ export default function AdminSettingsPage() {
               hidden={activeTab !== tab.id}
               tabIndex={0}
             >
-              {(activeTab === tab.id || visitedTabs.has(tab.id)) && <tab.Panel embedded />}
+              {(activeTab === tab.id || visitedTabs.has(tab.id)) && (
+                tab.id === 'mail-check'
+                  ? <MailDiagnosticsPage embedded active={activeTab === 'mail-check'} />
+                  : <tab.Panel embedded />
+              )}
             </section>
           ))}
         </div>
